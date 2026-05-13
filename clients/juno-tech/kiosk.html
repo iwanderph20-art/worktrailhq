@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Juno Tech Laboratory — Kiosk</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 *{-webkit-font-smoothing:antialiased;box-sizing:border-box;}
 body{background:#F2F2F7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
@@ -69,6 +70,12 @@ video{object-fit:cover;transform:scaleX(-1);}
 .tb-brk{background:#fef9c3;color:#a16207;}
 .tb-brkend{background:#e0f2fe;color:#0369a1;}
 .url-box{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:12px;color:#374151;word-break:break-all;font-family:monospace;}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.5)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
+.pending-pulse{animation:pulse-border 2s infinite;}
+@keyframes approved-glow{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,.5)}50%{box-shadow:0 0 0 8px rgba(74,222,128,0)}}
+.approved-glow{animation:approved-glow 1.5s ease-out 3;}
+.b-pending{background:#fef9c3;color:#92400e;}
+.b-approved{background:#dcfce7;color:#15803d;}
 </style>
 </head>
 <body class="min-h-screen select-none overflow-x-hidden">
@@ -184,6 +191,40 @@ video{object-fit:cover;transform:scaleX(-1);}
           style="background:#fef9c3;color:#92400e;border:none;cursor:pointer;">&#9208; 15-min Break</button>
       </div>
     </div>
+    <!-- Pending Approval Card -->
+    <div id="pendingCard" class="glass rounded-3xl px-6 py-6 pending-pulse" style="display:none;">
+      <div class="flex flex-col items-center text-center gap-4">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background:#fef9c3;border:2px solid #fbbf24;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#d97706" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-lg font-bold" style="color:#92400e;">Sent for Approval</p>
+          <p class="text-sm mt-1 leading-relaxed" style="color:#6b7280;">Your clock-in photo has been sent to admin. Your time is being recorded while you wait.</p>
+        </div>
+        <div class="w-full rounded-2xl px-4 py-4" style="background:rgba(26,43,140,0.06);">
+          <p class="text-xs font-semibold uppercase tracking-wide mb-1" style="color:#9ca3af;">Time Recorded</p>
+          <p id="pendingElapsed" class="text-3xl font-bold tabular-nums" style="color:#1a2b8c;">00:00:00</p>
+          <p class="text-xs mt-2" style="color:#9ca3af;">Admin will approve before your shift ends</p>
+        </div>
+      </div>
+    </div>
+    <!-- Approved Notice (brief flash before switching to normal clocked-in) -->
+    <div id="approvedNotice" class="glass rounded-3xl px-6 py-5 approved-glow" style="display:none;">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:#dcfce7;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <div>
+          <p class="font-bold text-sm" style="color:#15803d;">Clock-In Approved!</p>
+          <p class="text-xs" style="color:#6b7280;">You can clock out when your shift ends.</p>
+        </div>
+      </div>
+    </div>
+
     <div id="todaySummary" class="glass rounded-3xl px-6 py-5 space-y-2" style="display:none;">
       <p class="text-xs font-semibold uppercase tracking-wide" style="color:#9ca3af;">Today's Summary</p>
       <div class="flex gap-6 flex-wrap">
@@ -437,6 +478,27 @@ video{object-fit:cover;transform:scaleX(-1);}
           style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Update Password</button>
       </div>
 
+      <!-- Email Approval Notifications -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">&#128139; Clock-In Approval Notifications</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Admin receives an email with the staff photo on every clock-in and approves/denies before shift ends. Staff see "Sent for Approval" and can't clock out until approved.</p>
+        <div class="rounded-xl p-3 text-xs space-y-1" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">
+          <p><strong>Setup (free):</strong> Go to <a href="https://www.emailjs.com" target="_blank" style="text-decoration:underline;">emailjs.com</a> → Create account → Add Email Service (Gmail) → Create Template.</p>
+          <p><strong>Template variables:</strong> <code>{{employee_name}}</code>, <code>{{clock_time}}</code>, <code>{{facility}}</code>, <code>{{note}}</code>, <code>{{approve_url}}</code>, <code>{{deny_url}}</code>, <code>{{photo_html}}</code></p>
+        </div>
+        <input id="ejsPublicKey"  type="text" placeholder="EmailJS Public Key (e.g. user_abc123)"  class="inp inp-dk" style="font-size:13px;">
+        <input id="ejsServiceId"  type="text" placeholder="Service ID (e.g. service_xyz)" class="inp inp-dk" style="font-size:13px;">
+        <input id="ejsTemplateId" type="text" placeholder="Template ID (e.g. template_abc)" class="inp inp-dk" style="font-size:13px;">
+        <input id="ejsNotifEmail" type="email" placeholder="Notify email (default: info@junotechlaboratory.com)" class="inp inp-dk" style="font-size:13px;">
+        <div class="flex gap-2">
+          <button onclick="saveEjsConfig()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+            style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save</button>
+          <button onclick="testEjsConfig()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+            style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Send Test</button>
+        </div>
+        <div id="ejsStatus" class="text-xs" style="color:#6b7280;"></div>
+      </div>
+
       <!-- Firebase cloud sync -->
       <div class="rcard space-y-3">
         <p class="text-sm font-semibold" style="color:#374151;">&#9729; Cloud Sync (Firebase)</p>
@@ -562,6 +624,7 @@ var breakTimerID = null;
 var breakStart = null;
 var breakMins = 0;
 var pendingAction = null;
+var pendingEntryTs = null;
 var camStream = null;
 
 /* ── views ──────────────────────────────── */
@@ -651,21 +714,36 @@ function enterEmpView() {
   initCamera();
 }
 function lockEmployee() {
-  stopCamera(); stopBreakTimer();
-  currentEmp=null; clockState='out'; pendingAction=null;
+  stopCamera(); stopBreakTimer(); stopApprovalPoll();
+  currentEmp=null; clockState='out'; pendingAction=null; pendingEntryTs=null;
   show('pinView');
 }
 function syncClockState() {
-  var entries = store.getJ(K.timesheet,[])
-    .filter(function(e){ return e.name===currentEmp.name; })
-    .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||""}; })
+  var allEntries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; });
+  var entries = allEntries
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,approval:e.approval,approvalToken:e.approvalToken}; })
     .sort(function(a,b){ return a._d-b._d; });
   var last = entries[entries.length-1];
-  if (!last)                         clockState='out';
-  else if (last.type==='in')         clockState='in';
-  else if (last.type==='break_start') clockState='break';
-  else if (last.type==='break_end')  clockState='in';
-  else                               clockState='out';
+  if (!last)                          { clockState='out'; }
+  else if (last.type==='in' && last.approval==='pending') {
+    // Restore pending state — check if already approved
+    var status = getApprovalStatus(last.ts);
+    if (status==='approved') {
+      // Mark approved in timesheet
+      allEntries.forEach(function(e){ if(e.ts===last.ts) e.approval='approved'; });
+      store.setJ(K.timesheet, allEntries);
+      clockState='in';
+    } else if (status==='denied') {
+      clockState='out';
+    } else {
+      clockState='pending'; pendingEntryTs=last.ts;
+      startApprovalPoll(last.ts);
+    }
+  }
+  else if (last.type==='in')          { clockState='in'; }
+  else if (last.type==='break_start') { clockState='break'; }
+  else if (last.type==='break_end')   { clockState='in'; }
+  else                                { clockState='out'; }
   renderEmpState();
 }
 function renderEmpState() {
@@ -676,27 +754,31 @@ function renderEmpState() {
   var breakCard= document.getElementById('breakCard');
   var mainCard = document.getElementById('mainCard');
   var camWrap  = document.getElementById('camWrap');
+  var pendingCard  = document.getElementById('pendingCard');
+  var approvedNotice = document.getElementById('approvedNotice');
+
+  // Hide all first
+  [mainCard,breakCard,camWrap,pendingCard,approvedNotice].forEach(function(el){ if(el) el.style.display='none'; });
+  since.style.display='none'; breakBtns.style.display='none';
 
   if (clockState==='out') {
     badge.textContent='Not Clocked In'; badge.className='b-out text-xs font-semibold px-3 py-1 rounded-full';
-    since.style.display='none';
     clockBtn.textContent='Clock In'; clockBtn.style.background='#1a2b8c';
-    breakBtns.style.display='none'; breakCard.style.display='none';
-    mainCard.style.display=''; camWrap.style.display='none';
+    mainCard.style.display='';
+  } else if (clockState==='pending') {
+    badge.textContent='Pending Approval'; badge.className='b-pending text-xs font-semibold px-3 py-1 rounded-full';
+    pendingCard.style.display='';
   } else if (clockState==='in') {
-    badge.textContent='Clocked In'; badge.className='b-in text-xs font-semibold px-3 py-1 rounded-full';
+    badge.textContent='Clocked In ✓'; badge.className='b-in text-xs font-semibold px-3 py-1 rounded-full';
     var entries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; });
     var lastIn = null;
     entries.forEach(function(e){ if(e.type==='in') lastIn=e; });
     if (lastIn) { since.textContent='since '+new Date(lastIn.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); since.style.display=''; }
     clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
-    breakBtns.style.display=''; breakCard.style.display='none';
-    mainCard.style.display=''; camWrap.style.display='none';
+    breakBtns.style.display=''; mainCard.style.display='';
   } else if (clockState==='break') {
     badge.textContent='On Break'; badge.className='b-break text-xs font-semibold px-3 py-1 rounded-full';
-    since.style.display='none';
     breakCard.style.display='flex'; breakCard.style.flexDirection='column';
-    mainCard.style.display='none'; camWrap.style.display='none';
   }
 }
 
@@ -731,17 +813,33 @@ function captureAndClock() {
   var facList  = selectedFacilities.slice();
   if (otherTxt) facList.push(otherTxt);
   var entryTs = new Date().toISOString();
-  var entry = {name:currentEmp.name, type:pendingAction, ts:entryTs, hasPhoto:!!photo, note:note, facilities:facList};
-  if (photo) savePhoto(entryTs, photo); // store photo in IndexedDB, not localStorage
+  var token   = genApprovalToken(entryTs);
+  var entry   = {name:currentEmp.name, type:pendingAction, ts:entryTs, hasPhoto:!!photo, note:note, facilities:facList};
+
+  if (pendingAction==='in') {
+    entry.approval = 'pending';
+    entry.approvalToken = token;
+  }
+
+  if (photo) savePhoto(entryTs, photo);
   var arr = store.getJ(K.timesheet,[]);
   arr.push(entry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet', entryTs, entry);
-  if (pendingAction==='in')  { clockState='in';  toast('Clocked in — have a great day!'); }
-  if (pendingAction==='out') {
-    clockState='out';
+
+  if (pendingAction==='in') {
+    clockState = 'pending';
+    pendingEntryTs = entryTs;
+    toast('Sent for approval — your time is being recorded');
+    // Send email notification to admin
+    sendClockInEmail(entry, photo, token);
+    // Start polling for approval
+    startApprovalPoll(entryTs);
+  } else {
+    clockState = 'out';
     toast('Clocked out · '+computeTodayHours(currentEmp.name)+' hrs today');
   }
+
   pendingAction=null;
   document.getElementById('clockNote').value='';
   stopCamera(); cancelCapture(); renderEmpState(); updateTodaySummary();
@@ -920,7 +1018,7 @@ function switchTab(name) {
   document.getElementById('pane-'+name).classList.add('active');
   if (name==='records')   { if(fbCfg.url){ syncFromCloud(function(){ renderTables(); renderAdminLog(); }); } else { renderTables(); renderAdminLog(); } renderRecordEmpBtns(); }
   if (name==='employees') renderEmployeeList();
-  if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); }
+  if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
 }
 
 /* ── employee management ────────────────── */
@@ -1011,7 +1109,7 @@ function _renderTablesImpl() {
 
   var accHtml='';
   if (!dates.length) {
-    accHtml='<p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:13px;">No timesheet records yet.</p>';
+    accHtml='<p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:13px;">No timesheet records yet. Staff must clock in to generate records.</p>';
   } else {
     dates.forEach(function(d,idx){
       var entries=byDate[d].sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
@@ -1022,15 +1120,18 @@ function _renderTablesImpl() {
       var bodyId='acc-body-'+idx;
       var arrowId='acc-arrow-'+idx;
 
+      var isToday=(new Date(d).toDateString()===new Date().toDateString());
+      var hasPending=entries.some(function(e){return e.type==='in'&&e.approval==='pending';});
+      var autoOpen=(idx===0||isToday||hasPending); // auto-expand today and most recent
       accHtml += '<div style="border-bottom:1px solid rgba(0,0,0,.06);">'
         +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')">'
         +'<div>'
-        +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel+'</p>'
-        +'<p class="text-xs mt-0.5" style="color:#6b7280;">'+entries.length+' entries &middot; '+empNames+'</p>'
+        +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel+(isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:6px;">Today</span>':'')+'</p>'
+        +'<p class="text-xs mt-0.5" style="color:#6b7280;">'+entries.length+' entries &middot; '+empNames+(hasPending?' &middot; <span style="color:#d97706;font-weight:600;">&#9679; Pending Approval</span>':'')+'</p>'
         +'</div>'
-        +'<span id="'+arrowId+'" class="acc-arrow">&#9660;</span>'
+        +'<span id="'+arrowId+'" class="acc-arrow'+(autoOpen?' open':'')+'">&#9660;</span>'
         +'</div>'
-        +'<div id="'+bodyId+'" class="acc-body">';
+        +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'\'")+'>';
 
       entries.forEach(function(r){
         var time=new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
@@ -1042,15 +1143,29 @@ function _renderTablesImpl() {
           : '<span style="color:#d1d5db;font-size:11px;">no photo</span>';
 
         var safeTs = String(r.ts).replace(/'/g,'');
-        accHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;margin:2px 0;background:#f8fafc;border:1px solid rgba(0,0,0,.05);">'
+        var isPending=(r.type==='in'&&r.approval==='pending');
+        var isApproved=(r.type==='in'&&r.approval==='approved');
+        var isDenied=(r.type==='in'&&r.approval==='denied');
+        var approvalBadge='';
+        if(isPending) approvalBadge='<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#fef9c3;color:#92400e;border:1px solid #fbbf24;">&#9679; PENDING</span>';
+        if(isApproved) approvalBadge='<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#dcfce7;color:#15803d;border:1px solid #86efac;">&#10003; APPROVED</span>';
+        if(isDenied)  approvalBadge='<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">&#10005; DENIED</span>';
+        var approvalBtns=isPending
+          ?'<button onclick="adminApproveEntry(\''+safeTs+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">Approve</button>'
+           +'<button onclick="adminDenyEntry(\''+safeTs+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">Deny</button>'
+          :'';
+        var rowBg=isPending?'#fffbeb':isApproved?'#f0fdf4':isDenied?'#fef2f2':'#f8fafc';
+        accHtml += '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:10px;margin:2px 0;background:'+rowBg+';border:1px solid rgba(0,0,0,.05);">'
           +'<div style="flex:1;min-width:0;">'
           +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">'
           +'<span class="type-badge '+badgeCls+'">'+label+'</span>'
+          +approvalBadge
           +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
           +'<span style="color:#6b7280;font-size:11px;">'+time+'</span>'
           +'</div>'
           +(r.facilities && r.facilities.length ? '<p style="color:#1d4ed8;font-size:10px;font-weight:600;margin-top:3px;">'+r.facilities.join(' · ')+'</p>' : '')
           +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
+          +(approvalBtns?'<div style="display:flex;gap:4px;margin-top:6px;">'+approvalBtns+'</div>':'')
           +'</div>'
           +photoHtml
           +'<div style="display:flex;gap:4px;flex-shrink:0;">'
@@ -1515,6 +1630,177 @@ function clearAllData() {
   renderEmployeeList(); renderTables(); renderRecordEmpBtns();
 }
 
+/* ── Approval Engine ─────────────────────── */
+var pendingEntryTs   = null;
+var approvalPollID   = null;
+var elapsedTimerID   = null;
+
+function genApprovalToken(ts) {
+  var s = String(ts)+'jtl-approve-2025';
+  var h = 5381;
+  for(var i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
+  return Math.abs(h).toString(36).padStart(8,'0');
+}
+
+function getApprovalStatus(ts) {
+  var a = store.getJ('jtl_approvals',{});
+  return (a[String(ts)]||{}).status||'pending';
+}
+function setApprovalStatus(ts, status) {
+  var a = store.getJ('jtl_approvals',{});
+  a[String(ts)] = {status:status, updatedAt:new Date().toISOString()};
+  store.setJ('jtl_approvals', a);
+  // Sync to Firebase
+  if(fbCfg.url){
+    fetch(fbCfg.url+'/jtl/approvals/'+tsToKey(ts)+'.json',{
+      method:'PUT', body:JSON.stringify(a[String(ts)]),
+      headers:{'Content-Type':'application/json'}
+    }).catch(function(){});
+  }
+}
+
+function startApprovalPoll(ts) {
+  stopApprovalPoll();
+  var pendingStart = new Date();
+  // Elapsed timer
+  elapsedTimerID = setInterval(function(){
+    var el = document.getElementById('pendingElapsed');
+    if(!el) return;
+    var s = Math.floor((new Date()-pendingStart)/1000);
+    var h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+    el.textContent=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  },1000);
+  // Poll for approval every 5s
+  approvalPollID = setInterval(function(){
+    var status = getApprovalStatus(ts);
+    if(status==='approved'||status==='denied') { handleApprovalResult(ts,status); return; }
+    // Also check Firebase if configured
+    if(fbCfg.url){
+      fetch(fbCfg.url+'/jtl/approvals/'+tsToKey(ts)+'.json')
+        .then(function(r){return r.json();})
+        .then(function(d){
+          if(d&&(d.status==='approved'||d.status==='denied')){
+            setApprovalStatus(ts,d.status);
+            handleApprovalResult(ts,d.status);
+          }
+        }).catch(function(){});
+    }
+  },5000);
+}
+function stopApprovalPoll(){
+  if(approvalPollID){clearInterval(approvalPollID);approvalPollID=null;}
+  if(elapsedTimerID){clearInterval(elapsedTimerID);elapsedTimerID=null;}
+}
+function handleApprovalResult(ts, status) {
+  stopApprovalPoll();
+  if(status==='approved'){
+    // Update timesheet entry
+    var arr=store.getJ(K.timesheet,[]);
+    arr.forEach(function(e){if(e.ts===ts)e.approval='approved';});
+    store.setJ(K.timesheet,arr);
+    clockState='in'; pendingEntryTs=null;
+    // Flash approved notice then render normal state
+    var an=document.getElementById('approvedNotice');
+    var pc=document.getElementById('pendingCard');
+    if(pc) pc.style.display='none';
+    if(an){ an.style.display=''; setTimeout(function(){ an.style.display='none'; renderEmpState(); },3000); }
+    var badge=document.getElementById('statusBadge');
+    if(badge){badge.textContent='Approved ✓';badge.className='b-approved text-xs font-semibold px-3 py-1 rounded-full';}
+    updateTodaySummary(); toast('Clock-in approved! You\'re all set.');
+  } else {
+    // Denied — remove pending entry
+    var arr=store.getJ(K.timesheet,[]).filter(function(e){return e.ts!==ts;});
+    store.setJ(K.timesheet,arr);
+    clockState='out'; pendingEntryTs=null;
+    renderEmpState(); updateTodaySummary();
+    toast('Clock-in was not approved. Please see admin.');
+  }
+}
+
+/* Admin approve/deny from Records tab */
+function adminApproveEntry(ts) {
+  setApprovalStatus(ts,'approved');
+  var arr=store.getJ(K.timesheet,[]);
+  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='approved';}});
+  store.setJ(K.timesheet,arr);
+  fbPut('timesheet',ts,arr.find(function(e){return String(e.ts)===String(ts);})||{});
+  logAdminAction('APPROVE','Clock-in approved for entry at '+new Date(ts).toLocaleString());
+  renderTables(); toast('Clock-in approved');
+}
+function adminDenyEntry(ts) {
+  if(!confirm('Deny this clock-in? The entry will be marked denied.')) return;
+  setApprovalStatus(ts,'denied');
+  var arr=store.getJ(K.timesheet,[]);
+  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='denied';}});
+  store.setJ(K.timesheet,arr);
+  fbPut('timesheet',ts,arr.find(function(e){return String(e.ts)===String(ts);})||{});
+  logAdminAction('DENY','Clock-in denied for entry at '+new Date(ts).toLocaleString());
+  renderTables(); toast('Clock-in denied');
+}
+
+/* ── EmailJS Notification ─────────────────── */
+var EJS_STORAGE = 'jtl_emailjs_cfg';
+function loadEjsConfig(){
+  var cfg=store.getJ(EJS_STORAGE,{});
+  var f=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
+  f('ejsPublicKey',cfg.publicKey); f('ejsServiceId',cfg.serviceId);
+  f('ejsTemplateId',cfg.templateId); f('ejsNotifEmail',cfg.notifEmail);
+}
+function saveEjsConfig(){
+  var g=function(id){var el=document.getElementById(id);return el?(el.value||'').trim():'';};
+  var cfg={publicKey:g('ejsPublicKey'),serviceId:g('ejsServiceId'),templateId:g('ejsTemplateId'),notifEmail:g('ejsNotifEmail')||'info@junotechlaboratory.com'};
+  store.setJ(EJS_STORAGE,cfg);
+  var st=document.getElementById('ejsStatus');
+  if(st){st.textContent='Saved!';st.style.color='#059669';}
+  setTimeout(function(){var s=document.getElementById('ejsStatus');if(s)s.textContent='';},2000);
+}
+function testEjsConfig(){
+  var cfg=store.getJ(EJS_STORAGE,{});
+  if(!cfg.publicKey||!cfg.serviceId||!cfg.templateId){
+    var st=document.getElementById('ejsStatus');
+    if(st){st.textContent='Fill in all three EmailJS fields first.';st.style.color='#dc2626';}
+    return;
+  }
+  emailjs.init(cfg.publicKey);
+  emailjs.send(cfg.serviceId, cfg.templateId, {
+    employee_name:'Test Employee', clock_time:new Date().toLocaleString(),
+    facility:'Test Facility', note:'This is a test email.',
+    approve_url:'https://example.com', deny_url:'https://example.com',
+    to_email: cfg.notifEmail||'info@junotechlaboratory.com',
+    photo_html:'<p>(No photo in test)</p>'
+  }).then(function(){
+    var st=document.getElementById('ejsStatus');
+    if(st){st.textContent='Test email sent!';st.style.color='#059669';}
+  }).catch(function(err){
+    var st=document.getElementById('ejsStatus');
+    if(st){st.textContent='Error: '+JSON.stringify(err);st.style.color='#dc2626';}
+  });
+}
+function sendClockInEmail(entry, photoDataUrl, token){
+  var cfg=store.getJ(EJS_STORAGE,{});
+  if(!cfg.publicKey||!cfg.serviceId||!cfg.templateId){ return; } // silently skip if not configured
+  var baseUrl=window.location.origin+window.location.pathname;
+  var approveUrl=baseUrl+'?approve='+encodeURIComponent(entry.ts)+'&tok='+token;
+  var denyUrl   =baseUrl+'?deny='   +encodeURIComponent(entry.ts)+'&tok='+token;
+  var clockTime =new Date(entry.ts).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+  var facility  =(entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
+  var photoHtml =photoDataUrl
+    ? '<img src="'+photoDataUrl+'" style="width:200px;height:200px;object-fit:cover;border-radius:12px;" alt="Clock-in photo">'
+    : '<p style="color:#9ca3af;">(No photo captured)</p>';
+
+  emailjs.init(cfg.publicKey);
+  emailjs.send(cfg.serviceId, cfg.templateId, {
+    to_email:      cfg.notifEmail||'info@junotechlaboratory.com',
+    employee_name: entry.name,
+    clock_time:    clockTime,
+    facility:      facility,
+    note:          entry.note||'None',
+    approve_url:   approveUrl,
+    deny_url:      denyUrl,
+    photo_html:    photoHtml
+  }).catch(function(e){ console.warn('EmailJS send failed:',e); });
+}
+
 /* ── IndexedDB Photo Storage ─────────────── */
 var photoDB = null;
 function initPhotoDB(cb) {
@@ -1645,6 +1931,37 @@ function clearOldRecords() {
 
   try {
     var params=new URLSearchParams(window.location.search);
+
+    // Handle approve/deny from email link
+    if(params.has('approve')||params.has('deny')){
+      var action = params.has('approve')?'approve':'deny';
+      var entryTs2 = decodeURIComponent(params.get(action));
+      var tok      = params.get('tok')||'';
+      var expected = genApprovalToken(entryTs2);
+      if(tok===expected){
+        var finalStatus = (action==='approve')?'approved':'denied';
+        setApprovalStatus(entryTs2, finalStatus);
+        var arr2=store.getJ(K.timesheet,[]);
+        arr2.forEach(function(e){if(e.ts===entryTs2)e.approval=finalStatus;});
+        store.setJ(K.timesheet,arr2);
+        fbPut('timesheet',entryTs2,arr2.find(function(e){return e.ts===entryTs2;})||{});
+        logAdminAction(action==='approve'?'APPROVE':'DENY','Via email link — entry '+new Date(entryTs2).toLocaleString());
+        // Show full-screen confirmation
+        document.body.innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:'+(action==='approve'?'#f0fdf4':'#fef2f2')+';font-family:-apple-system,sans-serif;padding:24px;">'
+          +'<div style="text-align:center;max-width:360px;">'
+          +'<div style="width:80px;height:80px;border-radius:50%;background:'+(action==='approve'?'#dcfce7':'#fee2e2')+';display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">'
+          +'<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="'+(action==='approve'?'#16a34a':'#dc2626')+'" stroke-width="2.5">'
+          +(action==='approve'?'<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>':'<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>')
+          +'</svg></div>'
+          +'<h2 style="font-size:24px;font-weight:700;color:'+(action==='approve'?'#15803d':'#dc2626')+';">Clock-In '+(action==='approve'?'Approved':'Denied')+'</h2>'
+          +'<p style="color:#6b7280;margin-top:8px;font-size:14px;">Entry at '+new Date(entryTs2).toLocaleString()+'</p>'
+          +'<p style="color:#9ca3af;margin-top:16px;font-size:13px;">The employee\'s kiosk will update automatically.</p>'
+          +'<a href="'+window.location.pathname+'" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#1a2b8c;color:#fff;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px;">Open Kiosk</a>'
+          +'</div></div>';
+        return;
+      }
+    }
+
     if(params.has('admin')||params.has('reset')){
       show('adminView');
       renderTables(); renderEmployeeList(); renderRecordEmpBtns(); renderKioskUrl();
