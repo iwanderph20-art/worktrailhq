@@ -6,6 +6,8 @@
 <title>Juno Tech Laboratory — Kiosk</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{-webkit-font-smoothing:antialiased;box-sizing:border-box;}
 body{background:#F2F2F7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
@@ -83,6 +85,14 @@ video{object-fit:cover;transform:scaleX(-1);}
 .compliance-ok{color:#15803d;font-weight:700;}
 .compliance-warn{color:#b45309;font-weight:700;}
 .compliance-fail{color:#dc2626;font-weight:700;}
+#liveMap{height:420px;border-radius:16px;z-index:1;overflow:hidden;}
+.leaflet-container{border-radius:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+.loc-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:99px;font-weight:500;}
+.loc-pill.getting{background:#f3f4f6;color:#9ca3af;}
+.loc-pill.found{background:#dcfce7;color:#15803d;}
+.loc-pill.denied{background:#fee2e2;color:#dc2626;}
+@keyframes loc-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.loc-blink{animation:loc-pulse 1.4s infinite;}
 </style>
 </head>
 <body class="min-h-screen select-none overflow-x-hidden">
@@ -174,9 +184,13 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div class="glass rounded-3xl px-6 py-5">
       <p class="text-sm font-medium" style="color:#9ca3af;">Welcome back</p>
       <p id="empName" class="text-2xl font-bold mt-0.5" style="color:#111827;"></p>
-      <div class="flex items-center gap-2 mt-2">
+      <div class="flex items-center gap-2 mt-2 flex-wrap">
         <span id="statusBadge" class="b-out text-xs font-semibold px-3 py-1 rounded-full">Not Clocked In</span>
         <span id="clockedSince" class="text-xs" style="color:#9ca3af;display:none;"></span>
+        <span id="locationPill" class="loc-pill getting" style="display:none;">
+          <span id="locationDot" style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;"></span>
+          <span id="locationLabel">Getting location…</span>
+        </span>
       </div>
     </div>
     <div id="breakCard" class="glass rounded-3xl px-6 py-6 flex-col items-center gap-3" style="display:none;">
@@ -383,6 +397,7 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div class="max-w-4xl mx-auto px-4 flex">
       <button class="atab active" id="tab-employees" onclick="switchTab('employees')">Employees</button>
       <button class="atab" id="tab-records"   onclick="switchTab('records')">Records</button>
+      <button class="atab" id="tab-map"       onclick="switchTab('map')">&#128205; Live Map</button>
       <button class="atab" id="tab-reports"   onclick="switchTab('reports')">Reports</button>
       <button class="atab" id="tab-settings"  onclick="switchTab('settings')">Settings</button>
     </div>
@@ -435,6 +450,31 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div id="adminLogBody" class="acc-body">
           <div id="adminLogList" class="mt-2"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Map tab -->
+    <div id="pane-map" class="apane space-y-4">
+      <div class="rcard space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <p class="text-sm font-semibold" style="color:#374151;">&#128205; Live Employee Locations</p>
+            <p class="text-xs mt-0.5" style="color:#9ca3af;">Updates every 30 seconds from staff devices. Staff must allow location access on their device.</p>
+          </div>
+          <button onclick="refreshLocationMap()" class="tap px-4 py-2 rounded-xl text-xs font-semibold"
+            style="background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">&#8635; Refresh</button>
+        </div>
+        <div id="mapStatus" class="text-xs rounded-xl px-3 py-2" style="background:#f3f4f6;color:#6b7280;display:none;"></div>
+        <div id="liveMap"></div>
+        <div id="mapLegend" class="flex flex-wrap gap-3 text-xs" style="color:#6b7280;display:none;">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a;margin-right:4px;vertical-align:middle;"></span>Clocked In</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:4px;vertical-align:middle;"></span>On Break</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#9ca3af;margin-right:4px;vertical-align:middle;"></span>Last Known</span>
+        </div>
+      </div>
+      <div id="mapEmpList" class="rcard space-y-2" style="display:none;">
+        <p class="text-sm font-semibold" style="color:#374151;">Employee Location Details</p>
+        <div id="mapEmpRows"></div>
       </div>
     </div>
 
@@ -512,6 +552,15 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="testEjsConfig()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
             style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Send Test</button>
         </div>
+      </div>
+
+      <!-- Email Template -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">&#9993; Email Template (copy into EmailJS)</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Paste this HTML into your EmailJS template editor. It matches the Juno Tech brand — dark header with logo, clean white body, kiosk button.</p>
+        <button onclick="copyEmailTemplate()" class="tap w-full py-2.5 rounded-xl text-sm font-semibold"
+          style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Copy Email Template HTML</button>
+        <p id="emailTplStatus" class="text-xs text-center" style="color:#059669;min-height:14px;"></p>
       </div>
 
       <!-- Firebase cloud sync -->
@@ -727,11 +776,14 @@ function enterEmpView() {
   syncClockState();
   updateTodaySummary();
   initCamera();
+  requestLocation(); // ask for GPS on entry
 }
 function lockEmployee() {
-  stopCamera(); stopBreakTimer(); stopApprovalPoll(); stopBreakCheck();
+  stopCamera(); stopBreakTimer(); stopApprovalPoll(); stopBreakCheck(); stopLocationWatch();
+  clearFirebaseLocation(); // remove live location from Firebase
   var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
-  currentEmp=null; clockState='out'; pendingAction=null; pendingEntryTs=null;
+  var pill=document.getElementById('locationPill'); if(pill) pill.style.display='none';
+  currentEmp=null; clockState='out'; pendingAction=null; pendingEntryTs=null; currentLocation=null;
   show('pinView');
 }
 /* Local-only clock state sync (runs instantly from localStorage) */
@@ -868,7 +920,8 @@ function captureAndClock() {
   if (otherTxt) facList.push(otherTxt);
   var entryTs = new Date().toISOString();
   var token   = genApprovalToken(entryTs);
-  var entry   = {name:currentEmp.name, type:pendingAction, ts:entryTs, hasPhoto:!!photo, note:note, facilities:facList};
+  var entry   = {name:currentEmp.name, type:pendingAction, ts:entryTs, hasPhoto:!!photo, note:note, facilities:facList,
+                 location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null};
 
   if (pendingAction==='in') {
     entry.approval = 'pending';
@@ -1091,6 +1144,17 @@ function switchTab(name) {
   if (name==='records')   { if(fbCfg.url){ syncFromCloud(function(){ renderTables(); renderAdminLog(); }); } else { renderTables(); renderAdminLog(); } renderRecordEmpBtns(); }
   if (name==='employees') renderEmployeeList();
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
+  if (name==='map') {
+    // Small delay so the tab pane is visible before Leaflet tries to render
+    setTimeout(function(){
+      renderLocationMap();
+      // Auto-refresh every 30s while tab is open
+      if(_liveMapRefreshID) clearInterval(_liveMapRefreshID);
+      _liveMapRefreshID = setInterval(renderLocationMap, 30000);
+    }, 80);
+  } else {
+    if(_liveMapRefreshID){ clearInterval(_liveMapRefreshID); _liveMapRefreshID=null; }
+  }
 }
 
 /* ── employee management ────────────────── */
@@ -1854,6 +1918,229 @@ function clearAllData() {
   renderEmployeeList(); renderTables(); renderRecordEmpBtns();
 }
 
+/* ── Geolocation Engine ──────────────────── */
+var currentLocation = null; // {lat, lng, accuracy, timestamp}
+var locationWatchID = null;
+var _liveMap = null;        // Leaflet map instance (admin)
+var _liveMapRefreshID = null;
+
+function requestLocation() {
+  if (!navigator.geolocation) { updateLocationPill('denied','Location not supported'); return; }
+  updateLocationPill('getting','Getting location…');
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      currentLocation = {
+        lat: pos.coords.latitude, lng: pos.coords.longitude,
+        accuracy: Math.round(pos.coords.accuracy),
+        timestamp: new Date().toISOString()
+      };
+      var acc = currentLocation.accuracy;
+      updateLocationPill('found', acc < 50 ? 'Location confirmed (±'+acc+'m)' : 'Location (±'+acc+'m)');
+      startLocationWatch();
+    },
+    function(err) {
+      currentLocation = null;
+      var msg = err.code===1 ? 'Location access denied' : 'Location unavailable';
+      updateLocationPill('denied', msg);
+    },
+    {enableHighAccuracy:true, timeout:12000, maximumAge:30000}
+  );
+}
+function updateLocationPill(state, text) {
+  var pill = document.getElementById('locationPill');
+  var lbl  = document.getElementById('locationLabel');
+  if (!pill) return;
+  pill.style.display = '';
+  pill.className = 'loc-pill '+state;
+  if (lbl) lbl.textContent = text;
+  if (state==='getting') pill.classList.add('loc-blink');
+  else pill.classList.remove('loc-blink');
+}
+function startLocationWatch() {
+  stopLocationWatch();
+  if (!navigator.geolocation) return;
+  locationWatchID = navigator.geolocation.watchPosition(
+    function(pos) {
+      currentLocation = {
+        lat: pos.coords.latitude, lng: pos.coords.longitude,
+        accuracy: Math.round(pos.coords.accuracy),
+        timestamp: new Date().toISOString()
+      };
+      // Push live location to Firebase so admin map can show it
+      if (currentEmp && fbCfg.url) {
+        fetch(fbCfg.url+'/jtl/locations/'+empKey(currentEmp.name)+'.json', {
+          method:'PUT',
+          body: JSON.stringify({
+            lat: currentLocation.lat, lng: currentLocation.lng,
+            accuracy: currentLocation.accuracy,
+            timestamp: currentLocation.timestamp,
+            name: currentEmp.name,
+            state: clockState
+          }),
+          headers:{'Content-Type':'application/json'}
+        }).catch(function(){});
+      }
+    },
+    function(){},
+    {enableHighAccuracy:true, maximumAge:30000, timeout:20000}
+  );
+}
+function stopLocationWatch() {
+  if (locationWatchID !== null) {
+    navigator.geolocation.clearWatch(locationWatchID);
+    locationWatchID = null;
+  }
+}
+function clearFirebaseLocation() {
+  if (currentEmp && fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/locations/'+empKey(currentEmp.name)+'.json', {method:'DELETE'}).catch(function(){});
+  }
+}
+
+/* ── Admin Live Map ───────────────────────── */
+function renderLocationMap() {
+  // Init Leaflet map once
+  if (!_liveMap) {
+    _liveMap = L.map('liveMap').setView([34.05, -118.24], 10); // Default: LA area
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:'&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      maxZoom:19
+    }).addTo(_liveMap);
+  }
+  var statusEl = document.getElementById('mapStatus');
+  if (!fbCfg.url) {
+    if(statusEl){ statusEl.style.display=''; statusEl.textContent='Firebase not connected. Cloud sync required for live map.'; }
+    return;
+  }
+  if(statusEl){ statusEl.style.display=''; statusEl.textContent='Loading locations…'; }
+  fetch(fbCfg.url+'/jtl/locations.json')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if(statusEl) statusEl.style.display='none';
+      // Clear existing markers
+      _liveMap.eachLayer(function(layer){ if(layer instanceof L.Marker || layer instanceof L.Circle) _liveMap.removeLayer(layer); });
+      if (!data || typeof data !== 'object') {
+        if(statusEl){ statusEl.style.display=''; statusEl.textContent='No active locations. Staff must allow location access.'; }
+        return;
+      }
+      var locs = Object.values(data);
+      var bounds = [];
+      var rowsHtml = '';
+      locs.forEach(function(loc) {
+        if (!loc.lat || !loc.lng) return;
+        var color = loc.state==='in'?'#16a34a':loc.state==='break'?'#f59e0b':'#9ca3af';
+        var stateLabel = loc.state==='in'?'Clocked In':loc.state==='break'?'On Break':loc.state==='pending'?'Pending':'Clocked Out';
+        var lastSeen = loc.timestamp ? new Date(loc.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—';
+        // Custom marker
+        var markerHtml = '<div style="background:'+color+';width:36px;height:36px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;">'
+          +(loc.name||'?').charAt(0)+'</div>';
+        var icon = L.divIcon({html:markerHtml, className:'', iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-20]});
+        var popup = '<div style="font-family:-apple-system,sans-serif;min-width:160px;">'
+          +'<p style="margin:0 0 4px;font-weight:700;font-size:14px;color:#111827;">'+loc.name+'</p>'
+          +'<p style="margin:0 0 2px;font-size:12px;color:'+color+';font-weight:600;">'+stateLabel+'</p>'
+          +'<p style="margin:0;font-size:11px;color:#9ca3af;">Updated: '+lastSeen+'</p>'
+          +(loc.accuracy?'<p style="margin:4px 0 0;font-size:10px;color:#d1d5db;">Accuracy: ±'+loc.accuracy+'m</p>':'')
+          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;margin-top:8px;font-size:11px;color:#1a2b8c;font-weight:600;">View in Google Maps &#8599;</a>'
+          +'</div>';
+        L.marker([loc.lat,loc.lng],{icon:icon}).addTo(_liveMap).bindPopup(popup);
+        if(loc.accuracy) L.circle([loc.lat,loc.lng],{radius:loc.accuracy,color:color,fillColor:color,fillOpacity:.08,weight:1}).addTo(_liveMap);
+        bounds.push([loc.lat,loc.lng]);
+        rowsHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6;">'
+          +'<div style="width:32px;height:32px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:12px;flex-shrink:0;">'+(loc.name||'?').charAt(0)+'</div>'
+          +'<div style="flex:1;min-width:0;">'
+          +'<p style="margin:0;font-size:13px;font-weight:600;color:#111827;">'+loc.name+'</p>'
+          +'<p style="margin:0;font-size:11px;color:'+color+';font-weight:600;">'+stateLabel+'</p>'
+          +'</div>'
+          +'<div style="text-align:right;flex-shrink:0;">'
+          +'<p style="margin:0;font-size:11px;color:#9ca3af;">'+lastSeen+'</p>'
+          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="font-size:10px;color:#1a2b8c;">Maps &#8599;</a>'
+          +'</div></div>';
+      });
+      if (bounds.length) {
+        try { _liveMap.fitBounds(bounds, {padding:[32,32],maxZoom:15}); } catch(e){}
+      }
+      var empList = document.getElementById('mapEmpList');
+      var empRows = document.getElementById('mapEmpRows');
+      var legend  = document.getElementById('mapLegend');
+      if(empRows) empRows.innerHTML = rowsHtml || '<p style="color:#9ca3af;font-size:13px;padding:8px 0;">No employees with active location data.</p>';
+      if(empList) empList.style.display = '';
+      if(legend)  legend.style.display  = '';
+    })
+    .catch(function() {
+      if(statusEl){ statusEl.style.display=''; statusEl.textContent='Could not load locations. Check Firebase connection.'; }
+    });
+}
+function refreshLocationMap() {
+  renderLocationMap();
+  toast('Map refreshed');
+}
+
+/* ── Email Template ───────────────────────── */
+function getEmailTemplateHtml() {
+  var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
+  return '<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Clock-In Notification</title></head>\n'
+    +'<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;">\n'
+    +'<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">\n'
+    +'<tr><td align="center">\n'
+    +'<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">\n'
+    +'<!-- Header -->\n'
+    +'<tr><td style="background:#1a2b8c;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center;">\n'
+    +'  <img src="'+logoUrl+'" alt="Juno Tech Laboratory" height="38" style="height:38px;width:auto;display:block;margin:0 auto;">\n'
+    +'  <p style="margin:10px 0 0;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55);">WorkTrail — Clock-In Notification</p>\n'
+    +'</td></tr>\n'
+    +'<!-- Body -->\n'
+    +'<tr><td style="background:#ffffff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">\n'
+    +'  <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;">{{employee_name}}</h1>\n'
+    +'  <p style="margin:0 0 28px;font-size:13px;color:#9ca3af;">has clocked in and is awaiting your review.</p>\n'
+    +'  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">\n'
+    +'    <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;width:38%;">\n'
+    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Date &amp; Time</p>\n'
+    +'    </td><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">\n'
+    +'      <p style="margin:0;font-size:14px;font-weight:600;color:#111827;">{{clock_time}}</p>\n'
+    +'    </td></tr>\n'
+    +'    <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">\n'
+    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Facility / Location</p>\n'
+    +'    </td><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">\n'
+    +'      <p style="margin:0;font-size:14px;font-weight:600;color:#111827;">{{facility}}</p>\n'
+    +'    </td></tr>\n'
+    +'    <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">\n'
+    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Note</p>\n'
+    +'    </td><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">\n'
+    +'      <p style="margin:0;font-size:14px;color:#374151;">{{note}}</p>\n'
+    +'    </td></tr>\n'
+    +'    <tr><td style="padding:12px 0;vertical-align:top;">\n'
+    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Photo</p>\n'
+    +'    </td><td style="padding:12px 0;">\n'
+    +'      <p style="margin:0;font-size:13px;color:#6b7280;">{{photo_note}}</p>\n'
+    +'    </td></tr>\n'
+    +'  </table>\n'
+    +'  <div style="margin-top:32px;padding:20px;background:#f8fafc;border-radius:12px;text-align:center;">\n'
+    +'    <p style="margin:0 0 14px;font-size:13px;color:#6b7280;line-height:1.6;">Log in to the kiosk to review this clock-in<br>and approve or deny it from the Records tab.</p>\n'
+    +'    <a href="{{kiosk_url}}" style="display:inline-block;background:#1a2b8c;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:10px;letter-spacing:.02em;">Open Kiosk &rarr;</a>\n'
+    +'  </div>\n'
+    +'</td></tr>\n'
+    +'<!-- Footer -->\n'
+    +'<tr><td style="background:#f8fafc;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:18px 32px;text-align:center;">\n'
+    +'  <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.6;">Juno Tech Laboratory &nbsp;&middot;&nbsp; WorkTrail HQ<br>This is an automated clock-in notification. Do not reply to this email.</p>\n'
+    +'</td></tr>\n'
+    +'</table>\n'
+    +'</td></tr></table>\n'
+    +'</body></html>';
+}
+function copyEmailTemplate() {
+  var html = getEmailTemplateHtml();
+  var st = document.getElementById('emailTplStatus');
+  navigator.clipboard.writeText(html).then(function(){
+    if(st){ st.textContent='Copied! Paste into EmailJS template editor.'; setTimeout(function(){if(st)st.textContent='';},3000); }
+  }).catch(function(){
+    // Fallback
+    var ta=document.createElement('textarea'); ta.value=html; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); if(st){ st.textContent='Copied!'; setTimeout(function(){if(st)st.textContent='';},3000); } } catch(e){}
+    document.body.removeChild(ta);
+  });
+}
+
 /* ── California Break Law Engine ─────────── */
 // Per CA Labor Code / IWC Wage Orders (summary table):
 // 0–3.4 hrs: 0 rest, 0 meal
@@ -2099,6 +2386,7 @@ function sendClockInEmail(entry, photoDataUrl){
   var photoNote  = photoDataUrl ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.';
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
+  var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
   emailjs.send(serviceId, templateId, {
     to_email:      notifEmail,
     employee_name: entry.name,
@@ -2106,8 +2394,9 @@ function sendClockInEmail(entry, photoDataUrl){
     facility:      facility,
     note:          entry.note||'None',
     kiosk_url:     kioskUrl,
+    logo_url:      logoUrl,
     photo_note:    photoNote,
-    // Legacy template vars — kept for backward compat but can be removed from template
+    // Legacy vars kept for backward compat
     approve_url:   kioskUrl,
     deny_url:      kioskUrl,
     photo_html:    photoNote
