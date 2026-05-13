@@ -76,6 +76,13 @@ video{object-fit:cover;transform:scaleX(-1);}
 .approved-glow{animation:approved-glow 1.5s ease-out 3;}
 .b-pending{background:#fef9c3;color:#92400e;}
 .b-approved{background:#dcfce7;color:#15803d;}
+@keyframes break-alert-pulse{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.55)}50%{box-shadow:0 0 0 10px rgba(251,191,36,0)}}
+@keyframes break-urgent-pulse{0%,100%{box-shadow:0 0 0 0 rgba(249,115,22,.55)}50%{box-shadow:0 0 0 10px rgba(249,115,22,0)}}
+.break-notice{background:#fefce8;border:1.5px solid #fbbf24;animation:break-alert-pulse 2s infinite;}
+.break-notice-urgent{background:#fff7ed;border:1.5px solid #fb923c;animation:break-urgent-pulse 1.5s infinite;}
+.compliance-ok{color:#15803d;font-weight:700;}
+.compliance-warn{color:#b45309;font-weight:700;}
+.compliance-fail{color:#dc2626;font-weight:700;}
 </style>
 </head>
 <body class="min-h-screen select-none overflow-x-hidden">
@@ -184,12 +191,18 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div id="mainCard" class="glass rounded-3xl px-6 py-6 space-y-3">
       <button id="clockBtn" onclick="handleClock()" class="tap w-full py-5 rounded-2xl font-bold text-lg"
         style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Clock In</button>
-      <div id="breakBtns" class="grid grid-cols-2 gap-3" style="display:none;">
-        <button onclick="startBreak(30)" class="tap py-3 rounded-2xl font-semibold text-sm"
-          style="background:#fef9c3;color:#92400e;border:none;cursor:pointer;">&#9749; 30-min Break</button>
-        <button onclick="startBreak(15)" class="tap py-3 rounded-2xl font-semibold text-sm"
-          style="background:#fef9c3;color:#92400e;border:none;cursor:pointer;">&#9208; 15-min Break</button>
+      <div id="breakBtns" class="space-y-2" style="display:none;">
+        <button onclick="startBreak(10,'rest')" class="tap w-full py-3 rounded-2xl font-semibold text-sm"
+          style="background:#fef9c3;color:#92400e;border:none;cursor:pointer;">&#9749; 10-min Rest Break <span style="font-weight:400;font-size:11px;">(paid)</span></button>
+        <button onclick="startBreak(30,'meal')" class="tap w-full py-3 rounded-2xl font-semibold text-sm"
+          style="background:#fff7ed;color:#c2410c;border:none;cursor:pointer;">&#127859; 30-min Meal Break <span style="font-weight:400;font-size:11px;">(unpaid)</span></button>
       </div>
+    </div>
+    <!-- CA Break Law Alert (shown automatically when break is due) -->
+    <div id="breakAlert" class="glass rounded-3xl px-5 py-4 break-notice" style="display:none;">
+      <p id="breakAlertTitle" class="text-sm font-bold" style="color:#92400e;"></p>
+      <p id="breakAlertMsg" class="text-xs mt-1 leading-relaxed" style="color:#78350f;"></p>
+      <div id="breakAlertBtns" class="flex gap-2 mt-3"></div>
     </div>
     <!-- Pending Approval Card -->
     <div id="pendingCard" class="glass rounded-3xl px-6 py-6 pending-pulse" style="display:none;">
@@ -483,9 +496,10 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-sm font-semibold" style="color:#374151;">&#128139; Clock-In Approval Notifications</p>
         <p class="text-xs leading-relaxed" style="color:#6b7280;">Admin receives an email on every clock-in with Approve/Deny buttons. Staff see "Sent for Approval" and can't clock out until approved.</p>
         <div class="rounded-xl p-3 text-xs space-y-1" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">
-          <p><strong>Setup (free):</strong> Go to <a href="https://www.emailjs.com" target="_blank" style="text-decoration:underline;">emailjs.com</a> → Create account → Email Services → <strong>Add Office 365</strong> → sign in with your Microsoft account → Create Template.</p>
-          <p><strong>Template variables to include:</strong> <code>{{employee_name}}</code>, <code>{{clock_time}}</code>, <code>{{facility}}</code>, <code>{{note}}</code>, <code>{{approve_url}}</code>, <code>{{deny_url}}</code></p>
-          <p><strong>Template "To Email"</strong> field: set to <code>{{to_email}}</code></p>
+          <p><strong>Setup (free):</strong> Go to <a href="https://www.emailjs.com" target="_blank" style="text-decoration:underline;">emailjs.com</a> → Email Services → <strong>Add Office 365</strong> → sign in with your Microsoft account → Create Template.</p>
+          <p><strong>Template variables:</strong> <code>{{employee_name}}</code>, <code>{{clock_time}}</code>, <code>{{facility}}</code>, <code>{{note}}</code>, <code>{{kiosk_url}}</code>, <code>{{photo_note}}</code></p>
+          <p><strong>"To Email" field:</strong> set to <code>{{to_email}}</code></p>
+          <p><strong>Note:</strong> Email is notification-only. Admin clicks the kiosk link in the email to approve or deny from the Records tab.</p>
         </div>
         <p id="ejsStatus" class="text-xs font-medium" style="color:#6b7280;min-height:16px;"></p>
         <input id="ejsPublicKey"  type="text" placeholder="EmailJS Public Key (e.g. user_abc123)"  class="inp inp-dk" style="font-size:13px;">
@@ -715,7 +729,8 @@ function enterEmpView() {
   initCamera();
 }
 function lockEmployee() {
-  stopCamera(); stopBreakTimer(); stopApprovalPoll();
+  stopCamera(); stopBreakTimer(); stopApprovalPoll(); stopBreakCheck();
+  var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
   currentEmp=null; clockState='out'; pendingAction=null; pendingEntryTs=null;
   show('pinView');
 }
@@ -813,6 +828,7 @@ function renderEmpState() {
     if (lastIn) { since.textContent='since '+new Date(lastIn.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); since.style.display=''; }
     clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
     breakBtns.style.display=''; mainCard.style.display='';
+    startBreakCheck(); // begin CA break law compliance monitoring
   } else if (clockState==='break') {
     badge.textContent='On Break'; badge.className='b-break text-xs font-semibold px-3 py-1 rounded-full';
     breakCard.style.display='flex'; breakCard.style.flexDirection='column';
@@ -844,6 +860,7 @@ function captureAndClock() {
     ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-160,0,160,160); ctx.restore();
   }
   var photo = (video.readyState >= 2) ? canvas.toDataURL('image/jpeg',0.30) : null;
+  stopCamera(); // Turn off camera immediately after capture
   var note  = (document.getElementById('clockNote').value||'').trim();
   var facOther = document.getElementById('facOther');
   var otherTxt = (facOther && facOther.style.display!=='none') ? (facOther.value||'').trim() : '';
@@ -869,8 +886,8 @@ function captureAndClock() {
     pendingEntryTs = entryTs;
     fbPutState(currentEmp.name, 'pending', entryTs); // cross-device state
     toast('Sent for approval — your time is being recorded');
-    // Send email notification to admin
-    sendClockInEmail(entry, photo, token);
+    // Send notification email to admin (no approve/deny buttons — admin approves from kiosk Records tab)
+    sendClockInEmail(entry, photo);
     // Start polling for approval
     startApprovalPoll(entryTs);
   } else {
@@ -881,21 +898,27 @@ function captureAndClock() {
 
   pendingAction=null;
   document.getElementById('clockNote').value='';
-  stopCamera(); cancelCapture(); renderEmpState(); updateTodaySummary();
+  cancelCapture(); renderEmpState(); updateTodaySummary();
 }
 
 /* ── breaks ─────────────────────────────── */
-function startBreak(mins) {
+function startBreak(mins, btype) {
+  var breakType = btype || (mins >= 30 ? 'meal' : 'rest');
   breakMins=mins; breakStart=new Date(); clockState='break';
-  document.getElementById('breakLabel').textContent=mins+'-minute break started';
+  var lbl = breakType==='meal'
+    ? '30-min unpaid meal break — back in 30 minutes'
+    : mins+'-min paid rest break started';
+  document.getElementById('breakLabel').textContent=lbl;
   var bsTs=breakStart.toISOString();
-  var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min'};
+  var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min',breakType:breakType};
   var arr=store.getJ(K.timesheet,[]);
   arr.push(bsEntry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',bsTs,bsEntry);
   fbPutState(currentEmp.name,'break',bsTs);
-  renderEmpState(); startBreakTimer(mins); toast('Break started · '+mins+' min');
+  var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
+  renderEmpState(); startBreakTimer(mins);
+  toast(breakType==='meal'?'Meal break started (30 min unpaid)':'Rest break started ('+mins+' min paid)');
 }
 function startBreakTimer(mins) {
   stopBreakTimer();
@@ -919,7 +942,10 @@ function endBreak() {
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',beTs,beEntry);
   fbPutState(currentEmp.name,'in',beTs);
-  breakStart=null; breakMins=0; renderEmpState(); updateTodaySummary(); toast('Break ended — welcome back!');
+  breakStart=null; breakMins=0;
+  renderEmpState(); updateTodaySummary();
+  checkBreakCompliance(); // re-evaluate remaining break obligations
+  toast('Break ended — welcome back!');
 }
 
 /* ── hours calculation ──────────────────── */
@@ -1333,15 +1359,62 @@ function closePhoto() { document.getElementById('photoLightbox').classList.remov
 
 /* ── employee detail modal ───────────────── */
 function buildSessions(entries) {
-  var sessions=[], inTime=null, bst=null, brkMs=0, inNote='', outNote='';
+  var sessions=[], inTime=null, bst=null, mealMs=0, restMs=0, brkType='rest';
+  var inNote='', outNote='', breaks=[], waivers=[], facilities=[];
   entries.forEach(function(e) {
-    if      (e.type==='in')          { inTime=e._d; bst=null; brkMs=0; inNote=e.note||''; outNote=''; }
-    else if (e.type==='break_start') { bst=e._d; }
-    else if (e.type==='break_end')   { if(bst){ brkMs+=e._d-bst; bst=null; } }
-    else if (e.type==='out' && inTime) {
-      var tb=brkMs; if(bst) tb+=e._d-bst; outNote=e.note||'';
-      sessions.push({inTime:inTime,outTime:e._d,breakMs:tb,netMs:Math.max(0,e._d-inTime-tb),inNote:inNote,outNote:outNote});
-      inTime=null; bst=null; brkMs=0; inNote=''; outNote='';
+    if(e.type==='in'){
+      inTime=e._d; bst=null; mealMs=0; restMs=0; brkType='rest';
+      inNote=e.note||''; outNote=''; breaks=[]; waivers=[];
+      facilities=e.facilities||[];
+    }
+    else if(e.type==='break_start'){
+      bst=e._d;
+      // Determine type: explicit breakType field, or infer from note (legacy entries)
+      brkType=e.breakType||(e.note&&(e.note.indexOf('30')>=0||e.note.toLowerCase().indexOf('meal')>=0)?'meal':'rest');
+    }
+    else if(e.type==='break_end'){
+      if(bst){
+        var dur=e._d-bst;
+        if(brkType==='meal'){ mealMs+=dur; } else { restMs+=dur; }
+        breaks.push({btype:brkType,durationMs:dur});
+        bst=null;
+      }
+    }
+    else if(e.type==='break_waived'){
+      waivers.push({btype:e.breakType||'meal',note:e.note||'Waived'});
+    }
+    else if(e.type==='out' && inTime){
+      if(bst){ // break still open at clock-out
+        var dur2=e._d-bst;
+        if(brkType==='meal'){ mealMs+=dur2; } else { restMs+=dur2; }
+        breaks.push({btype:brkType,durationMs:dur2});
+        bst=null;
+      }
+      outNote=e.note||'';
+      var totalShiftMs=e._d-inTime;
+      var totalShiftHrs=totalShiftMs/3600000;
+      // REST breaks are PAID → included in worked hours
+      // MEAL breaks are UNPAID → deducted from net
+      var netMs=Math.max(0, totalShiftMs-mealMs);
+      var reqs=getCABreakReqs(totalShiftHrs);
+      var restTaken=breaks.filter(function(b){return b.btype==='rest';}).length;
+      var mealTaken=breaks.filter(function(b){return b.btype==='meal';}).length;
+      var mealWaivedCount=waivers.filter(function(v){return v.btype==='meal';}).length;
+      var compliantRest=restTaken>=reqs.rest;
+      var compliantMeal=(mealTaken+mealWaivedCount)>=reqs.meal;
+      sessions.push({
+        inTime:inTime, outTime:e._d,
+        mealMs:mealMs, restMs:restMs,
+        breakMs:mealMs+restMs,
+        netMs:netMs,
+        totalShiftHrs:totalShiftHrs,
+        inNote:inNote, outNote:outNote,
+        breaks:breaks, waivers:waivers, facilities:facilities,
+        caReqs:reqs,
+        compliantRest:compliantRest, compliantMeal:compliantMeal,
+        restTaken:restTaken, mealTaken:mealTaken, mealWaivedCount:mealWaivedCount
+      });
+      inTime=null; bst=null; mealMs=0; restMs=0; inNote=''; outNote=''; breaks=[]; waivers=[]; facilities=[];
     }
   });
   return sessions;
@@ -1354,7 +1427,7 @@ function openEmpDetail(name) {
   document.getElementById('detailEmpCode').textContent = 'Code: '+emp.code;
   var allEntries = store.getJ(K.timesheet,[])
     .filter(function(e){ return e.name===name; })
-    .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||""}; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[]}; })
     .sort(function(a,b){ return a._d-b._d; });
   var sessions=buildSessions(allEntries);
   var totalHrs=0, totalBrkMs=0, days={};
@@ -1373,19 +1446,25 @@ function openEmpDetail(name) {
     +'<p class="text-xs mt-1" style="color:#93c5fd;">Days</p></div>';
   var rowsHtml='';
   if (!sessions.length) {
-    rowsHtml='<tr><td colspan="5" style="color:#9ca3af;text-align:center;padding:20px;">No sessions</td></tr>';
+    rowsHtml='<tr><td colspan="6" style="color:#9ca3af;text-align:center;padding:20px;">No sessions</td></tr>';
   } else {
     sessions.forEach(function(sess) {
       var fmt=function(d){ return d?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—'; };
       var fmtD=function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
-      var bm=Math.round(sess.breakMs/60000);
+      var restMin=Math.round((sess.restMs||0)/60000);
+      var mealMin=Math.round((sess.mealMs||0)/60000);
+      var netHrs=(sess.netMs/3600000).toFixed(2);
+      var fac=(sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'—';
+      var compliant=(sess.compliantRest!==false)&&(sess.compliantMeal!==false);
+      var compIcon=compliant?'&#10003;':'&#9888;';
+      var compColor=compliant?'#15803d':'#dc2626';
       rowsHtml += '<tr style="border-bottom:1px solid #f3f4f6;">'
         +'<td class="py-2.5 pr-3 text-xs" style="color:#6b7280;">'+fmtD(sess.inTime)+'</td>'
         +'<td class="py-2.5 pr-3 text-xs font-medium" style="color:#111827;">'+fmt(sess.inTime)+'</td>'
-        +'<td class="py-2.5 pr-3 text-xs" style="color:'+(bm>0?'#d97706':'#9ca3af')+';">'+(bm>0?bm+' min':'—')+'</td>'
         +'<td class="py-2.5 pr-3 text-xs font-medium" style="color:#111827;">'+fmt(sess.outTime)+'</td>'
-        +'<td class="py-2.5 pr-3 text-xs font-bold" style="color:#1d4ed8;">'+(sess.netMs/3600000).toFixed(2)+' hrs</td>'
-        +'<td class="py-2.5 text-xs" style="color:#6b7280;font-style:italic;">'+(sess.inNote||sess.outNote||'')+'</td>'
+        +'<td class="py-2.5 pr-3 text-xs" style="color:#a16207;">'+(restMin>0?restMin+'m rest':'—')+(mealMin>0?' '+mealMin+'m meal':'')+(sess.mealWaivedCount>0?' (waived)':'')+'</td>'
+        +'<td class="py-2.5 pr-3 text-xs font-bold" style="color:#1d4ed8;">'+netHrs+' hrs</td>'
+        +'<td class="py-2.5 text-xs" style="color:'+compColor+';font-weight:700;">'+compIcon+'</td>'
         +'</tr>';
     });
   }
@@ -1432,78 +1511,126 @@ function _doGenerateReport(fromStr,toStr){
   var ts=store.getJ(K.timesheet,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
   var sups=store.getJ(K.supplies,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
   var grouped={};
-  ts.forEach(function(e){ if(!grouped[e.name]) grouped[e.name]=[]; grouped[e.name].push({type:e.type,_d:new Date(e.ts),ts:e.ts,photo:e.photo||null,note:e.note||''}); });
+  ts.forEach(function(e){
+    if(!grouped[e.name]) grouped[e.name]=[];
+    grouped[e.name].push({type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',
+      breakType:e.breakType||'',facilities:e.facilities||[]});
+  });
   Object.keys(grouped).forEach(function(n){ grouped[n].sort(function(a,b){ return a._d-b._d; }); });
   var empStats={};
   emps.forEach(function(emp) {
     var sessions=buildSessions(grouped[emp.name]||[]);
-    var hrs=0,brkMs=0,days={};
-    sessions.forEach(function(s){ hrs+=s.netMs; brkMs+=s.breakMs; days[s.inTime.toDateString()]=1; });
-    empStats[emp.name]={totalHrs:hrs/3600000,breakMins:Math.round(brkMs/60000),days:Object.keys(days).length,sessions:sessions};
+    var netHrs=0,mealMs=0,restMs=0,days={},hasViolation=false;
+    sessions.forEach(function(s){
+      netHrs+=s.netMs/3600000; mealMs+=s.mealMs||0; restMs+=s.restMs||0;
+      days[s.inTime.toDateString()]=1;
+      if(!s.compliantRest||!s.compliantMeal) hasViolation=true;
+    });
+    empStats[emp.name]={
+      netHrs:netHrs,
+      mealMins:Math.round(mealMs/60000),
+      restMins:Math.round(restMs/60000),
+      days:Object.keys(days).length,
+      sessions:sessions,
+      hasViolation:hasViolation
+    };
   });
   var supByItem={};
   sups.forEach(function(r){ supByItem[r.item]=(supByItem[r.item]||0)+r.qty; });
-  var totalHrs=0,present=0;
-  Object.keys(empStats).forEach(function(n){ totalHrs+=empStats[n].totalHrs; if(empStats[n].days>0) present++; });
+  var totalNetHrs=0,present=0;
+  Object.keys(empStats).forEach(function(n){ totalNetHrs+=empStats[n].netHrs; if(empStats[n].days>0) present++; });
 
   var out=document.getElementById('reportOut');
   out.style.display='';
 
+  // ── Summary cards
   var html = '<div class="grid grid-cols-3 gap-3 rcard">'
     +'<div class="rstat"><p class="n" style="color:#1a2b8c;">'+present+'</p><p class="l">Employees</p></div>'
-    +'<div class="rstat"><p class="n">'+totalHrs.toFixed(1)+'</p><p class="l">Total Hrs</p></div>'
-    +'<div class="rstat"><p class="n">'+sups.length+'</p><p class="l">Requests</p></div>'
+    +'<div class="rstat"><p class="n">'+totalNetHrs.toFixed(2)+'</p><p class="l">Net Paid Hrs</p></div>'
+    +'<div class="rstat"><p class="n">'+sups.length+'</p><p class="l">Supply Req</p></div>'
     +'</div>';
 
-  html += '<div class="rcard"><p class="text-sm font-semibold mb-3" style="color:#374151;">Employee Timesheet</p>';
+  // ── CA Break Law legend
+  html += '<div class="rcard" style="background:#eff6ff;border:1px solid #bfdbfe;">'
+    +'<p class="text-xs font-bold mb-2" style="color:#1d4ed8;">&#9878; California Break Law — Compliance Key</p>'
+    +'<p class="text-xs leading-relaxed" style="color:#374151;">'
+    +'&#10003; = Compliant &nbsp;|&nbsp; &#9888; = Issue found<br>'
+    +'Rest breaks (10 min) are <strong>paid</strong> — counted in net hours.<br>'
+    +'Meal breaks (30 min) are <strong>unpaid</strong> — deducted from net hours.</p>'
+    +'<table class="w-full mt-2" style="font-size:10px;border-collapse:collapse;">'
+    +'<tr style="color:#6b7280;"><th style="text-align:left;padding:2px 6px;">Hours Worked</th><th style="text-align:center;">Rest Breaks</th><th style="text-align:center;">Meal Breaks</th><th style="text-align:center;">Waivable</th></tr>'
+    +'<tr><td style="padding:2px 6px;">0 – 3.4 hrs</td><td style="text-align:center;">0</td><td style="text-align:center;">0</td><td style="text-align:center;">—</td></tr>'
+    +'<tr style="background:#f8fafc;"><td style="padding:2px 6px;">3.5 – 5 hrs</td><td style="text-align:center;">1</td><td style="text-align:center;">0</td><td style="text-align:center;">—</td></tr>'
+    +'<tr><td style="padding:2px 6px;">5.1 – 6 hrs</td><td style="text-align:center;">1</td><td style="text-align:center;">1</td><td style="text-align:center;">Yes</td></tr>'
+    +'<tr style="background:#f8fafc;"><td style="padding:2px 6px;">6.1 – 10 hrs</td><td style="text-align:center;">2</td><td style="text-align:center;">1</td><td style="text-align:center;">—</td></tr>'
+    +'<tr><td style="padding:2px 6px;">10.1 – 12 hrs</td><td style="text-align:center;">3</td><td style="text-align:center;">2</td><td style="text-align:center;">1 of 2</td></tr>'
+    +'</table></div>';
+
+  // ── Per-employee sessions
+  html += '<div class="rcard"><p class="text-sm font-semibold mb-3" style="color:#374151;">Employee Payroll Timesheet</p>';
   emps.forEach(function(emp, ei) {
-    var s = empStats[emp.name] || {totalHrs:0,breakMins:0,days:0,sessions:[]};
+    var s = empStats[emp.name] || {netHrs:0,mealMins:0,restMins:0,days:0,sessions:[],hasViolation:false};
     var bodyId='rptEmpBody'+ei, arrowId='rptEmpArrow'+ei;
+    var flagIcon = s.hasViolation ? ' <span style="color:#dc2626;font-size:10px;">&#9888; Break Issue</span>' : ' <span style="color:#15803d;font-size:10px;">&#10003;</span>';
     html += '<div style="border:1px solid rgba(0,0,0,.08);border-radius:12px;margin-bottom:8px;overflow:hidden;">'
       +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')">'
-      +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
       +'<span class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</span>'
-      +'<span class="text-xs" style="color:#15803d;">'+s.totalHrs.toFixed(2)+' hrs</span>'
-      +'<span class="text-xs" style="color:#a16207;">'+s.breakMins+' min break</span>'
+      +flagIcon
+      +'<span class="text-xs font-bold" style="color:#15803d;">'+s.netHrs.toFixed(2)+' net hrs</span>'
+      +'<span class="text-xs" style="color:#c2410c;">'+s.mealMins+' min meal (unpaid)</span>'
+      +'<span class="text-xs" style="color:#a16207;">'+s.restMins+' min rest (paid)</span>'
       +'<span class="text-xs" style="color:#6b7280;">'+s.days+' day'+(s.days===1?'':'s')+'</span>'
       +'</div>'
       +'<span id="'+arrowId+'" style="color:#60a5fa;font-size:18px;transition:transform .2s;">&#9660;</span>'
       +'</div>';
     html += '<div id="'+bodyId+'" style="display:none;padding:0 16px 12px;">';
     if (!s.sessions||!s.sessions.length) {
-      html += '<p class="text-xs" style="color:#9ca3af;padding:8px 0;">No sessions in this period.</p>';
+      html += '<p class="text-xs" style="color:#9ca3af;padding:8px 0;">No completed sessions in this period.</p>';
     } else {
       s.sessions.forEach(function(sess,si) {
-        var inStr=sess.inTime?sess.inTime.toLocaleString():'—';
-        var outStr=sess.outTime?sess.outTime.toLocaleString():'—';
+        var fmtDT=function(d){ return d?d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}):'Not clocked out'; };
+        var fmtT=function(d){ return d?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—'; };
         var netH=(sess.netMs/3600000).toFixed(2);
-        var brkMin=Math.round(sess.breakMs/60000);
+        var mealMin=Math.round((sess.mealMs||0)/60000);
+        var restMin=Math.round((sess.restMs||0)/60000);
+        var fac=(sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'Not specified';
+        var restOk=sess.compliantRest!==false, mealOk=sess.compliantMeal!==false;
+        var compColor=(restOk&&mealOk)?'#15803d':'#dc2626';
+        var compText=(restOk&&mealOk)?'&#10003; Compliant':'&#9888; '+ (!restOk?'Rest break missing ':'') + (!mealOk?'Meal break missing':'');
+        var breakSummary='';
+        if(sess.breaks&&sess.breaks.length){
+          breakSummary=sess.breaks.map(function(b){ return (b.btype==='meal'?'&#127859;':'&#9749;')+' '+Math.round(b.durationMs/60000)+'min '+(b.btype==='meal'?'meal(unpaid)':'rest(paid)'); }).join(' &nbsp; ');
+        }
+        if(sess.waivers&&sess.waivers.length) breakSummary+=(breakSummary?' &nbsp; ':'')+'&#9989; meal waived';
+        if(!breakSummary) breakSummary='<span style="color:#9ca3af;">No breaks taken</span>';
+        // Photo buttons (load from IndexedDB on click)
+        var photoHtml='';
         var empEntries=grouped[emp.name]||[];
-        var inEntry=null,outEntry=null;
         empEntries.forEach(function(e){
-          if(e.type==='in'&&e._d.getTime()===sess.inTime.getTime()) inEntry=e;
-          if(e.type==='out'&&e._d.getTime()===sess.outTime.getTime()) outEntry=e;
+          if(e.type==='in'&&e._d.getTime()===sess.inTime.getTime()&&e.ts){
+            photoHtml+='<button onclick="showThumbPhoto(\''+String(e.ts).replace(/'/g,'')+'\',\''+emp.name+' — Clock In\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">&#128247; In</button>';
+          }
+          if(e.type==='out'&&sess.outTime&&e._d.getTime()===sess.outTime.getTime()&&e.ts){
+            photoHtml+='<button onclick="showThumbPhoto(\''+String(e.ts).replace(/'/g,'')+'\',\''+emp.name+' — Clock Out\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">&#128247; Out</button>';
+          }
         });
         html += '<div style="border-top:1px solid rgba(0,0,0,.06);padding:10px 0;">'
           +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'
-          +'<div style="flex:1;">'
-          +'<p class="text-xs font-semibold" style="color:#1d4ed8;margin-bottom:4px;">Session '+(si+1)+'</p>'
-          +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-          +'<div><p class="text-xs" style="color:#6b7280;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+inStr+'</p>'+(sess.inNote?'<p class="text-xs" style="color:#92400e;">'+sess.inNote+'</p>':'')+'</div>'
-          +'<div><p class="text-xs" style="color:#6b7280;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+outStr+'</p>'+(sess.outNote?'<p class="text-xs" style="color:#92400e;">'+sess.outNote+'</p>':'')+'</div>'
-          +'<div><p class="text-xs" style="color:#6b7280;">Break</p><p class="text-xs font-semibold" style="color:#a16207;">'+brkMin+' min</p></div>'
-          +'<div><p class="text-xs" style="color:#6b7280;">Net</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+' hrs</p></div>'
+          +'<div style="flex:1;min-width:0;">'
+          +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+          +'<p class="text-xs font-semibold" style="color:#1d4ed8;">Session '+(si+1)+'</p>'
+          +'<span style="font-size:10px;font-weight:700;color:'+compColor+';">'+compText+'</span>'
+          +'</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;">'
+          +'<div><p class="text-xs" style="color:#6b7280;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtDT(sess.inTime)+'</p>'+(sess.inNote?'<p class="text-xs" style="color:#92400e;font-style:italic;">Note: '+sess.inNote+'</p>':'')+'</div>'
+          +'<div><p class="text-xs" style="color:#6b7280;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtDT(sess.outTime)+'</p>'+(sess.outNote?'<p class="text-xs" style="color:#92400e;font-style:italic;">Note: '+sess.outNote+'</p>':'')+'</div>'
+          +'<div><p class="text-xs" style="color:#6b7280;">Facility / Location</p><p class="text-xs font-semibold" style="color:#374151;">'+fac+'</p></div>'
+          +'<div><p class="text-xs" style="color:#6b7280;">Net Paid Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+' hrs</p></div>'
+          +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#6b7280;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
           +'</div></div>'
-          +'<div style="display:flex;gap:6px;flex-shrink:0;">';
-        if(inEntry&&inEntry.photo){
-          var cap1=emp.name+' — Clock In '+inStr;
-          html+='<img src="'+inEntry.photo+'" class="photo-thumb" title="Clock In photo" onclick="openPhoto(\''+inEntry.photo.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',' +'\''+cap1.replace(/'/g,"\\'")+'\')">';
-        }
-        if(outEntry&&outEntry.photo){
-          var cap2=emp.name+' — Clock Out '+outStr;
-          html+='<img src="'+outEntry.photo+'" class="photo-thumb" title="Clock Out photo" onclick="openPhoto(\''+outEntry.photo.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',' +'\''+cap2.replace(/'/g,"\\'")+'\')">';
-        }
-        html+='</div></div></div>';
+          +(photoHtml?'<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">'+photoHtml+'</div>':'')
+          +'</div></div>';
       });
     }
     html+='</div></div>';
@@ -1511,7 +1638,7 @@ function _doGenerateReport(fromStr,toStr){
   html+='</div>';
 
   if(Object.keys(supByItem).length){
-    html+='<div class="rcard"><p class="text-sm font-semibold mb-3" style="color:#374151;">Supply Summary</p>'
+    html+='<div class="rcard"><p class="text-sm font-semibold mb-3" style="color:#374151;">Supply Requests</p>'
       +'<div class="overflow-x-auto"><table class="w-full text-xs" style="border-collapse:collapse;">'
       +'<thead><tr><th class="text-left py-2 pr-3 font-semibold" style="color:#6b7280;">Item</th>'
       +'<th class="text-right py-2 font-semibold" style="color:#6b7280;">Qty</th></tr></thead><tbody>';
@@ -1525,13 +1652,31 @@ function _doGenerateReport(fromStr,toStr){
   html+='<button onclick="window.print()" class="tap w-full py-4 rounded-2xl font-semibold no-print" style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Print / Save as PDF</button>';
   out.innerHTML=html;
 
+  // ── Print area (clean payroll table)
   var pa=document.getElementById('printArea');
-  pa.innerHTML='<h2 style="margin:0 0 4px;">Juno Tech Laboratory</h2>'
-    +'<p style="margin:0 0 16px;color:#666;">Report: '+fromStr+' to '+toStr+'</p>'
-    +'<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:12px;">'
-    +'<tr style="background:#f3f4f6;"><th>Employee</th><th>Days</th><th>Break (min)</th><th>Net Hours</th></tr>';
-  emps.forEach(function(emp){ var s=empStats[emp.name]||{}; pa.innerHTML+='<tr><td>'+emp.name+'</td><td>'+(s.days||0)+'</td><td>'+(s.breakMins||0)+'</td><td>'+(s.totalHrs||0).toFixed(2)+'</td></tr>'; });
-  pa.innerHTML+='</table>';
+  var printRows='';
+  emps.forEach(function(emp){
+    var s=empStats[emp.name]||{};
+    var flag=(s.hasViolation?'[!] ':'');
+    (s.sessions||[]).forEach(function(sess,si){
+      var fac=(sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'—';
+      var compliance=(sess.compliantRest!==false&&sess.compliantMeal!==false)?'OK':'ISSUE';
+      printRows+='<tr><td>'+emp.name+'</td><td>Session '+(si+1)+'</td>'
+        +'<td>'+(sess.inTime?sess.inTime.toLocaleString():'—')+'</td>'
+        +'<td>'+(sess.outTime?sess.outTime.toLocaleString():'Not out')+'</td>'
+        +'<td>'+fac+'</td>'
+        +'<td>'+Math.round((sess.mealMs||0)/60000)+'</td>'
+        +'<td>'+Math.round((sess.restMs||0)/60000)+'</td>'
+        +'<td>'+(sess.netMs/3600000).toFixed(2)+'</td>'
+        +'<td>'+compliance+'</td></tr>';
+    });
+  });
+  pa.innerHTML='<h2 style="margin:0 0 4px;">Juno Tech Laboratory — Payroll Report</h2>'
+    +'<p style="margin:0 0 16px;color:#666;">Period: '+fromStr+' to '+toStr+'</p>'
+    +'<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:11px;">'
+    +'<tr style="background:#f3f4f6;"><th>Employee</th><th>Session</th><th>Clock In</th><th>Clock Out</th>'
+    +'<th>Facility</th><th>Meal Mins (unpaid)</th><th>Rest Mins (paid)</th><th>Net Hrs</th><th>CA Compliance</th></tr>'
+    +printRows+'</table>';
 }
 
 /* ── Firebase Cloud Sync ─────────────────────────── */
@@ -1709,6 +1854,83 @@ function clearAllData() {
   renderEmployeeList(); renderTables(); renderRecordEmpBtns();
 }
 
+/* ── California Break Law Engine ─────────── */
+// Per CA Labor Code / IWC Wage Orders (summary table):
+// 0–3.4 hrs: 0 rest, 0 meal
+// 3.5–5 hrs: 1 rest (10 min paid), 0 meal
+// 5.1–6 hrs: 1 rest, 1 meal (waivable if shift ≤ 6 hrs)
+// 6.1–10 hrs: 2 rest, 1 meal
+// 10.1–12 hrs: 3 rest, 2 meal (1 waivable)
+function getCABreakReqs(hrs) {
+  if      (hrs < 3.5)  return {rest:0, meal:0, mealWaivable:false};
+  else if (hrs < 5.1)  return {rest:1, meal:0, mealWaivable:false};
+  else if (hrs < 6.1)  return {rest:1, meal:1, mealWaivable:true};
+  else if (hrs < 10.1) return {rest:2, meal:1, mealWaivable:false};
+  else                  return {rest:3, meal:2, mealWaivable:true};
+}
+var breakCheckID = null;
+function startBreakCheck() {
+  stopBreakCheck();
+  checkBreakCompliance();
+  breakCheckID = setInterval(checkBreakCompliance, 60000); // re-check every minute
+}
+function stopBreakCheck() {
+  if(breakCheckID){ clearInterval(breakCheckID); breakCheckID=null; }
+}
+function checkBreakCompliance() {
+  if(!currentEmp || clockState !== 'in') return;
+  var entries = store.getJ(K.timesheet,[])
+    .filter(function(e){ return e.name===currentEmp.name; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||'',breakType:e.breakType||''}; })
+    .sort(function(a,b){ return a._d-b._d; });
+  // Walk entries to find current session stats
+  var lastIn=null, restTaken=0, mealTaken=0, mealWaived=false, inBreak=false, bst=null, brkType='rest';
+  entries.forEach(function(e){
+    if(e.type==='in'){ lastIn=e._d; restTaken=0; mealTaken=0; mealWaived=false; inBreak=false; bst=null; }
+    else if(e.type==='break_start'){ bst=e._d; inBreak=true; brkType=e.breakType||(e.note.indexOf('30')>=0?'meal':'rest'); }
+    else if(e.type==='break_end'){ if(inBreak){ if(brkType==='meal') mealTaken++; else restTaken++; inBreak=false; } }
+    else if(e.type==='break_waived'){ mealWaived=true; }
+  });
+  if(!lastIn) return;
+  var elapsedHrs = (new Date() - lastIn) / 3600000;
+  var req = getCABreakReqs(elapsedHrs);
+  var alrt=document.getElementById('breakAlert');
+  var alrtTitle=document.getElementById('breakAlertTitle');
+  var alrtMsg=document.getElementById('breakAlertMsg');
+  var alrtBtns=document.getElementById('breakAlertBtns');
+  if(!alrt) return;
+  var mealEffective = mealTaken + (mealWaived?1:0);
+  var mealDue = req.meal > mealEffective;
+  var restDue = req.rest > restTaken;
+  if(mealDue && elapsedHrs >= 5.0) {
+    alrt.className='glass rounded-3xl px-5 py-4 break-notice-urgent';
+    alrt.style.display='';
+    alrtTitle.textContent='Meal Break Required';
+    alrtMsg.textContent='California law requires a 30-minute unpaid meal break after 5 hours worked. You have worked '+elapsedHrs.toFixed(1)+' hrs.';
+    var btns='<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f97316;color:#fff;border:none;cursor:pointer;">&#127859; Start Meal Break (30 min)</button>';
+    if(req.mealWaivable) btns+='<button onclick="waiveMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#fef9c3;color:#92400e;border:1px solid #fbbf24;cursor:pointer;">Waive Break</button>';
+    alrtBtns.innerHTML=btns;
+  } else if(restDue && elapsedHrs >= 3.5) {
+    alrt.className='glass rounded-3xl px-5 py-4 break-notice';
+    alrt.style.display='';
+    alrtTitle.textContent='Rest Break Due';
+    alrtMsg.textContent='California law requires a paid 10-minute rest break. You have worked '+elapsedHrs.toFixed(1)+' hrs ('+req.rest+' rest break'+(req.rest!==1?'s':'')+' required).';
+    alrtBtns.innerHTML='<button onclick="startBreak(10,\'rest\')" class="tap w-full py-2.5 rounded-xl text-sm font-semibold" style="background:#fbbf24;color:#92400e;border:none;cursor:pointer;">&#9749; Take 10-min Rest Break</button>';
+  } else {
+    alrt.style.display='none';
+  }
+}
+function waiveMealBreak() {
+  if(!currentEmp) return;
+  if(!confirm('Waive your meal break?\n\nBy tapping OK you confirm you are voluntarily waiving your right to a 30-minute unpaid meal break for this shift, as permitted under California law.')) return;
+  var ts=new Date().toISOString();
+  var entry={name:currentEmp.name,type:'break_waived',ts:ts,breakType:'meal',note:'Meal break waived by employee'};
+  var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
+  fbPut('timesheet',ts,entry);
+  var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
+  toast('Meal break waiver recorded.');
+}
+
 /* ── Approval Engine ─────────────────────── */
 var pendingEntryTs   = null;
 var approvalPollID   = null;
@@ -1858,7 +2080,7 @@ function testEjsConfig(){
     if(st){st.textContent='Error: '+(err.text||err.status||JSON.stringify(err));st.style.color='#dc2626';}
   });
 }
-function sendClockInEmail(entry, photoDataUrl, token){
+function sendClockInEmail(entry, photoDataUrl){
   // Hardcoded credentials — work on every device automatically
   var EJS_KEY      = 'BaAmtd4je5XVstCvH';
   var EJS_SERVICE  = 'service_t30r2d8';
@@ -1870,16 +2092,11 @@ function sendClockInEmail(entry, photoDataUrl, token){
   var templateId = cfg.templateId || EJS_TEMPLATE;
   var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
 
-  var baseUrl    = window.location.origin+window.location.pathname;
-  // Include Firebase URL in email links so approval works on any device (phone/tablet/desktop)
-  var fbPart     = fbCfg.url ? '&fb='+encodeURIComponent(fbCfg.url) : '';
-  var approveUrl = baseUrl+'?approve='+encodeURIComponent(entry.ts)+'&tok='+token+fbPart;
-  var denyUrl    = baseUrl+'?deny='   +encodeURIComponent(entry.ts)+'&tok='+token+fbPart;
-  var clockTime  = new Date(entry.ts).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+  var kioskUrl   = window.location.origin + window.location.pathname;
+  if(fbCfg.url) kioskUrl += '?fb='+encodeURIComponent(fbCfg.url);
+  var clockTime  = new Date(entry.ts).toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
   var facility   = (entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
-  var photoNote  = photoDataUrl
-    ? '📷 Photo captured — view it in Admin > Records tab.'
-    : '(No photo captured)';
+  var photoNote  = photoDataUrl ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.';
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
   emailjs.send(serviceId, templateId, {
@@ -1888,11 +2105,14 @@ function sendClockInEmail(entry, photoDataUrl, token){
     clock_time:    clockTime,
     facility:      facility,
     note:          entry.note||'None',
-    approve_url:   approveUrl,
-    deny_url:      denyUrl,
+    kiosk_url:     kioskUrl,
+    photo_note:    photoNote,
+    // Legacy template vars — kept for backward compat but can be removed from template
+    approve_url:   kioskUrl,
+    deny_url:      kioskUrl,
     photo_html:    photoNote
   }).then(function(){
-    console.log('Approval email sent for '+entry.name);
+    console.log('Clock-in notification sent for '+entry.name);
   }).catch(function(e){
     console.error('EmailJS error:', JSON.stringify(e));
   });
