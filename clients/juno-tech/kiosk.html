@@ -1741,82 +1741,205 @@ function _renderTablesImpl() {
   var dates=Object.keys(byDate).sort(function(a,b){ return new Date(b)-new Date(a); });
 
   var accHtml='';
+  var photoLoads=[]; // {ts, elemId} to async-load after innerHTML set
+
   if (!dates.length) {
     accHtml='<p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:13px;">No timesheet records yet. Staff must clock in to generate records.</p>';
   } else {
     dates.forEach(function(d,idx){
-      var entries=byDate[d].sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
-      var empSet={};
-      entries.forEach(function(e){ empSet[e.name]=1; });
-      var empNames=Object.keys(empSet).join(', ');
-      var dateLabel=new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      var dayEntries=byDate[d].sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+      var dateLabel=new Date(d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+      var isToday=(new Date(d).toDateString()===new Date().toDateString());
+      var hasPending=dayEntries.some(function(e){return e.type==='in'&&e.approval==='pending';});
+
+      // Group raw entries by employee name
+      var empGroups={};
+      dayEntries.forEach(function(e){ if(!empGroups[e.name]) empGroups[e.name]=[]; empGroups[e.name].push(e); });
+      var empNames=Object.keys(empGroups);
+
       var bodyId='acc-body-'+idx;
       var arrowId='acc-arrow-'+idx;
+      var autoOpen=(idx===0||isToday||hasPending);
 
-      var isToday=(new Date(d).toDateString()===new Date().toDateString());
-      var hasPending=entries.some(function(e){return e.type==='in'&&e.approval==='pending';});
-      var autoOpen=(idx===0||isToday||hasPending); // auto-expand today and most recent
       accHtml += '<div style="border-bottom:1px solid rgba(0,0,0,.06);">'
         +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')">'
         +'<div>'
-        +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel+(isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:6px;">Today</span>':'')+'</p>'
-        +'<p class="text-xs mt-0.5" style="color:#6b7280;">'+entries.length+' entries &middot; '+empNames+(hasPending?' &middot; <span style="color:#d97706;font-weight:600;">&#9679; Pending Approval</span>':'')+'</p>'
+        +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel
+          +(isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:6px;">Today</span>':'')+'</p>'
+        +'<p class="text-xs mt-0.5" style="color:#6b7280;">'+empNames.length+' employee'+(empNames.length!==1?'s':'')+' &middot; '+dayEntries.length+' entries'
+          +(hasPending?' &middot; <span style="color:#d97706;font-weight:600;">&#9679; Pending Approval</span>':'')+'</p>'
         +'</div>'
         +'<span id="'+arrowId+'" class="acc-arrow'+(autoOpen?' open':'')+'">&#9660;</span>'
         +'</div>'
-        +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'')+'">';
+        +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'')+'" style="padding:8px 4px;">';
 
-      entries.forEach(function(r){
-        var time=new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
-        var badgeCls=TYPE_CLS[r.type]||'tb-in';
-        var label=TYPE_LABEL[r.type]||r.type;
-        var photoCaption=r.name+' — '+time;
-        var photoHtml=(r.hasPhoto||r.photo)
-          ? '<img id="thumb-'+r.ts.replace(/[:.]/g,'')+'" src="'+(r.photo||'')+'" class="photo-thumb" alt="photo" style="'+(r.photo?'':'opacity:.3;')+'cursor:pointer;" onclick="showThumbPhoto(\''+String(r.ts).replace(/'/g,'')+'\',\''+photoCaption.replace(/'/g,"\\'")+'\''+')">'
-          : '<span style="color:#d1d5db;font-size:11px;">no photo</span>';
+      empNames.forEach(function(name){
+        var raw=empGroups[name];
+        var emp=raw.map(function(e){ return Object.assign({},e,{_d:new Date(e.ts)}); })
+          .sort(function(a,b){return a._d-b._d;});
 
-        var safeTs = String(r.ts).replace(/'/g,'');
-        var isPending=(r.type==='in'&&r.approval==='pending');
-        var isApproved=(r.type==='in'&&r.approval==='approved');
-        var isDenied=(r.type==='in'&&r.approval==='denied');
-        var approvalBadge='';
-        if(isPending) approvalBadge='<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#fef9c3;color:#92400e;border:1px solid #fbbf24;">&#9679; PENDING</span>';
-        if(isApproved) approvalBadge='<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#dcfce7;color:#15803d;border:1px solid #86efac;">&#10003; APPROVED</span>';
-        if(isDenied)  approvalBadge='<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">&#10005; DENIED</span>';
-        var safeName4map = r.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        var liveLocBtn = isApproved
-          ? '<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#128205; See Live Location</button>'
-          : '';
+        var clockInE=null, clockOutE=null;
+        emp.forEach(function(e){ if(e.type==='in'&&!clockInE) clockInE=e; if(e.type==='out') clockOutE=e; });
+
+        var sessions=buildSessions(emp);
+        var sess=sessions[0]; // one session per employee per day
+
+        var isPending  = !!(clockInE && clockInE.approval==='pending');
+        var isApproved = !!(clockInE && clockInE.approval==='approved');
+        var isDenied   = !!(clockInE && clockInE.approval==='denied');
+        var isStillIn  = !!(clockInE && !clockOutE);
+
+        // Computed stats
+        var hoursVal = sess ? (sess.netMs/3600000) : (isStillIn ? (Date.now()-clockInE._d)/3600000 : null);
+        var hoursStr = hoursVal!==null ? hoursVal.toFixed(2)+' hrs' : '—';
+        var milesVal = sess ? sess.mileage : (clockInE&&clockInE.mileage!=null?clockInE.mileage:null);
+        if(!milesVal && clockOutE && clockOutE.mileage!=null) milesVal=clockOutE.mileage;
+        var breakCount= sess ? sess.breaks.length : 0;
+        var restCount = sess ? sess.restTaken : 0;
+        var mealCount = sess ? sess.mealTaken : 0;
+
+        // Facilities
+        var facStr=(clockInE&&clockInE.facilities&&clockInE.facilities.length)?clockInE.facilities.join(' · '):'';
+
+        // Card style by status
+        var cardBg    = isPending?'#fffef0':isApproved?'#f0fdf4':isDenied?'#fff5f5':'#f8fafc';
+        var cardBdr   = isPending?'#fbbf24':isApproved?'#86efac':isDenied?'#fca5a5':'rgba(0,0,0,.08)';
+
+        // Employee initials avatar
+        var initials=name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+
+        // Status badge
+        var statusBadge='';
+        if(isPending)         statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#fef9c3;color:#92400e;border:1px solid #fbbf24;">&#9679; PENDING APPROVAL</span>';
+        else if(isApproved&&isStillIn) statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#dcfce7;color:#15803d;border:1px solid #86efac;">&#9679; CLOCKED IN</span>';
+        else if(isApproved)   statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#dcfce7;color:#15803d;border:1px solid #86efac;">&#10003; APPROVED</span>';
+        else if(isDenied)     statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">&#10005; DENIED</span>';
+
+        // Times
+        var timeFmt={hour:'numeric',minute:'2-digit',hour12:true};
+        var inTime=clockInE ? clockInE._d.toLocaleTimeString('en-US',timeFmt) : '—';
+        var outTime=clockOutE ? clockOutE._d.toLocaleTimeString('en-US',timeFmt) : (isStillIn?'Still Working':'—');
+        var outColor=clockOutE?'#dc2626':isStillIn?'#d97706':'#9ca3af';
+
+        // Photo thumbnails
+        var inPhotoElemId='', outPhotoElemId='';
+        var inPhotoHtml='', outPhotoHtml='';
+        if(clockInE&&clockInE.hasPhoto){
+          inPhotoElemId='thumb-in-'+clockInE.ts.replace(/[:.]/g,'');
+          var safeCapIn=name.replace(/'/g,"\\'")+' — Clock In';
+          var safeInTs=String(clockInE.ts).replace(/'/g,'');
+          inPhotoHtml='<img id="'+inPhotoElemId+'" src="" class="photo-thumb" alt="Clock In" title="Clock In photo" onclick="showThumbPhoto(\''+safeInTs+'\',\''+safeCapIn+'\')" style="border:2px solid #86efac;opacity:.5;">';
+          photoLoads.push({ts:clockInE.ts,id:inPhotoElemId});
+        }
+        if(clockOutE&&clockOutE.hasPhoto){
+          outPhotoElemId='thumb-out-'+clockOutE.ts.replace(/[:.]/g,'');
+          var safeCapOut=name.replace(/'/g,"\\'")+' — Clock Out';
+          var safeOutTs=String(clockOutE.ts).replace(/'/g,'');
+          outPhotoHtml='<img id="'+outPhotoElemId+'" src="" class="photo-thumb" alt="Clock Out" title="Clock Out photo" onclick="showThumbPhoto(\''+safeOutTs+'\',\''+safeCapOut+'\')" style="border:2px solid #fca5a5;opacity:.5;">';
+          photoLoads.push({ts:clockOutE.ts,id:outPhotoElemId});
+        }
+
+        // Action buttons
+        var safeInTs2=clockInE?String(clockInE.ts).replace(/'/g,''):'';
         var approvalBtns=isPending
-          ?'<button onclick="adminApproveEntry(\''+safeTs+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">Approve</button>'
-           +'<button onclick="adminDenyEntry(\''+safeTs+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">Deny</button>'
+          ?'<button onclick="adminApproveEntry(\''+safeInTs2+'\')" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#10003; Approve</button>'
+           +'<button onclick="adminDenyEntry(\''+safeInTs2+'\')" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#10005; Deny</button>'
           :'';
-        var rowBg=isPending?'#fffbeb':isApproved?'#f0fdf4':isDenied?'#fef2f2':'#f8fafc';
-        accHtml += '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:10px;margin:2px 0;background:'+rowBg+';border:1px solid rgba(0,0,0,.05);">'
-          +'<div style="flex:1;min-width:0;">'
-          +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">'
-          +'<span class="type-badge '+badgeCls+'">'+label+'</span>'
-          +approvalBadge
-          +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
-          +'<span style="color:#6b7280;font-size:11px;">'+time+'</span>'
+        var safeName4map=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        var liveLocBtn=(isApproved&&isStillIn)
+          ?'<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;cursor:pointer;font-weight:700;">&#128205; Live Location</button>'
+          :'';
+
+        // Edit/delete per raw entry (compact secondary row)
+        var editBtns='';
+        raw.forEach(function(e){
+          var safeTs=String(e.ts).replace(/'/g,'');
+          var typeLabel=TYPE_LABEL[e.type]||e.type;
+          editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:10px;padding:2px 7px;border-radius:5px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit '+typeLabel+'</button>';
+          editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:10px;padding:2px 7px;border-radius:5px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>';
+        });
+
+        // Stats grid — only show columns with real data
+        var statsGridCols='1fr'+(milesVal!=null?' 1fr':'')+(breakCount?' 1fr':'');
+        var statsHtml='<div style="display:grid;grid-template-columns:'+statsGridCols+';gap:8px;margin-bottom:12px;">'
+          +'<div style="background:rgba(255,255,255,.85);border-radius:10px;padding:8px 10px;text-align:center;">'
+          +'<p style="font-size:17px;font-weight:700;color:#111827;line-height:1;">'+hoursStr+'</p>'
+          +'<p style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;">'+(isStillIn&&!clockOutE?'Elapsed':'Hours Worked')+'</p>'
           +'</div>'
-          +(r.facilities && r.facilities.length ? '<p style="color:#1d4ed8;font-size:10px;font-weight:600;margin-top:3px;">'+r.facilities.join(' · ')+'</p>' : '')
-          +(r.mileage!=null ? '<p style="color:#7c3aed;font-size:10px;font-weight:600;margin-top:2px;">&#128663; '+Number(r.mileage).toFixed(1)+' mi driven</p>' : '')
-          +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
-          +((approvalBtns||liveLocBtn)?'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">'+approvalBtns+liveLocBtn+'</div>':'')
-          +'</div>'
-          +photoHtml
-          +'<div style="display:flex;gap:4px;flex-shrink:0;">'
-          +'<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
-          +'<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
-          +'</div>'
+          +(milesVal!=null
+            ?'<div style="background:rgba(255,255,255,.85);border-radius:10px;padding:8px 10px;text-align:center;">'
+              +'<p style="font-size:17px;font-weight:700;color:#7c3aed;line-height:1;">'+Number(milesVal).toFixed(1)+' mi</p>'
+              +'<p style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;">Miles Driven</p>'
+              +'</div>'
+            :'')
+          +(breakCount
+            ?'<div style="background:rgba(255,255,255,.85);border-radius:10px;padding:8px 10px;text-align:center;">'
+              +'<p style="font-size:17px;font-weight:700;color:#d97706;line-height:1;">'+breakCount+'</p>'
+              +'<p style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;">'
+                +restCount+' rest'+(mealCount?' · '+mealCount+' meal':'')
+              +'</p>'
+              +'</div>'
+            :'')
           +'</div>';
+
+        accHtml += '<div style="background:'+cardBg+';border:1.5px solid '+cardBdr+';border-radius:16px;padding:14px 16px;margin-bottom:10px;">'
+          // ── Header: avatar + name + status
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+          +'<div style="display:flex;align-items:center;gap:10px;">'
+          +'<div style="width:38px;height:38px;border-radius:50%;background:#1a2b8c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+initials+'</div>'
+          +'<div>'
+          +'<p style="font-size:14px;font-weight:700;color:#111827;line-height:1.2;">'+name+'</p>'
+          +(facStr?'<p style="font-size:10px;color:#1d4ed8;font-weight:600;margin-top:2px;">'+facStr+'</p>':'')
+          +'</div>'
+          +'</div>'
+          +statusBadge
+          +'</div>'
+          // ── Clock In → Clock Out timeline
+          +'<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.75);margin-bottom:12px;">'
+          +'<div style="text-align:center;min-width:72px;">'
+          +'<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#15803d;display:block;margin-bottom:2px;">Clock In</span>'
+          +'<span style="font-size:15px;font-weight:700;color:#111827;">'+inTime+'</span>'
+          +'</div>'
+          +'<div style="flex:1;display:flex;align-items:center;position:relative;">'
+          +'<div style="height:2px;width:100%;background:linear-gradient(90deg,#86efac,'+(clockOutE?'#fca5a5':'#d1d5db')+');border-radius:99px;"></div>'
+          +'<div style="position:absolute;left:50%;transform:translateX(-50%);width:22px;height:22px;background:#fff;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af;font-weight:700;">&#10140;</div>'
+          +'</div>'
+          +'<div style="text-align:center;min-width:90px;">'
+          +'<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+outColor+';display:block;margin-bottom:2px;">Clock Out</span>'
+          +'<span style="font-size:15px;font-weight:700;color:'+(isStillIn&&!clockOutE?'#d97706':'#111827')+';">'+outTime+'</span>'
+          +'</div>'
+          +'</div>'
+          // ── Stats grid
+          +statsHtml
+          // ── Photos + Action buttons
+          +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
+          +'<div style="display:flex;gap:8px;align-items:center;">'
+          +(inPhotoHtml||outPhotoHtml
+            ?(inPhotoHtml+outPhotoHtml)
+            :'<span style="font-size:11px;color:#d1d5db;">No photos</span>')
+          +'</div>'
+          +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+          +approvalBtns+liveLocBtn
+          +'</div>'
+          +'</div>'
+          // ── Edit / Delete (secondary row)
+          +(editBtns?'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06);">'+editBtns+'</div>':'')
+          +'</div>'; // end employee card
       });
 
-      accHtml += '</div></div>';
+      accHtml += '</div></div>'; // end acc-body + date group
     });
   }
   document.getElementById('tsAccordion').innerHTML=accHtml;
+
+  // Async-load all photo thumbnails now that the DOM is ready
+  photoLoads.forEach(function(pl){
+    loadPhoto(pl.ts, function(url){
+      if(!url) return;
+      var el=document.getElementById(pl.id);
+      if(el){ el.src=url; el.style.opacity='1'; }
+    });
+  });
 
   var supHtml='';
   if (!sups.length) {
@@ -3096,17 +3219,10 @@ function savePhoto(ts, dataUrl) {
   if(!dataUrl) return;
   initPhotoDB(function() {
     if(!photoDB) return;
-    encryptData(dataUrl).then(function(encrypted){
-      try {
-        var tx=photoDB.transaction('photos','readwrite');
-        tx.objectStore('photos').put({ts:String(ts),data:encrypted});
-      } catch(e){}
-    }).catch(function(){
-      try {
-        var tx=photoDB.transaction('photos','readwrite');
-        tx.objectStore('photos').put({ts:String(ts),data:{_plain:true,d:dataUrl}});
-      } catch(e){}
-    });
+    try {
+      var tx=photoDB.transaction('photos','readwrite');
+      tx.objectStore('photos').put({ts:String(ts), data:dataUrl});
+    } catch(e){}
   });
 }
 function loadPhoto(ts, cb) {
@@ -3118,9 +3234,12 @@ function loadPhoto(ts, cb) {
       req.onsuccess=function(){
         if(!req.result){ cb(null); return; }
         var raw=req.result.data;
-        // Legacy: raw is a string (unencrypted old photo)
+        // Plain string (current format)
         if(typeof raw==='string'){ cb(raw); return; }
-        decryptData(raw).then(cb).catch(function(){cb(null);});
+        // Legacy encrypted object — try to extract plain value, else null
+        if(raw && raw._plain && raw.d){ cb(raw.d); return; }
+        // Encrypted object from old builds — can't recover, return null
+        cb(null);
       };
       req.onerror=function(){ cb(null); };
     } catch(e){ cb(null); }
