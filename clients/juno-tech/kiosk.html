@@ -72,7 +72,7 @@ video{object-fit:cover;transform:scaleX(-1);}
 </style>
 </head>
 <body class="min-h-screen select-none overflow-x-hidden">
-<canvas id="captureCanvas" class="hidden" width="240" height="240"></canvas>
+<canvas id="captureCanvas" class="hidden" width="160" height="160"></canvas>
 
 <!-- Logo template — uses external PNG file -->
 <template id="logoTpl">
@@ -370,6 +370,18 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-sm font-semibold mb-3" style="color:#374151;">Supply Log</p>
         <div id="supplyList"></div>
       </div>
+      <div class="rcard">
+        <div class="acc-header" onclick="toggleAcc('adminLogBody','adminLogArrow')">
+          <div>
+            <p class="text-sm font-semibold" style="color:#374151;">&#128221; Admin Action Log</p>
+            <p class="text-xs mt-0.5" style="color:#9ca3af;">All edits and deletions by admin</p>
+          </div>
+          <span id="adminLogArrow" class="acc-arrow">&#9660;</span>
+        </div>
+        <div id="adminLogBody" class="acc-body">
+          <div id="adminLogList" class="mt-2"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Reports tab -->
@@ -444,6 +456,21 @@ video{object-fit:cover;transform:scaleX(-1);}
           style="background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">Push All Local Data to Cloud</button>
       </div>
 
+      <!-- Storage usage -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">&#128190; Storage Usage</p>
+        <div id="storageBar" class="w-full rounded-full h-2" style="background:#e5e7eb;">
+          <div id="storageBarFill" class="h-2 rounded-full transition-all" style="background:#3b52d4;width:0%;"></div>
+        </div>
+        <div class="flex justify-between text-xs" style="color:#6b7280;">
+          <span id="storageUsed">Calculating…</span>
+          <span>~5 MB limit</span>
+        </div>
+        <p class="text-xs leading-relaxed" style="color:#9ca3af;">Photos are stored separately in IndexedDB (no size limit). This bar reflects text-only data in localStorage.</p>
+        <button onclick="clearOldRecords()" class="tap px-5 py-2.5 rounded-xl text-sm font-semibold"
+          style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Archive Records Older Than 90 Days</button>
+      </div>
+
       <!-- Danger zone -->
       <div class="rcard">
         <p class="text-sm font-semibold mb-2" style="color:#374151;">Danger Zone</p>
@@ -508,7 +535,7 @@ var store = {
   del:  function(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 
-var K = { employees:'jtl_employees', timesheet:'jtl_timesheet', supplies:'jtl_supplies', adminHash:'jtl_admin_hash' };
+var K = { employees:'jtl_employees', timesheet:'jtl_timesheet', supplies:'jtl_supplies', adminHash:'jtl_admin_hash', adminLog:'jtl_admin_log', deletedTs:'jtl_deleted_ts' };
 
 /* ── password hash ───────────────────────── */
 function hashPwd(str) {
@@ -695,19 +722,21 @@ function captureAndClock() {
   var ctx    = canvas.getContext('2d');
   ctx.clearRect(0,0,canvas.width,canvas.height);
   if (video.readyState >= 2) {
-    ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-240,0,240,240); ctx.restore();
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-160,0,160,160); ctx.restore();
   }
-  var photo = (video.readyState >= 2) ? canvas.toDataURL('image/jpeg',0.45) : null;
+  var photo = (video.readyState >= 2) ? canvas.toDataURL('image/jpeg',0.30) : null;
   var note  = (document.getElementById('clockNote').value||'').trim();
   var facOther = document.getElementById('facOther');
   var otherTxt = (facOther && facOther.style.display!=='none') ? (facOther.value||'').trim() : '';
   var facList  = selectedFacilities.slice();
   if (otherTxt) facList.push(otherTxt);
-  var entry = {name:currentEmp.name, type:pendingAction, ts:new Date().toISOString(), photo:photo, note:note, facilities:facList};
+  var entryTs = new Date().toISOString();
+  var entry = {name:currentEmp.name, type:pendingAction, ts:entryTs, hasPhoto:!!photo, note:note, facilities:facList};
+  if (photo) savePhoto(entryTs, photo); // store photo in IndexedDB, not localStorage
   var arr = store.getJ(K.timesheet,[]);
   arr.push(entry);
   store.setJ(K.timesheet,arr);
-  fbAppend('timesheet', entry);
+  fbPut('timesheet', entryTs, entry);
   if (pendingAction==='in')  { clockState='in';  toast('Clocked in — have a great day!'); }
   if (pendingAction==='out') {
     clockState='out';
@@ -722,9 +751,12 @@ function captureAndClock() {
 function startBreak(mins) {
   breakMins=mins; breakStart=new Date(); clockState='break';
   document.getElementById('breakLabel').textContent=mins+'-minute break started';
+  var bsTs=breakStart.toISOString();
+  var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min'};
   var arr=store.getJ(K.timesheet,[]);
-  arr.push({name:currentEmp.name,type:'break_start',ts:breakStart.toISOString(),note:mins+' min',photo:null});
+  arr.push(bsEntry);
   store.setJ(K.timesheet,arr);
+  fbPut('timesheet',bsTs,bsEntry);
   renderEmpState(); startBreakTimer(mins); toast('Break started · '+mins+' min');
 }
 function startBreakTimer(mins) {
@@ -742,9 +774,12 @@ function startBreakTimer(mins) {
 function stopBreakTimer() { if(breakTimerID){ clearInterval(breakTimerID); breakTimerID=null; } }
 function endBreak() {
   stopBreakTimer(); clockState='in';
+  var beTs=new Date().toISOString();
+  var beEntry={name:currentEmp.name,type:'break_end',ts:beTs,note:breakMins+' min'};
   var arr=store.getJ(K.timesheet,[]);
-  arr.push({name:currentEmp.name,type:'break_end',ts:new Date().toISOString(),note:breakMins+' min',photo:null});
+  arr.push(beEntry);
   store.setJ(K.timesheet,arr);
+  fbPut('timesheet',beTs,beEntry);
   breakStart=null; breakMins=0; renderEmpState(); updateTodaySummary(); toast('Break ended — welcome back!');
 }
 
@@ -849,7 +884,7 @@ document.getElementById('adminLoginBtn').addEventListener('click', function() {
   if (hashPwd(input)===stored) {
     closeAdminLogin(); show('adminView');
     renderTables(); renderEmployeeList(); renderRecordEmpBtns();
-    renderKioskUrl();
+    renderKioskUrl(); updateStorageUsage();
   } else {
     document.getElementById('loginErr').style.display='block';
   }
@@ -883,9 +918,9 @@ function switchTab(name) {
   document.querySelectorAll('.apane').forEach(function(p){ p.classList.remove('active'); });
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('pane-'+name).classList.add('active');
-  if (name==='records')   { if(fbCfg.url){ syncFromCloud(function(){ renderTables(); }); } else { renderTables(); } renderRecordEmpBtns(); }
+  if (name==='records')   { if(fbCfg.url){ syncFromCloud(function(){ renderTables(); renderAdminLog(); }); } else { renderTables(); renderAdminLog(); } renderRecordEmpBtns(); }
   if (name==='employees') renderEmployeeList();
-  if (name==='settings')  renderKioskUrl();
+  if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); }
 }
 
 /* ── employee management ────────────────── */
@@ -1002,8 +1037,8 @@ function _renderTablesImpl() {
         var badgeCls=TYPE_CLS[r.type]||'tb-in';
         var label=TYPE_LABEL[r.type]||r.type;
         var photoCaption=r.name+' — '+time;
-        var photoHtml=r.photo
-          ? '<img src="'+r.photo+'" class="photo-thumb" onclick="openPhoto(\''+r.photo+'\',\''+photoCaption.replace(/'/g,"\\'")+'\')" alt="photo">'
+        var photoHtml=(r.hasPhoto||r.photo)
+          ? '<img id="thumb-'+r.ts.replace(/[:.]/g,'')+'" src="'+(r.photo||'')+'" class="photo-thumb" alt="photo" style="'+(r.photo?'':'opacity:.3;')+'cursor:pointer;" onclick="showThumbPhoto(\''+String(r.ts).replace(/'/g,'')+'\',\''+photoCaption.replace(/'/g,"\\'")+'\''+')">'
           : '<span style="color:#d1d5db;font-size:11px;">no photo</span>';
 
         var safeTs = String(r.ts).replace(/'/g,'');
@@ -1075,17 +1110,47 @@ function saveEditEntry() {
   if (!rawDt) { toast('Select a date and time'); return; }
   var records = store.getJ(K.timesheet, []);
   var found = false;
+  var updatedEntry = null;
+  var oldDesc = '';
   records.forEach(function(r) {
-    if (String(r.ts) === String(origTs)) { r.type=newType; r.ts=new Date(rawDt).toISOString(); r.note=newNote; found=true; }
+    if (String(r.ts) === String(origTs)) {
+      oldDesc = (r.name||'?')+' — '+(TYPE_LABEL[r.type]||r.type)+' at '+new Date(r.ts).toLocaleString();
+      r.type=newType; r.ts=new Date(rawDt).toISOString(); r.note=newNote; found=true; updatedEntry=r;
+    }
   });
   if (!found) { toast('Entry not found'); return; }
   store.setJ(K.timesheet, records);
+  // If ts changed, update Firebase: delete old key, put new
+  if (updatedEntry) {
+    fbDeleteEntry('timesheet', origTs);
+    fbPut('timesheet', updatedEntry.ts, updatedEntry);
+    // Update deletedTs if origTs was previously tracked
+    var deleted = store.getJ(K.deletedTs,[]);
+    var idx = deleted.indexOf(String(origTs));
+    if(idx>=0){ deleted.splice(idx,1); store.setJ(K.deletedTs,deleted); }
+  }
+  logAdminAction('EDIT', oldDesc+' → type:'+newType+', time:'+new Date(rawDt).toLocaleString()+(newNote?' note:'+newNote:''));
   closeEditEntry(); renderTables(); toast('Entry updated');
+  updateStorageUsage();
 }
 function deleteEntry(ts) {
   if (!confirm('Delete this log entry? This cannot be undone.')) return;
-  store.setJ(K.timesheet, store.getJ(K.timesheet,[]).filter(function(r){ return String(r.ts)!==String(ts); }));
-  renderTables(); toast('Entry deleted');
+  var records = store.getJ(K.timesheet,[]);
+  var target = null;
+  records.forEach(function(r){ if(String(r.ts)===String(ts)) target=r; });
+  store.setJ(K.timesheet, records.filter(function(r){ return String(r.ts)!==String(ts); }));
+  // Track deleted ts so sync never restores it
+  var deleted = store.getJ(K.deletedTs,[]);
+  if(deleted.indexOf(String(ts))<0){ deleted.push(String(ts)); store.setJ(K.deletedTs, deleted); }
+  // Delete from Firebase
+  fbDeleteEntry('timesheet', ts);
+  // Delete photo from IndexedDB
+  deletePhoto(ts);
+  // Log action
+  logAdminAction('DELETE', target
+    ? (target.name+' — '+(TYPE_LABEL[target.type]||target.type)+' at '+new Date(target.ts).toLocaleString())
+    : 'Entry at '+ts);
+  renderTables(); toast('Entry deleted permanently');
 }
 
 function toggleAcc(bodyId, arrowId) {
@@ -1337,49 +1402,57 @@ function testFbConnection() {
     .then(function(){ setFbStatus('Connected!', true); fbCfg.url=url; })
     .catch(function(){ setFbStatus('Connection failed: check URL and database rules.', false); });
 }
-function fbAppend(path, data) {
+/* Convert ISO timestamp to a safe Firebase key */
+function tsToKey(ts) {
+  return String(ts).replace(/\./g,'-').replace(/:/g,'-').replace(/T/,'_').replace(/Z/,'Z');
+}
+/* PUT entry to Firebase using deterministic ts-based key (allows delete/update) */
+function fbPut(path, ts, data) {
   if (!fbCfg.url) return;
-  var d=JSON.parse(JSON.stringify(data));
-  if(d.photo) d.photo_len=d.photo.length;
-  fetch(fbCfg.url+'/jtl/'+path+'.json',{method:'POST',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}}).catch(function(){});
+  var d = JSON.parse(JSON.stringify(data));
+  delete d.photo; // photos are in IndexedDB, not Firebase
+  fetch(fbCfg.url+'/jtl/'+path+'/'+tsToKey(ts)+'.json',
+    {method:'PUT', body:JSON.stringify(d), headers:{'Content-Type':'application/json'}}).catch(function(){});
+}
+/* DELETE entry from Firebase by ts key */
+function fbDeleteEntry(path, ts) {
+  if (!fbCfg.url) return;
+  fetch(fbCfg.url+'/jtl/'+path+'/'+tsToKey(ts)+'.json', {method:'DELETE'}).catch(function(){});
 }
 function fbFetchAll(path, cb) {
   if (!fbCfg.url) { cb(null); return; }
   fetch(fbCfg.url+'/jtl/'+path+'.json').then(function(r){ return r.json(); }).then(function(data){ cb(data); }).catch(function(){ cb(null); });
 }
 function syncFromCloud(cb) {
+  var deletedTs = store.getJ(K.deletedTs,[]);
   fbFetchAll('timesheet',function(raw){
-    if(raw&&typeof raw==='object'&&!Array.isArray(raw)){
-      store.setJ(K.timesheet,Object.values(raw).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }));
+    if(raw&&typeof raw==='object'){
+      var entries = (Array.isArray(raw)?raw:Object.values(raw))
+        .filter(function(e){ return e&&e.ts && deletedTs.indexOf(String(e.ts))<0; })
+        .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+      if(entries.length) store.setJ(K.timesheet, entries);
     }
     fbFetchAll('supplies',function(rawS){
-      if(rawS&&typeof rawS==='object'&&!Array.isArray(rawS)){
-        store.setJ(K.supplies,Object.values(rawS).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }));
+      if(rawS&&typeof rawS==='object'){
+        var sups = Array.isArray(rawS)?rawS:Object.values(rawS);
+        if(sups.length) store.setJ(K.supplies, sups.sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }));
       }
       if(cb) cb();
     });
   });
 }
 function refreshFromCloud() {
-  if(!fbCfg.url){ toast('No cloud configured — go to Settings to connect Firebase.'); return; }
+  if(!fbCfg.url){ renderTables(); toast('Showing local records (no cloud connected)'); return; }
   toast('Syncing from cloud…');
-  syncFromCloud(function(){ renderTables(); toast('Records updated from cloud!'); });
+  syncFromCloud(function(){ renderTables(); renderAdminLog(); toast('Records updated from cloud!'); });
 }
 function pushAllToCloud() {
   if(!fbCfg.url){ toast('Configure Firebase URL in Settings first.'); return; }
   var ts=store.getJ(K.timesheet,[]), sups=store.getJ(K.supplies,[]);
-  var pushed=0, total=ts.length+sups.length;
-  if(!total){ toast('No local data to push.'); return; }
-  ts.forEach(function(e){
-    var d=JSON.parse(JSON.stringify(e)); if(d.photo) d.photo_len=d.photo.length;
-    fetch(fbCfg.url+'/jtl/timesheet.json',{method:'POST',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}})
-      .then(function(){ pushed++; if(pushed===total) toast('All data pushed to cloud!'); }).catch(function(){});
-  });
-  sups.forEach(function(e){
-    fetch(fbCfg.url+'/jtl/supplies.json',{method:'POST',body:JSON.stringify(e),headers:{'Content-Type':'application/json'}})
-      .then(function(){ pushed++; if(pushed===total) toast('All data pushed to cloud!'); }).catch(function(){});
-  });
-  toast('Pushing '+total+' records to cloud…');
+  if(!ts.length&&!sups.length){ toast('No local data to push.'); return; }
+  ts.forEach(function(e){ fbPut('timesheet', e.ts, e); });
+  sups.forEach(function(e){ fbPut('supplies', e.ts, e); });
+  toast('Pushed '+ts.length+' timesheet + '+sups.length+' supply records to cloud!');
 }
 
 /* ── Facility selector ───────────────────── */
@@ -1412,6 +1485,18 @@ function resetFacilityPills(){ selectedFacilities=[]; renderFacilityPills(); var
 /* ── renderTables ────────────────────────── */
 function renderTables() { _renderTablesImpl(); }
 
+/* ── Photo lazy-load from IndexedDB ─────── */
+function showThumbPhoto(ts, caption) {
+  // Try IndexedDB first, fall back to inline (old entries)
+  loadPhoto(ts, function(dataUrl){
+    if(dataUrl){ openPhoto(dataUrl, caption); return; }
+    // legacy: check if img tag already has src
+    var imgEl=document.getElementById('thumb-'+ts.replace(/[:.]/g,''));
+    if(imgEl&&imgEl.src&&imgEl.src.startsWith('data:')){ openPhoto(imgEl.src,caption); return; }
+    toast('Photo not available');
+  });
+}
+
 /* ── settings ────────────────────────────── */
 function changePassword() {
   var p1=document.getElementById('newPass1').value;
@@ -1428,6 +1513,100 @@ function clearAllData() {
   [K.employees,K.timesheet,K.supplies].forEach(function(k){ store.del(k); });
   toast('All data cleared');
   renderEmployeeList(); renderTables(); renderRecordEmpBtns();
+}
+
+/* ── IndexedDB Photo Storage ─────────────── */
+var photoDB = null;
+function initPhotoDB(cb) {
+  if (photoDB) { if(cb) cb(); return; }
+  try {
+    var req = indexedDB.open('jtl_photos_v1', 1);
+    req.onupgradeneeded = function(e) {
+      e.target.result.createObjectStore('photos', {keyPath:'ts'});
+    };
+    req.onsuccess = function(e) { photoDB=e.target.result; if(cb) cb(); };
+    req.onerror   = function() { if(cb) cb(); };
+  } catch(e) { if(cb) cb(); }
+}
+function savePhoto(ts, dataUrl) {
+  initPhotoDB(function() {
+    if(!photoDB||!dataUrl) return;
+    try {
+      var tx=photoDB.transaction('photos','readwrite');
+      tx.objectStore('photos').put({ts:String(ts),data:dataUrl});
+    } catch(e){}
+  });
+}
+function loadPhoto(ts, cb) {
+  initPhotoDB(function() {
+    if(!photoDB) { cb(null); return; }
+    try {
+      var tx=photoDB.transaction('photos','readonly');
+      var req=tx.objectStore('photos').get(String(ts));
+      req.onsuccess=function(){ cb(req.result?req.result.data:null); };
+      req.onerror=function(){ cb(null); };
+    } catch(e){ cb(null); }
+  });
+}
+function deletePhoto(ts) {
+  initPhotoDB(function() {
+    if(!photoDB) return;
+    try {
+      var tx=photoDB.transaction('photos','readwrite');
+      tx.objectStore('photos').delete(String(ts));
+    } catch(e){}
+  });
+}
+
+/* ── Admin Action Log ────────────────────── */
+function logAdminAction(action, details) {
+  var log = store.getJ(K.adminLog, []);
+  log.push({action:action, details:details, ts:new Date().toISOString()});
+  if(log.length>500) log=log.slice(log.length-500); // keep last 500
+  store.setJ(K.adminLog, log);
+}
+function renderAdminLog() {
+  var el = document.getElementById('adminLogList');
+  if(!el) return;
+  var log = store.getJ(K.adminLog, []).slice().reverse();
+  if(!log.length){
+    el.innerHTML='<p style="color:#9ca3af;font-size:13px;text-align:center;padding:16px;">No admin actions yet.</p>';
+    return;
+  }
+  var html='';
+  log.forEach(function(item){
+    var color = item.action==='DELETE'?'#dc2626':item.action==='EDIT'?'#d97706':'#1d4ed8';
+    var bg    = item.action==='DELETE'?'#fef2f2':item.action==='EDIT'?'#fffbeb':'#eff6ff';
+    html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;margin:3px 0;background:'+bg+';">'
+      +'<span style="font-size:10px;font-weight:700;color:'+color+';padding:2px 6px;border-radius:4px;background:rgba(0,0,0,.06);flex-shrink:0;margin-top:1px;">'+item.action+'</span>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<p style="font-size:12px;color:#374151;line-height:1.4;">'+item.details+'</p>'
+      +'<p style="font-size:10px;color:#9ca3af;margin-top:2px;">'+new Date(item.ts).toLocaleString()+'</p>'
+      +'</div></div>';
+  });
+  el.innerHTML=html;
+}
+
+/* ── Storage Usage ───────────────────────── */
+function updateStorageUsage() {
+  try {
+    var total=0;
+    for(var k in localStorage){ if(localStorage.hasOwnProperty(k)) total+=localStorage[k].length+k.length; }
+    var kb=total/1024; var mb=kb/1024;
+    var pct=Math.min(100,Math.round(mb/5*100));
+    var usedEl=document.getElementById('storageUsed');
+    var barEl=document.getElementById('storageBarFill');
+    if(usedEl) usedEl.textContent=(mb<1?kb.toFixed(0)+' KB':mb.toFixed(2)+' MB')+' used';
+    if(barEl){ barEl.style.width=pct+'%'; barEl.style.background=pct>80?'#dc2626':pct>60?'#f59e0b':'#3b52d4'; }
+  } catch(e){}
+}
+function clearOldRecords() {
+  var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-90);
+  if(!confirm('Archive and remove all records older than 90 days? This frees storage space. Archived data will be deleted locally but remains in Firebase if connected.')) return;
+  var ts = store.getJ(K.timesheet,[]).filter(function(e){ return new Date(e.ts)>=cutoff; });
+  var su = store.getJ(K.supplies,[]).filter(function(e){ return new Date(e.ts)>=cutoff; });
+  store.setJ(K.timesheet, ts); store.setJ(K.supplies, su);
+  updateStorageUsage(); renderTables(); toast('Old records archived. Storage freed.');
 }
 
 /* ── INIT ────────────────────────────────── */
@@ -1461,6 +1640,8 @@ function clearAllData() {
   }
   store.set(K.adminHash,DEFAULT_HASH);
   injectLogos(); fbInit(); renderFacilityPills();
+  initPhotoDB(); // warm up IndexedDB for photos
+  updateStorageUsage();
 
   try {
     var params=new URLSearchParams(window.location.search);
