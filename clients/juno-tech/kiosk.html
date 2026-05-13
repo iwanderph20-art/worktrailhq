@@ -1761,34 +1761,40 @@ function testEjsConfig(){
     if(st){st.textContent='Fill in all three EmailJS fields first.';st.style.color='#dc2626';}
     return;
   }
-  emailjs.init(cfg.publicKey);
+  try { emailjs.init({publicKey: cfg.publicKey}); } catch(e){}
   emailjs.send(cfg.serviceId, cfg.templateId, {
     employee_name:'Test Employee', clock_time:new Date().toLocaleString(),
     facility:'Test Facility', note:'This is a test email.',
-    approve_url:'https://example.com', deny_url:'https://example.com',
+    approve_url:window.location.href, deny_url:window.location.href,
     to_email: cfg.notifEmail||'info@junotechlaboratory.com',
-    photo_html:'<p>(No photo in test)</p>'
+    photo_html:'&#128247; Photo captured — view it in Admin > Records tab.'
   }).then(function(){
     var st=document.getElementById('ejsStatus');
-    if(st){st.textContent='Test email sent!';st.style.color='#059669';}
+    if(st){st.textContent='Test email sent! Check info@junotechlaboratory.com';st.style.color='#059669';}
   }).catch(function(err){
     var st=document.getElementById('ejsStatus');
-    if(st){st.textContent='Error: '+JSON.stringify(err);st.style.color='#dc2626';}
+    if(st){st.textContent='Error: '+(err.text||err.status||JSON.stringify(err));st.style.color='#dc2626';}
   });
 }
 function sendClockInEmail(entry, photoDataUrl, token){
   var cfg=store.getJ(EJS_STORAGE,{});
-  if(!cfg.publicKey||!cfg.serviceId||!cfg.templateId){ return; } // silently skip if not configured
+  if(!cfg.publicKey||!cfg.serviceId||!cfg.templateId){
+    // Warn admin via console — remind them to configure in Settings
+    console.warn('EmailJS not configured. Go to Admin → Settings → Clock-In Approval Notifications.');
+    toast('No email sent — configure EmailJS in Settings to enable notifications');
+    return;
+  }
   var baseUrl=window.location.origin+window.location.pathname;
   var approveUrl=baseUrl+'?approve='+encodeURIComponent(entry.ts)+'&tok='+token;
   var denyUrl   =baseUrl+'?deny='   +encodeURIComponent(entry.ts)+'&tok='+token;
   var clockTime =new Date(entry.ts).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
   var facility  =(entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
-  var photoHtml =photoDataUrl
-    ? '<img src="'+photoDataUrl+'" style="width:200px;height:200px;object-fit:cover;border-radius:12px;" alt="Clock-in photo">'
-    : '<p style="color:#9ca3af;">(No photo captured)</p>';
+  // Note: base64 photos are blocked by most email clients — send text link to admin panel instead
+  var photoNote = photoDataUrl
+    ? '&#128247; Photo captured — view it in Admin > Records tab.'
+    : '(No photo captured)';
 
-  emailjs.init(cfg.publicKey);
+  try { emailjs.init({publicKey: cfg.publicKey}); } catch(e){}
   emailjs.send(cfg.serviceId, cfg.templateId, {
     to_email:      cfg.notifEmail||'info@junotechlaboratory.com',
     employee_name: entry.name,
@@ -1797,8 +1803,13 @@ function sendClockInEmail(entry, photoDataUrl, token){
     note:          entry.note||'None',
     approve_url:   approveUrl,
     deny_url:      denyUrl,
-    photo_html:    photoHtml
-  }).catch(function(e){ console.warn('EmailJS send failed:',e); });
+    photo_html:    photoNote
+  }).then(function(){
+    console.log('Approval email sent for '+entry.name);
+  }).catch(function(e){
+    console.error('EmailJS error:', JSON.stringify(e));
+    toast('Email failed: '+( e.text||e.status||JSON.stringify(e))+' — check Admin > Settings');
+  });
 }
 
 /* ── IndexedDB Photo Storage ─────────────── */
