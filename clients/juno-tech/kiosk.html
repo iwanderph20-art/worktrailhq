@@ -129,6 +129,13 @@ video{object-fit:cover;transform:scaleX(-1);}
 
 <!-- ── PIN VIEW ─────────────────────────────────────────── -->
 <div id="pinView">
+  <!-- Firebase no-config warning — visible when device is not synced to cloud -->
+  <div id="fbSyncWarning" style="display:none;position:fixed;top:0;left:0;right:0;z-index:30;background:#fef9c3;border-bottom:2px solid #f59e0b;padding:10px 16px;text-align:center;">
+    <p style="font-size:12px;font-weight:600;color:#92400e;margin:0;">
+      &#9888;&#65039; Cloud sync not configured — clock-ins will <strong>not</strong> be visible to admin on other devices.
+      Ask your administrator for the staff link to enable cloud sync.
+    </p>
+  </div>
   <button id="gearBtn" onclick="openAdminLogin()"
     style="position:fixed;bottom:24px;right:24px;z-index:40;background:none;border:none;cursor:pointer;padding:10px;">
     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#1a2b8c" stroke-width="1.8">
@@ -370,36 +377,7 @@ video{object-fit:cover;transform:scaleX(-1);}
     </div>
 
     <!-- Clock-Out Card (shown after photo, clock-OUT only) -->
-    <div id="clockOutNoteCard" class="glass rounded-3xl px-6 py-6 space-y-4" style="display:none;">
-      <p class="text-lg font-bold" style="color:#111827;">Before You Clock Out</p>
-      <!-- Collection snap (required) -->
-      <div>
-        <p class="text-sm font-semibold mb-1" style="color:#374151;">&#128203; Collection Snap <span style="color:#dc2626;font-size:11px;">Required</span></p>
-        <p class="text-xs mb-3 leading-relaxed" style="color:#6b7280;">Upload a photo of today's patient specimen log (collected &amp; refused) for documentation and compliance records.</p>
-        <div class="phi-banner mb-3">
-          <p style="font-weight:700;margin-bottom:2px;">&#128274; Protected Health Information</p>
-          <p>This photo contains PHI. It will be encrypted using AES-256 before storage and is accessible only on this device. Never share screenshots.</p>
-        </div>
-        <label class="snap-drop" id="snapDropZone" for="snapFileInput">
-          <div style="font-size:32px;margin-bottom:8px;">&#128247;</div>
-          <p class="text-sm font-semibold" style="color:#374151;">Tap to upload or take photo</p>
-          <p class="text-xs mt-1" style="color:#9ca3af;">JPG, PNG — max 10 MB</p>
-        </label>
-        <input id="snapFileInput" type="file" accept="image/*" style="display:none;" onchange="handleSnapFile(this)">
-        <div id="snapPreviewWrap" style="display:none;">
-          <img id="snapPreviewImg" class="snap-preview mt-3" alt="Collection snap">
-          <button onclick="clearSnap()" class="text-xs mt-2 block mx-auto" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Remove &amp; re-upload</button>
-        </div>
-      </div>
-      <!-- Note -->
-      <div>
-        <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Shift notes <span style="color:#d1d5db;">(optional)</span></label>
-        <input id="qOutNote" type="text" placeholder="e.g. Tasks completed, hand-off notes…" class="inp">
-      </div>
-      <button onclick="submitClockOut()" id="clockOutSubmitBtn" class="tap w-full py-4 rounded-2xl font-bold text-base"
-        style="background:#b91c1c;color:#fff;border:none;cursor:pointer;" disabled>Upload snap to clock out</button>
-      <button onclick="cancelCapture()" class="text-sm text-center w-full" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
-    </div>
+    <!-- clockOutNoteCard removed — clock-out submits immediately after photo -->
   </div>
 </div>
 
@@ -751,22 +729,21 @@ video{object-fit:cover;transform:scaleX(-1);}
   </div>
 </div>
 
-<!-- ── PHI DISCLAIMER MODAL (shown once on first visit) ── -->
-<div id="phiDisclaimerModal" style="position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);">
-  <div style="background:#fff;border-radius:24px;padding:28px;max-width:400px;width:100%;margin:16px;">
-    <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style="background:#1a2b8c;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+<!-- ── LOCATION REQUIRED MODAL ────────────────────────── -->
+<div id="locationRequiredModal" class="m-wrap">
+  <div class="m-bg"></div>
+  <div class="relative z-10 bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center space-y-4">
+    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style="background:#dbeafe;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#1d4ed8" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
     </div>
-    <h2 class="text-xl font-bold mb-2" style="color:#111827;">Data Privacy Notice</h2>
-    <p class="text-sm mb-3 leading-relaxed" style="color:#374151;">This application handles <strong>Protected Health Information (PHI)</strong> including patient specimen logs. By using this kiosk you agree to the following:</p>
-    <ul class="text-xs space-y-1.5 mb-4 leading-relaxed" style="color:#6b7280;">
-      <li>&#128274; All photos and sensitive data are encrypted with <strong>AES-256-GCM</strong> before storage.</li>
-      <li>&#128203; Collection snap photos are stored on-device only and never transmitted to third parties.</li>
-      <li>&#128683; Do not share screenshots of patient information.</li>
-      <li>&#128101; Access is restricted to authorized personnel only.</li>
-      <li>&#9875; Use of this system constitutes consent to these terms.</li>
-    </ul>
-    <button onclick="acceptPhiDisclaimer()" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">I Understand &amp; Accept</button>
+    <h2 class="text-xl font-bold" style="color:#111827;">Location Access Required</h2>
+    <p class="text-sm leading-relaxed" style="color:#6b7280;">Your live location is required before you can clock in or out. This verifies your work location and enables automatic mileage tracking.</p>
+    <p id="locModalStatus" style="display:none;font-size:12px;font-weight:600;color:#dc2626;line-height:1.5;"></p>
+    <button id="locModalBtn" onclick="requestLocationForClock()" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Enable Location Access</button>
+    <button onclick="closeLocationModal()" class="text-sm" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
   </div>
 </div>
 
@@ -1083,6 +1060,14 @@ function renderEmpState() {
 /* ── clock in/out ───────────────────────── */
 function handleClock() {
   pendingAction = (clockState==='out') ? 'in' : 'out';
+  // Location is required — show blocking modal if not yet granted
+  if (!currentLocation) {
+    openLocationModal();
+    return;
+  }
+  _openCameraForClock();
+}
+function _openCameraForClock() {
   document.getElementById('mainCard').style.display='none';
   document.getElementById('camTitle').textContent = pendingAction==='in'
     ? 'Clock In — Show your work area' : 'Clock Out — Show your work area';
@@ -1090,12 +1075,59 @@ function handleClock() {
   cw.style.display='flex'; cw.style.flexDirection='column';
   startCamera();
 }
+function openLocationModal() {
+  var m = document.getElementById('locationRequiredModal');
+  if (m) m.classList.add('open');
+  var s = document.getElementById('locModalStatus');
+  if (s) { s.style.display='none'; s.textContent=''; }
+  var btn = document.getElementById('locModalBtn');
+  if (btn) { btn.disabled=false; btn.textContent='Enable Location Access'; }
+}
+function closeLocationModal() {
+  var m = document.getElementById('locationRequiredModal');
+  if (m) m.classList.remove('open');
+  pendingAction = null;
+}
+function requestLocationForClock() {
+  if (!navigator.geolocation) {
+    var s = document.getElementById('locModalStatus');
+    if (s) { s.textContent='Location is not supported on this device.'; s.style.display=''; }
+    return;
+  }
+  var btn = document.getElementById('locModalBtn');
+  var s   = document.getElementById('locModalStatus');
+  if (btn) { btn.disabled=true; btn.textContent='Getting location…'; }
+  if (s)   { s.style.display='none'; }
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      currentLocation = {
+        lat: pos.coords.latitude, lng: pos.coords.longitude,
+        accuracy: Math.round(pos.coords.accuracy),
+        timestamp: new Date().toISOString()
+      };
+      var acc = currentLocation.accuracy;
+      updateLocationPill('found', acc < 50 ? 'Location confirmed (±'+acc+'m)' : 'Location (±'+acc+'m)');
+      startLocationWatch();
+      // Close modal and open camera
+      var m = document.getElementById('locationRequiredModal');
+      if (m) m.classList.remove('open');
+      _openCameraForClock();
+    },
+    function(err) {
+      var msg = err.code===1
+        ? 'Location denied. Please enable location in your browser/phone settings and tap Try Again.'
+        : 'Could not get your location. Please check your settings and try again.';
+      if (s) { s.textContent=msg; s.style.display=''; }
+      if (btn) { btn.disabled=false; btn.textContent='Try Again'; }
+    },
+    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+  );
+}
 function cancelCapture() {
   pendingAction=null; pendingPhoto=null; qSelectedFacs=[]; qDroveMode=null;
   snapDataUrl=null;
   document.getElementById('camWrap').style.display='none';
   document.getElementById('clockInQuestionsCard').style.display='none';
-  document.getElementById('clockOutNoteCard').style.display='none';
   renderEmpState();
 }
 /* ── Gamified Clock-In Flow ─────────────────── */
@@ -1129,15 +1161,8 @@ function capturePhoto() {
     var card = document.getElementById('clockInQuestionsCard');
     card.style.display='flex'; card.style.flexDirection='column';
   } else {
-    // Clock-out: NO facility question — just snap + note
-    snapDataUrl = null;
-    document.getElementById('qOutNote').value = '';
-    document.getElementById('snapPreviewWrap').style.display = 'none';
-    document.getElementById('snapDropZone').style.display = '';
-    var btn = document.getElementById('clockOutSubmitBtn');
-    if(btn){ btn.disabled=true; btn.textContent='Upload snap to clock out'; }
-    var outCard = document.getElementById('clockOutNoteCard');
-    outCard.style.display='flex'; outCard.style.flexDirection='column';
+    // Clock-out: submit immediately — no extra step required
+    submitClockOut();
   }
 }
 function renderQFacGrid() {
@@ -1261,31 +1286,24 @@ function submitClockInQuestions() {
   startApprovalPoll(entryTs);
 }
 function submitClockOut() {
-  if (!snapDataUrl) { toast('Please upload your collection snap first'); return; }
-  var note = (document.getElementById('qOutNote').value||'').trim();
-  var entryTs = new Date().toISOString();
+  var entryTs    = new Date().toISOString();
   var finalMiles = mileageTracking ? Math.round(mileageTotalMiles*100)/100 : null;
-  var entry   = {
-    name:currentEmp.name, type:'out', ts:entryTs,
-    hasPhoto:!!pendingPhoto, hasSnap:true, note:note,
-    location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null,
+  var entry = {
+    name: currentEmp.name, type:'out', ts: entryTs,
+    hasPhoto: !!pendingPhoto,
+    location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null,
     mileage: finalMiles
   };
   if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
-  // Save encrypted collection snap under special key
-  savePhoto('snap_'+entryTs, snapDataUrl);
-  entry.snapTs = 'snap_'+entryTs;
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet', entryTs, entry);
   clockState='out';
   fbPutState(currentEmp.name,'out',entryTs);
-  // Stop mileage tracking
   mileageTracking=false;
-  document.getElementById('clockOutNoteCard').style.display='none';
   pendingAction=null; pendingPhoto=null; snapDataUrl=null;
   stopBreakCheck();
   renderEmpState(); updateTodaySummary();
-  // Show summary modal
+  // Compute final hours and show summary modal
   var hrs = computeTodayHours(currentEmp.name);
   document.getElementById('summaryHours').textContent = hrs+' hrs';
   var mileCell = document.getElementById('summaryMileCell');
@@ -1294,6 +1312,8 @@ function submitClockOut() {
     mileCell.style.display='';
   } else { mileCell.style.display='none'; }
   document.getElementById('clockOutSummaryModal').classList.add('open');
+  // Send clock-out email notification to admin
+  sendClockOutEmail(entry, hrs, finalMiles);
 }
 function closeSummaryModal() {
   document.getElementById('clockOutSummaryModal').classList.remove('open');
@@ -2241,14 +2261,18 @@ function fbInit() {
     if (_p.has('fb')) {
       var _u = decodeURIComponent(_p.get('fb')).replace(/\/+$/,'');
       if (_u) {
-        if (!fbCfg.url) { fbCfg.url = _u; store.set('fb_url', _u); }
-        // Always accept if it's a newer/different URL provided via link
+        // Always accept ?fb= URL param — overwrite any existing stored value so
+        // re-sharing the staff link always works and employee devices stay in sync
+        fbCfg.url = _u; store.set('fb_url', _u);
       }
     }
   } catch(e){}
   var inp = document.getElementById('fbUrlInput');
   if (inp) inp.value = fbCfg.url;
   setFbStatus(fbCfg.url ? 'Connected: ' + fbCfg.url : '');
+  // Show/hide the PIN-screen cloud-sync warning
+  var fbWarn = document.getElementById('fbSyncWarning');
+  if (fbWarn) fbWarn.style.display = fbCfg.url ? 'none' : 'block';
 }
 function setFbStatus(msg, ok) {
   var el = document.getElementById('fbStatus');
@@ -2259,6 +2283,8 @@ function setFbStatus(msg, ok) {
 function saveFbConfig() {
   var url = (document.getElementById('fbUrlInput').value || '').trim().replace(/\/+$/, '');
   store.set('fb_url', url); fbCfg.url = url;
+  var fbWarn = document.getElementById('fbSyncWarning');
+  if (fbWarn) fbWarn.style.display = url ? 'none' : 'block';
   if (!url) { setFbStatus('Cloud sync disabled.'); return; }
   testFbConnection();
 }
@@ -2986,7 +3012,7 @@ function sendClockInEmail(entry, photoDataUrl){
   if(fbCfg.url) kioskUrl += '&fb='+encodeURIComponent(fbCfg.url);
   var clockTime  = new Date(entry.ts).toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
   var facility   = (entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
-  var photoNote  = photoDataUrl ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.';
+  var photoNote  = (entry.hasPhoto || photoDataUrl) ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.';
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
@@ -3007,6 +3033,49 @@ function sendClockInEmail(entry, photoDataUrl){
     console.log('Clock-in notification sent for '+entry.name);
   }).catch(function(e){
     console.error('EmailJS error:', JSON.stringify(e));
+  });
+}
+
+function sendClockOutEmail(entry, hoursWorked, miles) {
+  var EJS_KEY      = 'BaAmtd4je5XVstCvH';
+  var EJS_SERVICE  = 'service_t30r2d8';
+  var EJS_TEMPLATE = 'template_jtdfx1a';
+  var cfg = store.getJ(EJS_STORAGE, {});
+  var publicKey  = cfg.publicKey  || EJS_KEY;
+  var serviceId  = cfg.serviceId  || EJS_SERVICE;
+  var templateId = cfg.templateId || EJS_TEMPLATE;
+  var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
+
+  var kioskUrl  = window.location.origin + window.location.pathname + '?admin&records=1';
+  if (fbCfg.url) kioskUrl += '&fb=' + encodeURIComponent(fbCfg.url);
+
+  var clockTime = new Date(entry.ts).toLocaleString('en-US',{
+    weekday:'long', month:'long', day:'numeric', year:'numeric',
+    hour:'numeric', minute:'2-digit', hour12:true
+  });
+  var shiftSummary = hoursWorked + ' hrs worked';
+  if (miles !== null && miles !== undefined) {
+    shiftSummary += ' · ' + Number(miles).toFixed(2) + ' miles driven';
+  }
+
+  try { emailjs.init({publicKey: publicKey}); } catch(e){}
+  var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
+  emailjs.send(serviceId, templateId, {
+    to_email:      notifEmail,
+    employee_name: entry.name + ' — Clocked Out',
+    clock_time:    clockTime,
+    facility:      'Clock-Out Summary',
+    note:          shiftSummary,
+    kiosk_url:     kioskUrl,
+    logo_url:      logoUrl,
+    photo_note:    'Shift complete — ' + shiftSummary,
+    approve_url:   kioskUrl,
+    deny_url:      kioskUrl,
+    photo_html:    'Shift complete — ' + shiftSummary
+  }).then(function(){
+    console.log('Clock-out notification sent for '+entry.name);
+  }).catch(function(e){
+    console.error('EmailJS error (clock-out):', JSON.stringify(e));
   });
 }
 
@@ -3151,11 +3220,6 @@ function clearOldRecords() {
   injectLogos(); fbInit(); renderFacilityPills();
   initPhotoDB(); // warm up IndexedDB for photos
   updateStorageUsage();
-  // Show PHI disclaimer on first use
-  if (!store.get('jtl_phi_accepted')) {
-    var dm = document.getElementById('phiDisclaimerModal');
-    if(dm) dm.style.display='flex';
-  }
 
   try {
     var params=new URLSearchParams(window.location.search);
@@ -3225,12 +3289,23 @@ function clearOldRecords() {
 
     if(params.has('admin')||params.has('reset')){
       show('adminView');
-      renderTables(); renderEmployeeList(); renderKioskUrl();
-      if (params.has('records')||params.has('records')) {
-        // Auto-switch to Records tab so admin immediately sees pending approvals
-        setTimeout(function(){ switchTab('records'); },100);
+      renderEmployeeList(); renderKioskUrl();
+      if (fbCfg.url) {
+        // Sync employees + timesheet from Firebase FIRST so cross-device entries are
+        // visible immediately — critical when arriving from an email notification link
+        syncEmployeesFromCloud(function(){
+          renderEmployeeList();
+          syncFromCloud(function(){
+            renderTables(); renderAdminLog();
+            if (params.has('records')) { switchTab('records'); }
+            setTimeout(function(){ toast('Records synced from cloud.'); }, 100);
+          });
+        });
+      } else {
+        renderTables();
+        if (params.has('records')) { switchTab('records'); }
+        setTimeout(function(){ toast('Admin view — tap Records to see pending approvals'); }, 300);
       }
-      setTimeout(function(){ toast('Admin view — tap Records to see pending approvals'); },300);
       return;
     }
   } catch(e){}
