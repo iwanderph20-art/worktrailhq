@@ -275,8 +275,9 @@ video{object-fit:cover;transform:scaleX(-1);}
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
       </svg>
     </button>
+    <!-- Camera capture panel (camera-only, no facility/note here) -->
     <div id="camWrap" class="glass rounded-3xl px-6 py-5 flex-col items-center gap-3" style="display:none;">
-      <p id="camTitle" class="text-base font-semibold text-center" style="color:#111827;">Position your face in the frame</p>
+      <p id="camTitle" class="text-base font-semibold text-center" style="color:#111827;">Show your work area</p>
       <div class="cam-ring rounded-full overflow-hidden mx-auto" style="width:160px;height:160px;">
         <video id="camPreview" autoplay playsinline muted style="width:160px;height:160px;"></video>
       </div>
@@ -284,21 +285,72 @@ video{object-fit:cover;transform:scaleX(-1);}
         <span style="font-size:18px;flex-shrink:0;">&#128247;</span>
         <div>
           <p class="text-xs font-bold" style="color:#92400e;">Show your work environment</p>
-          <p class="text-xs mt-0.5 leading-relaxed" style="color:#a16207;">Make sure your <strong>work area or surroundings are visible</strong> in the background. This confirms you are on-site and actively working.</p>
+          <p class="text-xs mt-0.5 leading-relaxed" style="color:#a16207;">Make sure your <strong>work area or surroundings are visible</strong> in the background. This confirms you are on-site.</p>
         </div>
       </div>
-      <div class="w-full">
-        <label class="text-xs font-semibold block mb-2" style="color:#374151;">Facility / Location <span style="color:#9ca3af;font-weight:400;">(select all that apply)</span></label>
-        <div id="facPills" class="flex flex-wrap gap-2 mb-2"></div>
-        <input id="facOther" type="text" placeholder="Describe other location…" class="inp mt-1" style="font-size:13px;display:none;">
-      </div>
-      <div class="w-full">
-        <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Note / Reason <span style="color:#d1d5db;">(optional)</span></label>
-        <input id="clockNote" type="text" placeholder="e.g. Running late, working from field…" class="inp" style="font-size:14px;">
-      </div>
-      <button onclick="captureAndClock()" class="tap w-full py-3 rounded-2xl font-semibold text-white text-sm"
-        style="background:#1a2b8c;border:none;cursor:pointer;">Confirm &amp; Submit</button>
+      <button onclick="capturePhoto()" class="tap w-full py-3 rounded-2xl font-semibold text-white text-sm"
+        style="background:#1a2b8c;border:none;cursor:pointer;">&#128247; Take Photo &amp; Continue</button>
       <button onclick="cancelCapture()" class="text-sm" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
+    </div>
+
+    <!-- Gamified Clock-In Questions (shown after photo, clock-IN only) -->
+    <div id="clockInQuestionsCard" class="glass rounded-3xl px-6 py-6 space-y-5" style="display:none;">
+      <!-- Step progress -->
+      <div class="flex items-center gap-3">
+        <div class="flex gap-1.5">
+          <div id="qDot1" style="width:8px;height:8px;border-radius:99px;background:#1a2b8c;transition:all .2s;"></div>
+          <div id="qDot2" style="width:8px;height:8px;border-radius:99px;background:#e5e7eb;transition:all .2s;"></div>
+        </div>
+        <p id="qStepLabel" class="text-xs font-semibold" style="color:#9ca3af;"></p>
+      </div>
+
+      <!-- Step 1: Facility -->
+      <div id="qStep1">
+        <p class="text-lg font-bold" style="color:#111827;">Where are you working today?</p>
+        <p class="text-xs mt-1 mb-4" style="color:#9ca3af;">Select your facility for this shift</p>
+        <div id="qFacGrid" class="grid grid-cols-2 gap-2"></div>
+        <input id="qFacOther" type="text" placeholder="Describe other location…" class="inp mt-3" style="font-size:13px;display:none;">
+        <button onclick="qGoStep2()" id="qNextBtn" class="tap w-full py-3 mt-4 rounded-2xl font-semibold text-sm"
+          style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;opacity:.4;pointer-events:none;">Continue →</button>
+      </div>
+
+      <!-- Step 2: Mileage (only if Juno Tech Lab) -->
+      <div id="qStep2" style="display:none;">
+        <button onclick="qBackStep1()" class="text-xs mb-3 flex items-center gap-1" style="background:none;border:none;cursor:pointer;color:#9ca3af;">← Back</button>
+        <p class="text-lg font-bold" style="color:#111827;">Mileage Tracking</p>
+        <p class="text-xs mt-1 mb-4" style="color:#9ca3af;">For payroll records — did you drive today?</p>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <button onclick="setDroveMode(true)" id="qDroveYes" class="tap py-4 rounded-2xl font-semibold text-sm"
+            style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">&#128663; Yes, I drove</button>
+          <button onclick="setDroveMode(false)" id="qDroveNo" class="tap py-4 rounded-2xl font-semibold text-sm"
+            style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">&#127968; No driving</button>
+        </div>
+        <div id="qMileageWrap" style="display:none;">
+          <label class="text-xs font-semibold block mb-2" style="color:#374151;">Miles driven today</label>
+          <input id="qMileage" type="number" step="0.1" min="0" placeholder="0.0"
+            class="inp" style="font-size:22px;font-weight:700;text-align:center;">
+        </div>
+      </div>
+
+      <!-- Note (always shown at bottom) -->
+      <div>
+        <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Note <span style="color:#d1d5db;">(optional)</span></label>
+        <input id="qNote" type="text" placeholder="e.g. Starting early, working remote…" class="inp">
+      </div>
+
+      <!-- Submit -->
+      <button onclick="submitClockInQuestions()" id="qSubmitBtn" class="tap w-full py-4 rounded-2xl font-bold text-base"
+        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;display:none;">Clock In ✓</button>
+      <button onclick="cancelCapture()" class="text-sm text-center w-full" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
+    </div>
+
+    <!-- Quick Clock-Out Note (shown after photo, clock-OUT only) -->
+    <div id="clockOutNoteCard" class="glass rounded-3xl px-6 py-6 space-y-4" style="display:none;">
+      <p class="text-lg font-bold" style="color:#111827;">Any notes before clocking out?</p>
+      <input id="qOutNote" type="text" placeholder="e.g. Tasks completed, hand-off notes…" class="inp">
+      <button onclick="submitClockOut()" class="tap w-full py-4 rounded-2xl font-bold text-base"
+        style="background:#b91c1c;color:#fff;border:none;cursor:pointer;">Clock Out ✓</button>
+      <button onclick="cancelCapture()" class="text-sm text-center w-full" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
     </div>
   </div>
 </div>
@@ -501,25 +553,14 @@ video{object-fit:cover;transform:scaleX(-1);}
     <!-- Settings tab -->
     <div id="pane-settings" class="apane space-y-4">
 
-      <!-- Kiosk URL share -->
+      <!-- Combined Staff URL (ONE link for everything) -->
       <div class="rcard space-y-3">
-        <p class="text-sm font-semibold" style="color:#374151;">&#128279; Staff Kiosk URL</p>
-        <p class="text-xs leading-relaxed" style="color:#6b7280;">Share this link with your staff. It includes your cloud sync configuration so every device — phones, tablets, office kiosk — stays in sync automatically. Staff should bookmark this URL.</p>
+        <p class="text-sm font-semibold" style="color:#374151;">&#128279; Staff Kiosk URL <span style="font-size:10px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;margin-left:4px;font-weight:700;">GIVE THIS TO STAFF</span></p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">This is the <strong>one link</strong> to share with all staff. It automatically sets up cloud sync <em>and</em> loads all employee codes on any device — phones, tablets, office kiosk. Staff should bookmark it.</p>
+        <div class="rounded-xl px-3 py-2 text-xs" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">&#9432; Regenerate this link after adding/removing employees so the new codes are included.</div>
         <div id="kioskUrlDisplay" class="url-box"></div>
         <button onclick="copyKioskUrl()" class="tap px-5 py-2.5 rounded-xl text-sm font-semibold"
-          style="background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">Copy URL</button>
-      </div>
-
-      <!-- Shareable employee link -->
-      <div class="rcard space-y-3">
-        <p class="text-sm font-semibold mb-1" style="color:#374151;">&#128279; Shareable Employee Link</p>
-        <p class="text-xs leading-relaxed" style="color:#6b7280;">Generate a link that bakes employee codes into the URL. Share it with employees — anyone who opens it gets the correct codes automatically on any device.</p>
-        <button onclick="generateShareLink()" class="tap px-5 py-3 rounded-xl font-semibold text-sm w-full"
-          style="background:#0f766e;color:#ccfbf1;border:none;cursor:pointer;">Copy Shareable Link</button>
-        <div id="shareLinkBox" style="display:none;">
-          <input id="shareLinkInput" type="text" class="inp inp-dk text-xs" readonly style="font-size:11px;">
-          <p class="text-xs mt-1" style="color:#9ca3af;">Copy this link and send to all employees via WhatsApp, email, or QR code.</p>
-        </div>
+          style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#128203; Copy Staff URL</button>
       </div>
 
       <!-- Change password -->
@@ -690,6 +731,9 @@ var breakMins = 0;
 var pendingAction = null;
 var pendingEntryTs = null;
 var camStream = null;
+var pendingPhoto  = null; // DataURL captured in camWrap, held until submission
+var qSelectedFac  = null; // facility selected in gamified step 1
+var qDroveMode    = null; // true/false, mileage step
 
 /* ── views ──────────────────────────────── */
 function show(id) {
@@ -895,14 +939,187 @@ function handleClock() {
     ? 'Clock In — Show your work area' : 'Clock Out — Show your work area';
   var cw = document.getElementById('camWrap');
   cw.style.display='flex'; cw.style.flexDirection='column';
-  resetFacilityPills();
   startCamera();
 }
 function cancelCapture() {
-  pendingAction=null;
+  pendingAction=null; pendingPhoto=null; qSelectedFac=null; qDroveMode=null;
   document.getElementById('camWrap').style.display='none';
-  document.getElementById('mainCard').style.display='';
+  document.getElementById('clockInQuestionsCard').style.display='none';
+  document.getElementById('clockOutNoteCard').style.display='none';
+  renderEmpState(); // restores mainCard based on current clockState
 }
+/* ── Gamified Clock-In Flow ─────────────────── */
+function capturePhoto() {
+  var video  = document.getElementById('camPreview');
+  var canvas = document.getElementById('captureCanvas');
+  var ctx    = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (video.readyState >= 2) {
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-160,0,160,160); ctx.restore();
+  }
+  pendingPhoto = (video.readyState >= 2) ? canvas.toDataURL('image/jpeg',0.30) : null;
+  stopCamera(); // Turn off camera immediately after capture
+  document.getElementById('camWrap').style.display = 'none';
+
+  if (pendingAction === 'in') {
+    // Reset & show gamified questions
+    qSelectedFac = null; qDroveMode = null;
+    document.getElementById('qNote').value = '';
+    document.getElementById('qMileage').value = '';
+    document.getElementById('qFacOther').value = '';
+    document.getElementById('qFacOther').style.display = 'none';
+    document.getElementById('qStep1').style.display = '';
+    document.getElementById('qStep2').style.display = 'none';
+    document.getElementById('qSubmitBtn').style.display = 'none';
+    document.getElementById('qDot1').style.background = '#1a2b8c';
+    document.getElementById('qDot2').style.background = '#e5e7eb';
+    document.getElementById('qStepLabel').textContent = 'Step 1 of 2';
+    var qNextBtn = document.getElementById('qNextBtn');
+    if (qNextBtn) { qNextBtn.style.opacity='.4'; qNextBtn.style.pointerEvents='none'; }
+    renderQFacGrid();
+    var card = document.getElementById('clockInQuestionsCard');
+    card.style.display='flex'; card.style.flexDirection='column';
+  } else {
+    // Clock-out: show note card
+    document.getElementById('qOutNote').value = '';
+    var outCard = document.getElementById('clockOutNoteCard');
+    outCard.style.display='flex'; outCard.style.flexDirection='column';
+  }
+}
+function renderQFacGrid() {
+  var grid = document.getElementById('qFacGrid');
+  if (!grid) return;
+  var html = '';
+  FACILITIES.forEach(function(f) {
+    var isJuno = (f === 'Juno Tech Lab');
+    var isSel  = (f === qSelectedFac);
+    var bg  = isSel ? (isJuno?'#1a2b8c':'#1a2b8c') : '#f9fafb';
+    var col = isSel ? '#fff' : '#374151';
+    var brd = isSel ? '#1a2b8c' : '#e5e7eb';
+    var icon = isJuno ? '&#127970;' : (f.indexOf('ALF')>=0 ? '&#127968;' : f==='Others' ? '&#128205;' : '&#128300;');
+    html += '<button onclick="selectQFac(\''+f.replace(/\'/g,"\\'")+'\',this)" class="tap" style="'
+      +'padding:14px 6px;border-radius:16px;text-align:center;border:2px solid '+brd+';'
+      +'background:'+bg+';color:'+col+';cursor:pointer;transition:all .15s;'
+      +(isSel?'box-shadow:0 0 0 3px rgba(26,43,140,.25);':'')
+      +'">'
+      +'<div style="font-size:20px;line-height:1;margin-bottom:5px;">'+icon+'</div>'
+      +'<div style="font-size:10px;font-weight:600;line-height:1.3;">'+f+'</div>'
+      +'</button>';
+  });
+  grid.innerHTML = html;
+}
+function selectQFac(name) {
+  qSelectedFac = name;
+  renderQFacGrid();
+  var other = document.getElementById('qFacOther');
+  if (other) other.style.display = (name==='Others') ? '' : 'none';
+  var qNextBtn = document.getElementById('qNextBtn');
+  if (qNextBtn) { qNextBtn.style.opacity='1'; qNextBtn.style.pointerEvents=''; }
+}
+function qGoStep2() {
+  if (!qSelectedFac) { toast('Please select a facility'); return; }
+  if (qSelectedFac === 'Juno Tech Lab') {
+    document.getElementById('qStep1').style.display = 'none';
+    document.getElementById('qStep2').style.display = '';
+    document.getElementById('qDot1').style.background = '#e5e7eb';
+    document.getElementById('qDot2').style.background = '#1a2b8c';
+    document.getElementById('qStepLabel').textContent = 'Step 2 of 2';
+    document.getElementById('qSubmitBtn').style.display = 'none';
+    qDroveMode = null;
+    var yes=document.getElementById('qDroveYes'), no=document.getElementById('qDroveNo');
+    if(yes){yes.style.background='#f9fafb';yes.style.color='#374151';yes.style.border='1.5px solid #e5e7eb';}
+    if(no) {no.style.background='#f9fafb'; no.style.color='#374151'; no.style.border='1.5px solid #e5e7eb';}
+    document.getElementById('qMileageWrap').style.display = 'none';
+  } else {
+    // Skip mileage step — jump straight to submit
+    document.getElementById('qStep1').style.display = 'none';
+    document.getElementById('qStep2').style.display = 'none';
+    document.getElementById('qSubmitBtn').style.display = '';
+    document.getElementById('qStepLabel').textContent = 'Almost done!';
+    document.getElementById('qDot1').style.background = '#4ade80';
+    document.getElementById('qDot2').style.background = '#4ade80';
+  }
+}
+function qBackStep1() {
+  document.getElementById('qStep2').style.display = 'none';
+  document.getElementById('qStep1').style.display = '';
+  document.getElementById('qSubmitBtn').style.display = 'none';
+  document.getElementById('qDot1').style.background = '#1a2b8c';
+  document.getElementById('qDot2').style.background = '#e5e7eb';
+  document.getElementById('qStepLabel').textContent = 'Step 1 of 2';
+}
+function setDroveMode(drove) {
+  qDroveMode = drove;
+  var yes=document.getElementById('qDroveYes'), no=document.getElementById('qDroveNo');
+  if(drove){
+    if(yes){yes.style.background='#1a2b8c';yes.style.color='#fff';yes.style.border='1.5px solid #1a2b8c';}
+    if(no) {no.style.background='#f9fafb'; no.style.color='#374151';no.style.border='1.5px solid #e5e7eb';}
+  } else {
+    if(yes){yes.style.background='#f9fafb';yes.style.color='#374151';yes.style.border='1.5px solid #e5e7eb';}
+    if(no) {no.style.background='#1a2b8c'; no.style.color='#fff'; no.style.border='1.5px solid #1a2b8c';}
+  }
+  document.getElementById('qMileageWrap').style.display = drove ? '' : 'none';
+  document.getElementById('qSubmitBtn').style.display = '';
+}
+function submitClockInQuestions() {
+  // Build facility list
+  var facList = [];
+  if (qSelectedFac === 'Others') {
+    var otherTxt = (document.getElementById('qFacOther').value||'').trim();
+    facList.push(otherTxt || 'Other');
+  } else if (qSelectedFac) {
+    facList.push(qSelectedFac);
+  } else {
+    toast('Please select a facility'); return;
+  }
+  // Mileage (only for Juno Tech Lab + drove)
+  var mileage = null;
+  if (qSelectedFac==='Juno Tech Lab' && qDroveMode===true) {
+    var mi = parseFloat(document.getElementById('qMileage').value);
+    mileage = isNaN(mi) ? 0 : mi;
+  }
+  var note = (document.getElementById('qNote').value||'').trim();
+  var entryTs = new Date().toISOString();
+  var token   = genApprovalToken(entryTs);
+  var entry   = {
+    name:currentEmp.name, type:'in', ts:entryTs,
+    hasPhoto:!!pendingPhoto, note:note, facilities:facList,
+    location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null,
+    approval:'pending', approvalToken:token
+  };
+  if (mileage !== null) entry.mileage = mileage;
+  if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
+  var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
+  fbPut('timesheet', entryTs, entry);
+  clockState='pending'; pendingEntryTs=entryTs;
+  fbPutState(currentEmp.name,'pending',entryTs);
+  document.getElementById('clockInQuestionsCard').style.display='none';
+  pendingAction=null; pendingPhoto=null; qSelectedFac=null; qDroveMode=null;
+  renderEmpState(); updateTodaySummary();
+  toast('Sent for approval — your time is being recorded');
+  sendClockInEmail(entry, null);
+  startApprovalPoll(entryTs);
+}
+function submitClockOut() {
+  var note = (document.getElementById('qOutNote').value||'').trim();
+  var entryTs = new Date().toISOString();
+  var entry   = {
+    name:currentEmp.name, type:'out', ts:entryTs,
+    hasPhoto:!!pendingPhoto, note:note,
+    location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null
+  };
+  if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
+  var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
+  fbPut('timesheet', entryTs, entry);
+  clockState='out';
+  fbPutState(currentEmp.name,'out',entryTs);
+  document.getElementById('clockOutNoteCard').style.display='none';
+  pendingAction=null; pendingPhoto=null;
+  stopBreakCheck();
+  renderEmpState(); updateTodaySummary();
+  toast('Clocked out · '+computeTodayHours(currentEmp.name)+' hrs today');
+}
+
 function captureAndClock() {
   var video  = document.getElementById('camPreview');
   var canvas = document.getElementById('captureCanvas');
@@ -1101,7 +1318,16 @@ document.getElementById('adminLoginBtn').addEventListener('click', function() {
   var stored = store.get(K.adminHash) || DEFAULT_HASH;
   if (hashPwd(input)===stored) {
     closeAdminLogin(); show('adminView');
-    renderTables(); renderEmployeeList(); renderRecordEmpBtns();
+    // Sync employees bidirectionally: push local to cloud, pull cloud to local
+    if (fbCfg.url) {
+      pushAllEmployeesToCloud(); // push any local-only employees to Firebase
+      syncEmployeesFromCloud(function(){
+        renderEmployeeList(); renderRecordEmpBtns();
+      });
+    } else {
+      renderEmployeeList(); renderRecordEmpBtns();
+    }
+    renderTables();
     renderKioskUrl(); updateStorageUsage();
   } else {
     document.getElementById('loginErr').style.display='block';
@@ -1114,19 +1340,27 @@ document.getElementById('adminPassInput').addEventListener('keydown', function(e
 function closeAdmin() { show('pinView'); }
 
 /* ── Kiosk URL ───────────────────────────── */
+// Builds the ONE staff URL — includes Firebase URL (?fb=) + employee codes (#emp=)
+// Staff bookmark this single URL and everything auto-configures on any device.
+function buildStaffUrl() {
+  var base = window.location.origin + window.location.pathname;
+  var url  = base;
+  if (fbCfg.url) url += '?fb='+encodeURIComponent(fbCfg.url);
+  var emps = store.getJ(K.employees, []);
+  if (emps.length) {
+    try { url += '#emp='+btoa(JSON.stringify(emps)); } catch(e){}
+  }
+  return url;
+}
 function renderKioskUrl() {
   var el = document.getElementById('kioskUrlDisplay');
   if (!el) return;
-  var base = window.location.origin + window.location.pathname;
-  // Embed Firebase URL so any device that opens this link auto-configures cloud sync
-  var url = fbCfg.url ? base+'?fb='+encodeURIComponent(fbCfg.url) : base;
-  el.textContent = url;
+  el.textContent = buildStaffUrl();
 }
 function copyKioskUrl() {
-  var base = window.location.origin + window.location.pathname;
-  var url = fbCfg.url ? base+'?fb='+encodeURIComponent(fbCfg.url) : base;
+  var url = buildStaffUrl();
   navigator.clipboard.writeText(url).then(function(){
-    toast(fbCfg.url ? 'Staff URL copied — cloud sync included!' : 'Kiosk URL copied!');
+    toast('Staff URL copied — cloud + employee codes included!');
   }).catch(function(){
     var el = document.getElementById('kioskUrlDisplay');
     var r = document.createRange(); r.selectNode(el);
@@ -1142,7 +1376,10 @@ function switchTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('pane-'+name).classList.add('active');
   if (name==='records')   { if(fbCfg.url){ syncFromCloud(function(){ renderTables(); renderAdminLog(); }); } else { renderTables(); renderAdminLog(); } renderRecordEmpBtns(); }
-  if (name==='employees') renderEmployeeList();
+  if (name==='employees') {
+    if (fbCfg.url) { syncEmployeesFromCloud(function(){ renderEmployeeList(); renderRecordEmpBtns(); }); }
+    else { renderEmployeeList(); }
+  }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
   if (name==='map') {
     // Small delay so the tab pane is visible before Leaflet tries to render
@@ -1155,6 +1392,42 @@ function switchTab(name) {
   } else {
     if(_liveMapRefreshID){ clearInterval(_liveMapRefreshID); _liveMapRefreshID=null; }
   }
+}
+
+/* ── Employee Firebase Sync ─────────────── */
+function pushEmployeeToFirebase(emp) {
+  if (!fbCfg.url || !emp) return;
+  fetch(fbCfg.url+'/jtl/employees/'+emp.code+'.json', {
+    method:'PUT', body:JSON.stringify(emp), headers:{'Content-Type':'application/json'}
+  }).catch(function(){});
+}
+function deleteEmployeeFromFirebase(code) {
+  if (!fbCfg.url || !code) return;
+  fetch(fbCfg.url+'/jtl/employees/'+code+'.json', {method:'DELETE'}).catch(function(){});
+}
+function syncEmployeesFromCloud(cb) {
+  if (!fbCfg.url) { if(cb) cb(); return; }
+  fetch(fbCfg.url+'/jtl/employees.json')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (data && typeof data === 'object') {
+        var cloudEmps = Array.isArray(data) ? data : Object.values(data);
+        cloudEmps = cloudEmps.filter(function(e){ return e && e.name && e.code; });
+        if (cloudEmps.length > 0) {
+          var localEmps = store.getJ(K.employees, []);
+          var merged = {};
+          localEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
+          cloudEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
+          store.setJ(K.employees, Object.values(merged));
+        }
+      }
+      if(cb) cb();
+    })
+    .catch(function(){ if(cb) cb(); });
+}
+function pushAllEmployeesToCloud() {
+  var emps = store.getJ(K.employees, []);
+  emps.forEach(function(e){ pushEmployeeToFirebase(e); });
 }
 
 /* ── employee management ────────────────── */
@@ -1173,24 +1446,32 @@ function addEmployee() {
   } else {
     code=genCode(emps);
   }
-  emps.push({name:name,code:code});
+  var newEmp={name:name,code:code};
+  emps.push(newEmp);
   store.setJ(K.employees,emps);
+  pushEmployeeToFirebase(newEmp); // sync to Firebase so all devices see it
   inp.value=''; codeInp.value='';
   renderEmployeeList(); renderRecordEmpBtns();
   toast(name+' added — code: '+code);
 }
 function removeEmployee(name) {
   if (!confirm('Remove '+name+' and all their data?')) return;
-  var emps=store.getJ(K.employees,[]).filter(function(e){ return e.name!==name; });
-  store.setJ(K.employees,emps);
+  var allEmps=store.getJ(K.employees,[]);
+  var target=null;
+  for(var i=0;i<allEmps.length;i++) if(allEmps[i].name===name){ target=allEmps[i]; break; }
+  store.setJ(K.employees, allEmps.filter(function(e){ return e.name!==name; }));
+  if(target) deleteEmployeeFromFirebase(target.code); // sync deletion to Firebase
   renderEmployeeList(); renderRecordEmpBtns(); toast(name+' removed');
 }
 function regenCode(name) {
   var emps=store.getJ(K.employees,[]);
   var emp=null; for(var i=0;i<emps.length;i++) if(emps[i].name===name){ emp=emps[i]; break; }
   if (!emp) return;
+  var oldCode=emp.code;
   emp.code=genCode(emps.filter(function(e){ return e.name!==name; }));
   store.setJ(K.employees,emps);
+  deleteEmployeeFromFirebase(oldCode); // remove old code from Firebase
+  pushEmployeeToFirebase(emp);         // add new code to Firebase
   renderEmployeeList(); toast('New code for '+name+': '+emp.code);
 }
 function renderEmployeeList() {
@@ -1208,7 +1489,8 @@ function renderEmployeeList() {
       + '<p class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</p>'
       + '<p class="text-xs mt-0.5 font-mono tracking-widest" style="color:#1d4ed8;">'+emp.code+'</p>'
       + '</div>'
-      + '<div class="flex gap-2">'
+      + '<div class="flex gap-2 flex-wrap">'
+      + '<button onclick="seeEmpOnMap(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dcfce7;color:#15803d;border:none;cursor:pointer;">&#128205; Location</button>'
       + '<button onclick="regenCode(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
       + '<button onclick="removeEmployee(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
       + '</div></div>';
@@ -1221,9 +1503,13 @@ function renderRecordEmpBtns() {
   var emps=store.getJ(K.employees,[]);
   var html='';
   emps.forEach(function(emp) {
-    var safeName=emp.name.replace(/"/g,'&quot;');
-    html += '<button onclick="openEmpDetail(\''+safeName+'\')" class="tap px-4 py-2 rounded-xl text-sm font-semibold" '
-      + 'style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">'+emp.name+'</button>';
+    var safeName=emp.name.replace(/"/g,'&quot;').replace(/'/g,"\\'");
+    html += '<div style="display:inline-flex;gap:0;border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px #e5e7eb;">'
+      + '<button onclick="openEmpDetail(\''+safeName+'\')" class="tap px-4 py-2 text-sm font-semibold" '
+      + 'style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">'+emp.name+'</button>'
+      + '<button onclick="seeEmpOnMap(\''+safeName+'\')" title="See live location" class="tap px-2 py-2 text-sm" '
+      + 'style="background:#dcfce7;color:#15803d;border:none;border-left:1px solid #e5e7eb;cursor:pointer;">&#128205;</button>'
+      + '</div>';
   });
   document.getElementById('recordEmpBtns').innerHTML = html;
 }
@@ -1300,6 +1586,7 @@ function _renderTablesImpl() {
           +'<span style="color:#6b7280;font-size:11px;">'+time+'</span>'
           +'</div>'
           +(r.facilities && r.facilities.length ? '<p style="color:#1d4ed8;font-size:10px;font-weight:600;margin-top:3px;">'+r.facilities.join(' · ')+'</p>' : '')
+          +(r.mileage!=null ? '<p style="color:#7c3aed;font-size:10px;font-weight:600;margin-top:2px;">&#128663; '+Number(r.mileage).toFixed(1)+' mi driven</p>' : '')
           +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
           +(approvalBtns?'<div style="display:flex;gap:4px;margin-top:6px;">'+approvalBtns+'</div>':'')
           +'</div>'
@@ -1424,12 +1711,13 @@ function closePhoto() { document.getElementById('photoLightbox').classList.remov
 /* ── employee detail modal ───────────────── */
 function buildSessions(entries) {
   var sessions=[], inTime=null, bst=null, mealMs=0, restMs=0, brkType='rest';
-  var inNote='', outNote='', breaks=[], waivers=[], facilities=[];
+  var inNote='', outNote='', breaks=[], waivers=[], facilities=[], mileage=null;
   entries.forEach(function(e) {
     if(e.type==='in'){
       inTime=e._d; bst=null; mealMs=0; restMs=0; brkType='rest';
       inNote=e.note||''; outNote=''; breaks=[]; waivers=[];
       facilities=e.facilities||[];
+      mileage = (e.mileage != null) ? e.mileage : null;
     }
     else if(e.type==='break_start'){
       bst=e._d;
@@ -1474,11 +1762,12 @@ function buildSessions(entries) {
         totalShiftHrs:totalShiftHrs,
         inNote:inNote, outNote:outNote,
         breaks:breaks, waivers:waivers, facilities:facilities,
+        mileage:mileage,
         caReqs:reqs,
         compliantRest:compliantRest, compliantMeal:compliantMeal,
         restTaken:restTaken, mealTaken:mealTaken, mealWaivedCount:mealWaivedCount
       });
-      inTime=null; bst=null; mealMs=0; restMs=0; inNote=''; outNote=''; breaks=[]; waivers=[]; facilities=[];
+      inTime=null; bst=null; mealMs=0; restMs=0; inNote=''; outNote=''; breaks=[]; waivers=[]; facilities=[]; mileage=null;
     }
   });
   return sessions;
@@ -1691,6 +1980,7 @@ function _doGenerateReport(fromStr,toStr){
           +'<div><p class="text-xs" style="color:#6b7280;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtDT(sess.outTime)+'</p>'+(sess.outNote?'<p class="text-xs" style="color:#92400e;font-style:italic;">Note: '+sess.outNote+'</p>':'')+'</div>'
           +'<div><p class="text-xs" style="color:#6b7280;">Facility / Location</p><p class="text-xs font-semibold" style="color:#374151;">'+fac+'</p></div>'
           +'<div><p class="text-xs" style="color:#6b7280;">Net Paid Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+' hrs</p></div>'
+          +(sess.mileage!=null?'<div><p class="text-xs" style="color:#6b7280;">Mileage</p><p class="text-xs font-bold" style="color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
           +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#6b7280;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
           +'</div></div>'
           +(photoHtml?'<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">'+photoHtml+'</div>':'')
@@ -1729,6 +2019,7 @@ function _doGenerateReport(fromStr,toStr){
         +'<td>'+(sess.inTime?sess.inTime.toLocaleString():'—')+'</td>'
         +'<td>'+(sess.outTime?sess.outTime.toLocaleString():'Not out')+'</td>'
         +'<td>'+fac+'</td>'
+        +'<td>'+(sess.mileage!=null?sess.mileage.toFixed(1)+' mi':'—')+'</td>'
         +'<td>'+Math.round((sess.mealMs||0)/60000)+'</td>'
         +'<td>'+Math.round((sess.restMs||0)/60000)+'</td>'
         +'<td>'+(sess.netMs/3600000).toFixed(2)+'</td>'
@@ -1739,7 +2030,7 @@ function _doGenerateReport(fromStr,toStr){
     +'<p style="margin:0 0 16px;color:#666;">Period: '+fromStr+' to '+toStr+'</p>'
     +'<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:11px;">'
     +'<tr style="background:#f3f4f6;"><th>Employee</th><th>Session</th><th>Clock In</th><th>Clock Out</th>'
-    +'<th>Facility</th><th>Meal Mins (unpaid)</th><th>Rest Mins (paid)</th><th>Net Hrs</th><th>CA Compliance</th></tr>'
+    +'<th>Facility</th><th>Mileage</th><th>Meal Mins (unpaid)</th><th>Rest Mins (paid)</th><th>Net Hrs</th><th>CA Compliance</th></tr>'
     +printRows+'</table>';
 }
 
@@ -1851,11 +2142,11 @@ function refreshFromCloud() {
 }
 function pushAllToCloud() {
   if(!fbCfg.url){ toast('Configure Firebase URL in Settings first.'); return; }
-  var ts=store.getJ(K.timesheet,[]), sups=store.getJ(K.supplies,[]);
-  if(!ts.length&&!sups.length){ toast('No local data to push.'); return; }
+  var ts=store.getJ(K.timesheet,[]), sups=store.getJ(K.supplies,[]), emps=store.getJ(K.employees,[]);
   ts.forEach(function(e){ fbPut('timesheet', e.ts, e); });
   sups.forEach(function(e){ fbPut('supplies', e.ts, e); });
-  toast('Pushed '+ts.length+' timesheet + '+sups.length+' supply records to cloud!');
+  emps.forEach(function(e){ pushEmployeeToFirebase(e); });
+  toast('Pushed '+ts.length+' timesheet + '+sups.length+' supply + '+emps.length+' employees to cloud!');
 }
 
 /* ── Facility selector ───────────────────── */
@@ -1997,6 +2288,23 @@ function clearFirebaseLocation() {
   }
 }
 
+/* ── Map Helpers ─────────────────────────── */
+var _mapMarkers = {}; // empName → L.Marker, for fly-to
+function seeEmpOnMap(name) {
+  switchTab('map');
+  setTimeout(function(){ showEmployeeOnMap(name); }, 600);
+}
+function showEmployeeOnMap(name) {
+  if (!_liveMap) return;
+  var mk = _mapMarkers[name];
+  if (mk) {
+    _liveMap.flyTo(mk.getLatLng(), 15, {animate:true, duration:1.2});
+    mk.openPopup();
+  } else {
+    toast(name+' has no active location');
+  }
+}
+
 /* ── Admin Live Map ───────────────────────── */
 function renderLocationMap() {
   // Init Leaflet map once
@@ -2018,6 +2326,7 @@ function renderLocationMap() {
     .then(function(data) {
       if(statusEl) statusEl.style.display='none';
       // Clear existing markers
+      _mapMarkers = {};
       _liveMap.eachLayer(function(layer){ if(layer instanceof L.Marker || layer instanceof L.Circle) _liveMap.removeLayer(layer); });
       if (!data || typeof data !== 'object') {
         if(statusEl){ statusEl.style.display=''; statusEl.textContent='No active locations. Staff must allow location access.'; }
@@ -2042,19 +2351,23 @@ function renderLocationMap() {
           +(loc.accuracy?'<p style="margin:4px 0 0;font-size:10px;color:#d1d5db;">Accuracy: ±'+loc.accuracy+'m</p>':'')
           +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;margin-top:8px;font-size:11px;color:#1a2b8c;font-weight:600;">View in Google Maps &#8599;</a>'
           +'</div>';
-        L.marker([loc.lat,loc.lng],{icon:icon}).addTo(_liveMap).bindPopup(popup);
+        var mk = L.marker([loc.lat,loc.lng],{icon:icon}).addTo(_liveMap).bindPopup(popup);
+        if (loc.name) _mapMarkers[loc.name] = mk; // store for fly-to
         if(loc.accuracy) L.circle([loc.lat,loc.lng],{radius:loc.accuracy,color:color,fillColor:color,fillOpacity:.08,weight:1}).addTo(_liveMap);
         bounds.push([loc.lat,loc.lng]);
+        var safeLocName = (loc.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         rowsHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6;">'
           +'<div style="width:32px;height:32px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:12px;flex-shrink:0;">'+(loc.name||'?').charAt(0)+'</div>'
           +'<div style="flex:1;min-width:0;">'
           +'<p style="margin:0;font-size:13px;font-weight:600;color:#111827;">'+loc.name+'</p>'
           +'<p style="margin:0;font-size:11px;color:'+color+';font-weight:600;">'+stateLabel+'</p>'
           +'</div>'
-          +'<div style="text-align:right;flex-shrink:0;">'
+          +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">'
           +'<p style="margin:0;font-size:11px;color:#9ca3af;">'+lastSeen+'</p>'
-          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="font-size:10px;color:#1a2b8c;">Maps &#8599;</a>'
-          +'</div></div>';
+          +'<div style="display:flex;gap:4px;">'
+          +'<button onclick="showEmployeeOnMap(\''+safeLocName+'\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">&#128205; Fly to</button>'
+          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#f3f4f6;color:#1a2b8c;text-decoration:none;font-weight:600;">Maps &#8599;</a>'
+          +'</div></div></div>';
       });
       if (bounds.length) {
         try { _liveMap.fitBounds(bounds, {padding:[32,32],maxZoom:15}); } catch(e){}
