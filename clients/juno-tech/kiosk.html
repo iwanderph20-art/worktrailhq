@@ -233,12 +233,8 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div id="mainCard" class="glass rounded-3xl px-6 py-6 space-y-3">
       <button id="clockBtn" onclick="handleClock()" class="tap w-full py-5 rounded-2xl font-bold text-lg"
         style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Clock In</button>
-      <div id="breakBtns" class="space-y-2" style="display:none;">
-        <button onclick="startBreak(10,'rest')" class="tap w-full py-3 rounded-2xl font-semibold text-sm"
-          style="background:#fef9c3;color:#92400e;border:none;cursor:pointer;">&#9749; 10-min Rest Break <span style="font-weight:400;font-size:11px;">(paid)</span></button>
-        <button onclick="startBreak(30,'meal')" class="tap w-full py-3 rounded-2xl font-semibold text-sm"
-          style="background:#fff7ed;color:#c2410c;border:none;cursor:pointer;">&#127859; 30-min Meal Break <span style="font-weight:400;font-size:11px;">(unpaid)</span></button>
-      </div>
+      <!-- break buttons removed — meal break appears automatically after 5 hrs -->
+      <div id="breakBtns" style="display:none;"></div>
     </div>
     <!-- CA Break Law Alert (shown automatically when break is due) -->
     <div id="breakAlert" class="glass rounded-3xl px-5 py-4 break-notice" style="display:none;">
@@ -1045,7 +1041,7 @@ function renderEmpState() {
     entries.forEach(function(e){ if(e.type==='in') lastIn=e; });
     if (lastIn) { since.textContent='since '+new Date(lastIn.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); since.style.display=''; }
     clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
-    breakBtns.style.display=''; mainCard.style.display='';
+    mainCard.style.display='';
     startBreakCheck();
     // Update mileage pill if tracking
     var mp=document.getElementById('mileagePill');
@@ -2887,41 +2883,39 @@ function checkBreakCompliance() {
     .filter(function(e){ return e.name===currentEmp.name; })
     .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||'',breakType:e.breakType||''}; })
     .sort(function(a,b){ return a._d-b._d; });
-  // Walk entries to find current session stats
-  var lastIn=null, restTaken=0, mealTaken=0, mealWaived=false, inBreak=false, bst=null, brkType='rest';
+
+  // Walk entries to find meal break status for current session
+  var lastIn=null, mealTaken=0, mealWaived=false, inBreak=false, brkType='rest';
   entries.forEach(function(e){
-    if(e.type==='in'){ lastIn=e._d; restTaken=0; mealTaken=0; mealWaived=false; inBreak=false; bst=null; }
-    else if(e.type==='break_start'){ bst=e._d; inBreak=true; brkType=e.breakType||(e.note.indexOf('30')>=0?'meal':'rest'); }
-    else if(e.type==='break_end'){ if(inBreak){ if(brkType==='meal') mealTaken++; else restTaken++; inBreak=false; } }
+    if(e.type==='in'){ lastIn=e._d; mealTaken=0; mealWaived=false; inBreak=false; }
+    else if(e.type==='break_start'){ inBreak=true; brkType=e.breakType||(e.note.indexOf('30')>=0?'meal':'rest'); }
+    else if(e.type==='break_end'){ if(inBreak&&brkType==='meal') mealTaken++; inBreak=false; }
     else if(e.type==='break_waived'){ mealWaived=true; }
   });
   if(!lastIn) return;
-  var elapsedHrs = (new Date() - lastIn) / 3600000;
-  var req = getCABreakReqs(elapsedHrs);
-  var alrt=document.getElementById('breakAlert');
-  var alrtTitle=document.getElementById('breakAlertTitle');
-  var alrtMsg=document.getElementById('breakAlertMsg');
-  var alrtBtns=document.getElementById('breakAlertBtns');
+
+  var alrt      = document.getElementById('breakAlert');
+  var alrtTitle = document.getElementById('breakAlertTitle');
+  var alrtMsg   = document.getElementById('breakAlertMsg');
+  var alrtBtns  = document.getElementById('breakAlertBtns');
   if(!alrt) return;
-  var mealEffective = mealTaken + (mealWaived?1:0);
-  var mealDue = req.meal > mealEffective;
-  var restDue = req.rest > restTaken;
-  if(mealDue && elapsedHrs >= 5.0) {
-    alrt.className='glass rounded-3xl px-5 py-4 break-notice-urgent';
-    alrt.style.display='';
-    alrtTitle.textContent='Meal Break Required';
-    alrtMsg.textContent='California law requires a 30-minute unpaid meal break after 5 hours worked. You have worked '+elapsedHrs.toFixed(1)+' hrs.';
-    var btns='<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f97316;color:#fff;border:none;cursor:pointer;">&#127859; Start Meal Break (30 min)</button>';
-    if(req.mealWaivable) btns+='<button onclick="waiveMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#fef9c3;color:#92400e;border:1px solid #fbbf24;cursor:pointer;">Waive Break</button>';
-    alrtBtns.innerHTML=btns;
-  } else if(restDue && elapsedHrs >= 3.5) {
-    alrt.className='glass rounded-3xl px-5 py-4 break-notice';
-    alrt.style.display='';
-    alrtTitle.textContent='Rest Break Due';
-    alrtMsg.textContent='California law requires a paid 10-minute rest break. You have worked '+elapsedHrs.toFixed(1)+' hrs ('+req.rest+' rest break'+(req.rest!==1?'s':'')+' required).';
-    alrtBtns.innerHTML='<button onclick="startBreak(10,\'rest\')" class="tap w-full py-2.5 rounded-xl text-sm font-semibold" style="background:#fbbf24;color:#92400e;border:none;cursor:pointer;">&#9749; Take 10-min Rest Break</button>';
+
+  var elapsedHrs  = (new Date() - lastIn) / 3600000;
+  var mealHandled = mealTaken > 0 || mealWaived;
+  var mealDue     = elapsedHrs >= 5.0 && !mealHandled;
+  // Shift ≤ 6 hrs: waivable by mutual consent (show waive option)
+  var waivable    = elapsedHrs < 6.0;
+
+  if (mealDue) {
+    alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
+    alrt.style.display = '';
+    alrtTitle.textContent = '30-min Meal Break';
+    alrtMsg.textContent = 'You\'ve worked ' + elapsedHrs.toFixed(1) + ' hrs. Take your unpaid meal break now, or waive it if your shift will end within 6 hours.';
+    var btns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f97316;color:#fff;border:none;cursor:pointer;">&#127859; Take 30-min Break</button>';
+    if (waivable) btns += '<button onclick="waiveMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#fef9c3;color:#92400e;border:1px solid #fbbf24;cursor:pointer;">Waive Break</button>';
+    alrtBtns.innerHTML = btns;
   } else {
-    alrt.style.display='none';
+    alrt.style.display = 'none';
   }
 }
 function waiveMealBreak() {
