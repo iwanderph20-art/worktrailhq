@@ -451,7 +451,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       <!-- Kiosk URL share -->
       <div class="rcard space-y-3">
         <p class="text-sm font-semibold" style="color:#374151;">&#128279; Staff Kiosk URL</p>
-        <p class="text-xs leading-relaxed" style="color:#6b7280;">Share this link with your staff so they can clock in and out. No login required for employees — they just enter their 4-digit code.</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Share this link with your staff. It includes your cloud sync configuration so every device — phones, tablets, office kiosk — stays in sync automatically. Staff should bookmark this URL.</p>
         <div id="kioskUrlDisplay" class="url-box"></div>
         <button onclick="copyKioskUrl()" class="tap px-5 py-2.5 rounded-xl text-sm font-semibold"
           style="background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">Copy URL</button>
@@ -719,7 +719,8 @@ function lockEmployee() {
   currentEmp=null; clockState='out'; pendingAction=null; pendingEntryTs=null;
   show('pinView');
 }
-function syncClockState() {
+/* Local-only clock state sync (runs instantly from localStorage) */
+function _syncClockStateLocal() {
   var allEntries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; });
   var entries = allEntries
     .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,approval:e.approval,approvalToken:e.approvalToken}; })
@@ -727,10 +728,8 @@ function syncClockState() {
   var last = entries[entries.length-1];
   if (!last)                          { clockState='out'; }
   else if (last.type==='in' && last.approval==='pending') {
-    // Restore pending state — check if already approved
     var status = getApprovalStatus(last.ts);
     if (status==='approved') {
-      // Mark approved in timesheet
       allEntries.forEach(function(e){ if(e.ts===last.ts) e.approval='approved'; });
       store.setJ(K.timesheet, allEntries);
       clockState='in';
@@ -745,7 +744,44 @@ function syncClockState() {
   else if (last.type==='break_start') { clockState='break'; }
   else if (last.type==='break_end')   { clockState='in'; }
   else                                { clockState='out'; }
+}
+/* Full sync: local immediately, then Firebase for cross-device accuracy */
+function syncClockState() {
+  _syncClockStateLocal();
   renderEmpState();
+  if (!fbCfg.url || !currentEmp) return;
+  // Fetch this employee's live state from Firebase (/jtl/states/{key})
+  fbGetState(currentEmp.name, function(d) {
+    if (!d || !d.state || !currentEmp) return;
+    var fbState = d.state;
+    var fbTs    = d.ts || '';
+    if (fbState === 'pending' && fbTs) {
+      var localStatus = getApprovalStatus(fbTs);
+      if (localStatus !== 'approved' && localStatus !== 'denied' && clockState !== 'pending') {
+        clockState = 'pending'; pendingEntryTs = fbTs;
+        // Fetch the timesheet entry from Firebase so we have it locally
+        syncFromCloud(function(){
+          startApprovalPoll(fbTs);
+          renderEmpState();
+        });
+      }
+    } else if (fbState === 'in' && clockState !== 'in') {
+      syncFromCloud(function(){
+        _syncClockStateLocal();
+        renderEmpState(); updateTodaySummary();
+      });
+    } else if (fbState === 'out' && clockState !== 'out') {
+      syncFromCloud(function(){
+        _syncClockStateLocal();
+        renderEmpState(); updateTodaySummary();
+      });
+    } else if (fbState === 'break' && clockState !== 'break') {
+      syncFromCloud(function(){
+        _syncClockStateLocal();
+        renderEmpState(); updateTodaySummary();
+      });
+    }
+  });
 }
 function renderEmpState() {
   var badge    = document.getElementById('statusBadge');
@@ -831,6 +867,7 @@ function captureAndClock() {
   if (pendingAction==='in') {
     clockState = 'pending';
     pendingEntryTs = entryTs;
+    fbPutState(currentEmp.name, 'pending', entryTs); // cross-device state
     toast('Sent for approval — your time is being recorded');
     // Send email notification to admin
     sendClockInEmail(entry, photo, token);
@@ -838,6 +875,7 @@ function captureAndClock() {
     startApprovalPoll(entryTs);
   } else {
     clockState = 'out';
+    fbPutState(currentEmp.name, 'out', entryTs); // cross-device state
     toast('Clocked out · '+computeTodayHours(currentEmp.name)+' hrs today');
   }
 
@@ -856,6 +894,7 @@ function startBreak(mins) {
   arr.push(bsEntry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',bsTs,bsEntry);
+  fbPutState(currentEmp.name,'break',bsTs);
   renderEmpState(); startBreakTimer(mins); toast('Break started · '+mins+' min');
 }
 function startBreakTimer(mins) {
@@ -879,6 +918,7 @@ function endBreak() {
   arr.push(beEntry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',beTs,beEntry);
+  fbPutState(currentEmp.name,'in',beTs);
   breakStart=null; breakMins=0; renderEmpState(); updateTodaySummary(); toast('Break ended — welcome back!');
 }
 
@@ -998,17 +1038,22 @@ function closeAdmin() { show('pinView'); }
 function renderKioskUrl() {
   var el = document.getElementById('kioskUrlDisplay');
   if (!el) return;
-  el.textContent = window.location.origin + window.location.pathname;
+  var base = window.location.origin + window.location.pathname;
+  // Embed Firebase URL so any device that opens this link auto-configures cloud sync
+  var url = fbCfg.url ? base+'?fb='+encodeURIComponent(fbCfg.url) : base;
+  el.textContent = url;
 }
 function copyKioskUrl() {
-  var url = window.location.origin + window.location.pathname;
-  navigator.clipboard.writeText(url).then(function(){ toast('Kiosk URL copied!'); })
-    .catch(function(){
-      var el = document.getElementById('kioskUrlDisplay');
-      var r = document.createRange(); r.selectNode(el);
-      window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
-      toast('Select and copy the URL above');
-    });
+  var base = window.location.origin + window.location.pathname;
+  var url = fbCfg.url ? base+'?fb='+encodeURIComponent(fbCfg.url) : base;
+  navigator.clipboard.writeText(url).then(function(){
+    toast(fbCfg.url ? 'Staff URL copied — cloud sync included!' : 'Kiosk URL copied!');
+  }).catch(function(){
+    var el = document.getElementById('kioskUrlDisplay');
+    var r = document.createRange(); r.selectNode(el);
+    window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+    toast('Select and copy the URL above');
+  });
 }
 
 /* ── admin tabs ─────────────────────────── */
@@ -1493,6 +1538,17 @@ function _doGenerateReport(fromStr,toStr){
 var fbCfg = { url: '' };
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || '').replace(/\/+$/, '');
+  // Auto-configure from ?fb= URL param (staff device opening shared kiosk link or email approval link)
+  try {
+    var _p = new URLSearchParams(window.location.search);
+    if (_p.has('fb')) {
+      var _u = decodeURIComponent(_p.get('fb')).replace(/\/+$/,'');
+      if (_u) {
+        if (!fbCfg.url) { fbCfg.url = _u; store.set('fb_url', _u); }
+        // Always accept if it's a newer/different URL provided via link
+      }
+    }
+  } catch(e){}
   var inp = document.getElementById('fbUrlInput');
   if (inp) inp.value = fbCfg.url;
   setFbStatus(fbCfg.url ? 'Connected: ' + fbCfg.url : '');
@@ -1538,6 +1594,28 @@ function fbDeleteEntry(path, ts) {
 function fbFetchAll(path, cb) {
   if (!fbCfg.url) { cb(null); return; }
   fetch(fbCfg.url+'/jtl/'+path+'.json').then(function(r){ return r.json(); }).then(function(data){ cb(data); }).catch(function(){ cb(null); });
+}
+/* ── Employee state sync helpers ─────────────────────── */
+/* Safe Firebase key from employee name */
+function empKey(name) {
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+/* Write live clock state to /jtl/states/{empKey} — enables instant cross-device state */
+function fbPutState(empName, state, ts) {
+  if (!fbCfg.url) return;
+  fetch(fbCfg.url+'/jtl/states/'+empKey(empName)+'.json', {
+    method:'PUT',
+    body: JSON.stringify({state:state, ts:ts, updatedAt:new Date().toISOString()}),
+    headers:{'Content-Type':'application/json'}
+  }).catch(function(){});
+}
+/* Read live clock state from Firebase for cross-device check */
+function fbGetState(empName, cb) {
+  if (!fbCfg.url) { cb(null); return; }
+  fetch(fbCfg.url+'/jtl/states/'+empKey(empName)+'.json')
+    .then(function(r){return r.json();})
+    .then(function(d){cb(d);})
+    .catch(function(){cb(null);});
 }
 function syncFromCloud(cb) {
   var deletedTs = store.getJ(K.deletedTs,[]);
@@ -1695,12 +1773,11 @@ function stopApprovalPoll(){
 function handleApprovalResult(ts, status) {
   stopApprovalPoll();
   if(status==='approved'){
-    // Update timesheet entry
     var arr=store.getJ(K.timesheet,[]);
     arr.forEach(function(e){if(e.ts===ts)e.approval='approved';});
     store.setJ(K.timesheet,arr);
     clockState='in'; pendingEntryTs=null;
-    // Flash approved notice then render normal state
+    if(currentEmp) fbPutState(currentEmp.name,'in',ts); // cross-device state
     var an=document.getElementById('approvedNotice');
     var pc=document.getElementById('pendingCard');
     if(pc) pc.style.display='none';
@@ -1709,10 +1786,10 @@ function handleApprovalResult(ts, status) {
     if(badge){badge.textContent='Approved ✓';badge.className='b-approved text-xs font-semibold px-3 py-1 rounded-full';}
     updateTodaySummary(); toast('Clock-in approved! You\'re all set.');
   } else {
-    // Denied — remove pending entry
     var arr=store.getJ(K.timesheet,[]).filter(function(e){return e.ts!==ts;});
     store.setJ(K.timesheet,arr);
     clockState='out'; pendingEntryTs=null;
+    if(currentEmp) fbPutState(currentEmp.name,'out',ts); // cross-device state
     renderEmpState(); updateTodaySummary();
     toast('Clock-in was not approved. Please see admin.');
   }
@@ -1722,9 +1799,11 @@ function handleApprovalResult(ts, status) {
 function adminApproveEntry(ts) {
   setApprovalStatus(ts,'approved');
   var arr=store.getJ(K.timesheet,[]);
-  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='approved';}});
+  var approvedEntry=null;
+  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='approved'; approvedEntry=e;}});
   store.setJ(K.timesheet,arr);
-  fbPut('timesheet',ts,arr.find(function(e){return String(e.ts)===String(ts);})||{});
+  fbPut('timesheet',ts,approvedEntry||{});
+  if(approvedEntry) fbPutState(approvedEntry.name,'in',ts); // update cross-device state for staff
   logAdminAction('APPROVE','Clock-in approved for entry at '+new Date(ts).toLocaleString());
   renderTables(); toast('Clock-in approved');
 }
@@ -1732,9 +1811,11 @@ function adminDenyEntry(ts) {
   if(!confirm('Deny this clock-in? The entry will be marked denied.')) return;
   setApprovalStatus(ts,'denied');
   var arr=store.getJ(K.timesheet,[]);
-  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='denied';}});
+  var deniedEntry=null;
+  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='denied'; deniedEntry=e;}});
   store.setJ(K.timesheet,arr);
-  fbPut('timesheet',ts,arr.find(function(e){return String(e.ts)===String(ts);})||{});
+  fbPut('timesheet',ts,deniedEntry||{});
+  if(deniedEntry) fbPutState(deniedEntry.name,'out',ts); // update cross-device state for staff
   logAdminAction('DENY','Clock-in denied for entry at '+new Date(ts).toLocaleString());
   renderTables(); toast('Clock-in denied');
 }
@@ -1790,8 +1871,10 @@ function sendClockInEmail(entry, photoDataUrl, token){
   var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
 
   var baseUrl    = window.location.origin+window.location.pathname;
-  var approveUrl = baseUrl+'?approve='+encodeURIComponent(entry.ts)+'&tok='+token;
-  var denyUrl    = baseUrl+'?deny='   +encodeURIComponent(entry.ts)+'&tok='+token;
+  // Include Firebase URL in email links so approval works on any device (phone/tablet/desktop)
+  var fbPart     = fbCfg.url ? '&fb='+encodeURIComponent(fbCfg.url) : '';
+  var approveUrl = baseUrl+'?approve='+encodeURIComponent(entry.ts)+'&tok='+token+fbPart;
+  var denyUrl    = baseUrl+'?deny='   +encodeURIComponent(entry.ts)+'&tok='+token+fbPart;
   var clockTime  = new Date(entry.ts).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
   var facility   = (entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
   var photoNote  = photoDataUrl
@@ -1954,11 +2037,44 @@ function clearOldRecords() {
       var expected = genApprovalToken(entryTs2);
       if(tok===expected){
         var finalStatus = (action==='approve')?'approved':'denied';
-        setApprovalStatus(entryTs2, finalStatus);
+        // If email link contains Firebase URL, configure it now (works on any device)
+        if(params.has('fb') && !fbCfg.url){
+          var _fbFromLink = decodeURIComponent(params.get('fb')).replace(/\/+$/,'');
+          if(_fbFromLink){ fbCfg.url=_fbFromLink; store.set('fb_url',_fbFromLink); }
+        }
+        // Write approval status to Firebase (staff device polls this every 5s)
+        setApprovalStatus(entryTs2, finalStatus); // writes to localStorage + Firebase via fbCfg.url
+        // Update local timesheet if we have it
         var arr2=store.getJ(K.timesheet,[]);
-        arr2.forEach(function(e){if(e.ts===entryTs2)e.approval=finalStatus;});
+        var _approvedEntry2=null;
+        arr2.forEach(function(e){if(e.ts===entryTs2){e.approval=finalStatus;_approvedEntry2=e;}});
         store.setJ(K.timesheet,arr2);
-        fbPut('timesheet',entryTs2,arr2.find(function(e){return e.ts===entryTs2;})||{});
+        // Update Firebase timesheet entry: fetch from Firebase first (entry may only exist there)
+        if(fbCfg.url){
+          (function(_ts, _status, _localEntry){
+            fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(_ts)+'.json')
+              .then(function(r){return r.json();})
+              .then(function(fbEntry){
+                var entryToWrite = (fbEntry && fbEntry.ts) ? fbEntry : (_localEntry ? JSON.parse(JSON.stringify(_localEntry)) : null);
+                if(!entryToWrite) return;
+                delete entryToWrite.photo;
+                entryToWrite.approval = _status;
+                // Write updated entry back to Firebase
+                fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(_ts)+'.json',{
+                  method:'PUT', body:JSON.stringify(entryToWrite),
+                  headers:{'Content-Type':'application/json'}
+                }).catch(function(){});
+                // Update cross-device state node so staff screen updates immediately
+                if(entryToWrite.name) fbPutState(entryToWrite.name, _status==='approved'?'in':'out', _ts);
+              }).catch(function(){
+                // Fallback: write local entry if Firebase fetch fails
+                if(_localEntry){ var d=JSON.parse(JSON.stringify(_localEntry)); delete d.photo; d.approval=_status;
+                  fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(_ts)+'.json',{method:'PUT',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}}).catch(function(){});
+                  fbPutState(_localEntry.name, _status==='approved'?'in':'out', _ts);
+                }
+              });
+          })(entryTs2, finalStatus, _approvedEntry2);
+        }
         logAdminAction(action==='approve'?'APPROVE':'DENY','Via email link — entry '+new Date(entryTs2).toLocaleString());
         // Show full-screen confirmation
         document.body.innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:'+(action==='approve'?'#f0fdf4':'#fef2f2')+';font-family:-apple-system,sans-serif;padding:24px;">'
