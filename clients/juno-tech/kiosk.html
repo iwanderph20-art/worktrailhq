@@ -1701,7 +1701,6 @@ function renderEmployeeList() {
       + '<p class="text-xs mt-0.5 font-mono tracking-widest" style="color:#1d4ed8;">'+emp.code+'</p>'
       + '</div>'
       + '<div class="flex gap-2 flex-wrap">'
-      + '<button onclick="seeEmpOnMap(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dcfce7;color:#15803d;border:none;cursor:pointer;">&#128205; Location</button>'
       + '<button onclick="regenCode(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
       + '<button onclick="removeEmployee(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
       + '</div></div>';
@@ -1801,129 +1800,96 @@ function _renderTablesImpl() {
         // Facilities
         var facStr=(clockInE&&clockInE.facilities&&clockInE.facilities.length)?clockInE.facilities.join(' · '):'';
 
-        // Card style by status
-        var cardBg    = isPending?'#fffef0':isApproved?'#f0fdf4':isDenied?'#fff5f5':'#f8fafc';
-        var cardBdr   = isPending?'#fbbf24':isApproved?'#86efac':isDenied?'#fca5a5':'rgba(0,0,0,.08)';
-
         // Employee initials avatar
         var initials=name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
 
-        // Status badge
+        // ── Card colors: green = still working, gray = done, amber = pending, red = denied
+        var accentColor = isPending?'#f59e0b':isApproved&&isStillIn?'#22c55e':isApproved?'#9ca3af':isDenied?'#ef4444':'#9ca3af';
+        var cardBg2     = isPending?'#fff':isApproved&&isStillIn?'#f0fdf4':isApproved?'#f9fafb':isDenied?'#fff5f5':'#f9fafb';
+
+        // Status badge (slim pill)
         var statusBadge='';
-        if(isPending)         statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#fef9c3;color:#92400e;border:1px solid #fbbf24;">&#9679; PENDING APPROVAL</span>';
-        else if(isApproved&&isStillIn) statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#dcfce7;color:#15803d;border:1px solid #86efac;">&#9679; CLOCKED IN</span>';
-        else if(isApproved)   statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#dcfce7;color:#15803d;border:1px solid #86efac;">&#10003; APPROVED</span>';
-        else if(isDenied)     statusBadge='<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">&#10005; DENIED</span>';
+        if(isPending)              statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fef3c7;color:#92400e;letter-spacing:.04em;">&#9679; PENDING</span>';
+        else if(isApproved&&isStillIn) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#dcfce7;color:#15803d;letter-spacing:.04em;">&#9679; ON SHIFT</span>';
+        else if(isApproved)        statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#f3f4f6;color:#6b7280;letter-spacing:.04em;">&#10003; DONE</span>';
+        else if(isDenied)          statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fee2e2;color:#dc2626;letter-spacing:.04em;">&#10005; DENIED</span>';
 
         // Times
         var timeFmt={hour:'numeric',minute:'2-digit',hour12:true};
-        var inTime=clockInE ? clockInE._d.toLocaleTimeString('en-US',timeFmt) : '—';
-        var outTime=clockOutE ? clockOutE._d.toLocaleTimeString('en-US',timeFmt) : (isStillIn?'Still Working':'—');
-        var outColor=clockOutE?'#dc2626':isStillIn?'#d97706':'#9ca3af';
+        var inTime =clockInE  ? clockInE._d.toLocaleTimeString('en-US',timeFmt) : '—';
+        var outTime=clockOutE ? clockOutE._d.toLocaleTimeString('en-US',timeFmt) : (isStillIn?'Active':'—');
 
-        // Photo thumbnails
-        var inPhotoElemId='', outPhotoElemId='';
+        // Photo thumbnails (32×32, auto-loaded)
         var inPhotoHtml='', outPhotoHtml='';
         if(clockInE&&clockInE.hasPhoto){
-          inPhotoElemId='thumb-in-'+clockInE.ts.replace(/[:.]/g,'');
-          var safeCapIn=name.replace(/'/g,"\\'")+' — Clock In';
-          var safeInTs=String(clockInE.ts).replace(/'/g,'');
-          inPhotoHtml='<img id="'+inPhotoElemId+'" src="" class="photo-thumb" alt="Clock In" title="Clock In photo" onclick="showThumbPhoto(\''+safeInTs+'\',\''+safeCapIn+'\')" style="border:2px solid #86efac;opacity:.5;">';
-          photoLoads.push({ts:clockInE.ts,id:inPhotoElemId});
+          var eid='thi-'+clockInE.ts.replace(/[:.]/g,'');
+          var safeTs0=String(clockInE.ts).replace(/'/g,'');
+          var safeCap0=name.replace(/'/g,"\\'")+' — Clock In';
+          inPhotoHtml='<img id="'+eid+'" src="" title="Clock-in photo" onclick="showThumbPhoto(\''+safeTs0+'\',\''+safeCap0+'\')" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1.5px solid #86efac;cursor:pointer;opacity:.4;transition:opacity .2s;">';
+          photoLoads.push({ts:clockInE.ts,id:eid});
         }
         if(clockOutE&&clockOutE.hasPhoto){
-          outPhotoElemId='thumb-out-'+clockOutE.ts.replace(/[:.]/g,'');
-          var safeCapOut=name.replace(/'/g,"\\'")+' — Clock Out';
-          var safeOutTs=String(clockOutE.ts).replace(/'/g,'');
-          outPhotoHtml='<img id="'+outPhotoElemId+'" src="" class="photo-thumb" alt="Clock Out" title="Clock Out photo" onclick="showThumbPhoto(\''+safeOutTs+'\',\''+safeCapOut+'\')" style="border:2px solid #fca5a5;opacity:.5;">';
-          photoLoads.push({ts:clockOutE.ts,id:outPhotoElemId});
+          var eid2='tho-'+clockOutE.ts.replace(/[:.]/g,'');
+          var safeTs1=String(clockOutE.ts).replace(/'/g,'');
+          var safeCap1=name.replace(/'/g,"\\'")+' — Clock Out';
+          outPhotoHtml='<img id="'+eid2+'" src="" title="Clock-out photo" onclick="showThumbPhoto(\''+safeTs1+'\',\''+safeCap1+'\')" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1.5px solid #fca5a5;cursor:pointer;opacity:.4;transition:opacity .2s;">';
+          photoLoads.push({ts:clockOutE.ts,id:eid2});
         }
 
         // Action buttons
         var safeInTs2=clockInE?String(clockInE.ts).replace(/'/g,''):'';
         var approvalBtns=isPending
-          ?'<button onclick="adminApproveEntry(\''+safeInTs2+'\')" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#10003; Approve</button>'
-           +'<button onclick="adminDenyEntry(\''+safeInTs2+'\')" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#10005; Deny</button>'
+          ?'<button onclick="adminApproveEntry(\''+safeInTs2+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#10003; Approve</button>'
+           +'<button onclick="adminDenyEntry(\''+safeInTs2+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#10005; Deny</button>'
           :'';
         var safeName4map=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         var liveLocBtn=(isApproved&&isStillIn)
-          ?'<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;cursor:pointer;font-weight:700;">&#128205; Live Location</button>'
+          ?'<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;cursor:pointer;font-weight:700;">&#128205; Live</button>'
           :'';
 
-        // Edit/delete per raw entry (compact secondary row)
+        // Edit/delete (tiny, secondary)
         var editBtns='';
         raw.forEach(function(e){
           var safeTs=String(e.ts).replace(/'/g,'');
-          var typeLabel=TYPE_LABEL[e.type]||e.type;
-          editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:10px;padding:2px 7px;border-radius:5px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit '+typeLabel+'</button>';
-          editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:10px;padding:2px 7px;border-radius:5px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>';
+          var tl=TYPE_LABEL[e.type]||e.type;
+          editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 6px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit '+tl+'</button> ';
+          editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 6px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
         });
 
-        // Stats grid — only show columns with real data
-        var statsGridCols='1fr'+(milesVal!=null?' 1fr':'')+(breakCount?' 1fr':'');
-        var statsHtml='<div style="display:grid;grid-template-columns:'+statsGridCols+';gap:8px;margin-bottom:12px;">'
-          +'<div style="background:rgba(255,255,255,.85);border-radius:10px;padding:8px 10px;text-align:center;">'
-          +'<p style="font-size:17px;font-weight:700;color:#111827;line-height:1;">'+hoursStr+'</p>'
-          +'<p style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;">'+(isStillIn&&!clockOutE?'Elapsed':'Hours Worked')+'</p>'
-          +'</div>'
-          +(milesVal!=null
-            ?'<div style="background:rgba(255,255,255,.85);border-radius:10px;padding:8px 10px;text-align:center;">'
-              +'<p style="font-size:17px;font-weight:700;color:#7c3aed;line-height:1;">'+Number(milesVal).toFixed(1)+' mi</p>'
-              +'<p style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;">Miles Driven</p>'
-              +'</div>'
-            :'')
-          +(breakCount
-            ?'<div style="background:rgba(255,255,255,.85);border-radius:10px;padding:8px 10px;text-align:center;">'
-              +'<p style="font-size:17px;font-weight:700;color:#d97706;line-height:1;">'+breakCount+'</p>'
-              +'<p style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;">'
-                +restCount+' rest'+(mealCount?' · '+mealCount+' meal':'')
-              +'</p>'
-              +'</div>'
-            :'')
-          +'</div>';
+        // Compact inline stats
+        var statsLine='<span style="font-size:12px;font-weight:700;color:#111827;">'+hoursStr+'</span>'
+          +'<span style="color:#d1d5db;margin:0 5px;">|</span>'
+          +(milesVal!=null?'<span style="font-size:12px;font-weight:700;color:#7c3aed;">'+Number(milesVal).toFixed(1)+' mi</span><span style="color:#d1d5db;margin:0 5px;">|</span>':'')
+          +(breakCount?'<span style="font-size:12px;font-weight:600;color:#d97706;">'+breakCount+' break'+(breakCount!==1?'s':'')+'</span>':'<span style="font-size:12px;color:#d1d5db;">No breaks</span>');
 
-        accHtml += '<div style="background:'+cardBg+';border:1.5px solid '+cardBdr+';border-radius:16px;padding:14px 16px;margin-bottom:10px;">'
-          // ── Header: avatar + name + status
-          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
-          +'<div style="display:flex;align-items:center;gap:10px;">'
-          +'<div style="width:38px;height:38px;border-radius:50%;background:#1a2b8c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">'+initials+'</div>'
-          +'<div>'
-          +'<p style="font-size:14px;font-weight:700;color:#111827;line-height:1.2;">'+name+'</p>'
-          +(facStr?'<p style="font-size:10px;color:#1d4ed8;font-weight:600;margin-top:2px;">'+facStr+'</p>':'')
-          +'</div>'
+        accHtml += '<div style="background:'+cardBg2+';border-radius:12px;border-left:3px solid '+accentColor+';border-top:1px solid rgba(0,0,0,.06);border-right:1px solid rgba(0,0,0,.06);border-bottom:1px solid rgba(0,0,0,.06);margin-bottom:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);">'
+          // ── Top row: avatar + name + facility + status badge
+          +'<div style="display:flex;align-items:center;gap:8px;padding:10px 12px 8px;">'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:'+accentColor+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;opacity:.9;">'+initials+'</div>'
+          +'<div style="flex:1;min-width:0;">'
+          +'<p style="font-size:13px;font-weight:700;color:#111827;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</p>'
+          +(facStr?'<p style="font-size:10px;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+facStr+'</p>':'')
           +'</div>'
           +statusBadge
           +'</div>'
-          // ── Clock In → Clock Out timeline
-          +'<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.75);margin-bottom:12px;">'
-          +'<div style="text-align:center;min-width:72px;">'
-          +'<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#15803d;display:block;margin-bottom:2px;">Clock In</span>'
-          +'<span style="font-size:15px;font-weight:700;color:#111827;">'+inTime+'</span>'
+          // ── Time row: Clock In → Clock Out on one line
+          +'<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.6);border-top:1px solid rgba(0,0,0,.04);border-bottom:1px solid rgba(0,0,0,.04);">'
+          +'<span style="font-size:9px;font-weight:600;color:#15803d;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">In</span>'
+          +'<span style="font-size:13px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums;">'+inTime+'</span>'
+          +'<span style="color:#d1d5db;font-size:11px;flex:1;text-align:center;">&#8212;&#8212;&#8212;</span>'
+          +'<span style="font-size:13px;font-weight:700;color:'+(isStillIn&&!clockOutE?'#d97706':'#111827')+';font-variant-numeric:tabular-nums;">'+outTime+'</span>'
+          +'<span style="font-size:9px;font-weight:600;color:'+(clockOutE?'#dc2626':isStillIn?'#d97706':'#9ca3af')+';text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">Out</span>'
           +'</div>'
-          +'<div style="flex:1;display:flex;align-items:center;position:relative;">'
-          +'<div style="height:2px;width:100%;background:linear-gradient(90deg,#86efac,'+(clockOutE?'#fca5a5':'#d1d5db')+');border-radius:99px;"></div>'
-          +'<div style="position:absolute;left:50%;transform:translateX(-50%);width:22px;height:22px;background:#fff;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af;font-weight:700;">&#10140;</div>'
-          +'</div>'
-          +'<div style="text-align:center;min-width:90px;">'
-          +'<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+outColor+';display:block;margin-bottom:2px;">Clock Out</span>'
-          +'<span style="font-size:15px;font-weight:700;color:'+(isStillIn&&!clockOutE?'#d97706':'#111827')+';">'+outTime+'</span>'
-          +'</div>'
-          +'</div>'
-          // ── Stats grid
-          +statsHtml
-          // ── Photos + Action buttons
-          +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
-          +'<div style="display:flex;gap:8px;align-items:center;">'
-          +(inPhotoHtml||outPhotoHtml
-            ?(inPhotoHtml+outPhotoHtml)
-            :'<span style="font-size:11px;color:#d1d5db;">No photos</span>')
-          +'</div>'
-          +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+          // ── Stats + photos + actions
+          +'<div style="padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+          +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">'+statsLine+'</div>'
+          +'<div style="display:flex;gap:5px;align-items:center;">'
+          +(inPhotoHtml+outPhotoHtml)
           +approvalBtns+liveLocBtn
           +'</div>'
           +'</div>'
-          // ── Edit / Delete (secondary row)
-          +(editBtns?'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06);">'+editBtns+'</div>':'')
+          // ── Edit/Delete (tiny tertiary row)
+          +(editBtns?'<div style="padding:4px 12px 7px;display:flex;gap:4px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'</div>':'')
           +'</div>'; // end employee card
       });
 
@@ -2836,13 +2802,13 @@ function getEmailTemplateHtml() {
     +'<table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">\n'
     +'<!-- Header -->\n'
     +'<tr><td style="background:#1a2b8c;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center;">\n'
-    +'  <img src="'+logoUrl+'" alt="Juno Tech Laboratory" height="38" style="height:38px;width:auto;display:block;margin:0 auto;">\n'
-    +'  <p style="margin:10px 0 0;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55);">WorkTrail — Clock-In Notification</p>\n'
+    +'  <img src="{{logo_url}}" alt="Juno Tech Laboratory" height="56" style="height:56px;width:auto;display:block;margin:0 auto;">\n'
+    +'  <p style="margin:12px 0 0;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55);">{{header_text}}</p>\n'
     +'</td></tr>\n'
     +'<!-- Body -->\n'
     +'<tr><td style="background:#ffffff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">\n'
     +'  <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#111827;">{{employee_name}}</h1>\n'
-    +'  <p style="margin:0 0 28px;font-size:13px;color:#9ca3af;">has clocked in and is awaiting your review.</p>\n'
+    +'  <p style="margin:0 0 28px;font-size:13px;color:#9ca3af;">{{subtitle}}</p>\n'
     +'  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">\n'
     +'    <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;width:38%;">\n'
     +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Date &amp; Time</p>\n'
@@ -2866,7 +2832,7 @@ function getEmailTemplateHtml() {
     +'    </td></tr>\n'
     +'  </table>\n'
     +'  <div style="margin-top:32px;padding:20px;background:#f8fafc;border-radius:12px;text-align:center;">\n'
-    +'    <p style="margin:0 0 14px;font-size:13px;color:#6b7280;line-height:1.6;">Log in to the kiosk to review this clock-in<br>and approve or deny it from the Records tab.</p>\n'
+    +'    <p style="margin:0 0 14px;font-size:13px;color:#6b7280;line-height:1.6;">{{action_text}}</p>\n'
     +'    <a href="{{kiosk_url}}" style="display:inline-block;background:#1a2b8c;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:10px;letter-spacing:.02em;">Open Kiosk &rarr;</a>\n'
     +'  </div>\n'
     +'</td></tr>\n'
@@ -3148,7 +3114,9 @@ function sendClockInEmail(entry, photoDataUrl){
     kiosk_url:     kioskUrl,
     logo_url:      logoUrl,
     photo_note:    photoNote,
-    // Legacy vars kept for backward compat
+    header_text:   'WorkTrail — Clock-In Notification',
+    subtitle:      'has clocked in and is awaiting your review.',
+    action_text:   'Log in to the kiosk to review this clock-in and approve or deny it from the Records tab.',
     approve_url:   kioskUrl,
     deny_url:      kioskUrl,
     photo_html:    photoNote
@@ -3185,16 +3153,19 @@ function sendClockOutEmail(entry, hoursWorked, miles) {
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
   emailjs.send(serviceId, templateId, {
     to_email:      notifEmail,
-    employee_name: entry.name + ' — Clocked Out',
+    employee_name: entry.name,
     clock_time:    clockTime,
-    facility:      'Clock-Out Summary',
+    facility:      (entry.facilities&&entry.facilities.length) ? entry.facilities.join(', ') : 'See Records',
     note:          shiftSummary,
     kiosk_url:     kioskUrl,
     logo_url:      logoUrl,
-    photo_note:    'Shift complete — ' + shiftSummary,
+    photo_note:    shiftSummary,
+    header_text:   'WorkTrail — Clock-Out Summary',
+    subtitle:      'has clocked out for the day.',
+    action_text:   'View the full shift details in the Records tab.',
     approve_url:   kioskUrl,
     deny_url:      kioskUrl,
-    photo_html:    'Shift complete — ' + shiftSummary
+    photo_html:    shiftSummary
   }).then(function(){
     console.log('Clock-out notification sent for '+entry.name);
   }).catch(function(e){
