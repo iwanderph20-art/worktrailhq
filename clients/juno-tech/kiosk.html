@@ -481,11 +481,13 @@ video{object-fit:cover;transform:scaleX(-1);}
       <!-- Email Approval Notifications -->
       <div class="rcard space-y-3">
         <p class="text-sm font-semibold" style="color:#374151;">&#128139; Clock-In Approval Notifications</p>
-        <p class="text-xs leading-relaxed" style="color:#6b7280;">Admin receives an email with the staff photo on every clock-in and approves/denies before shift ends. Staff see "Sent for Approval" and can't clock out until approved.</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Admin receives an email on every clock-in with Approve/Deny buttons. Staff see "Sent for Approval" and can't clock out until approved.</p>
         <div class="rounded-xl p-3 text-xs space-y-1" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">
-          <p><strong>Setup (free):</strong> Go to <a href="https://www.emailjs.com" target="_blank" style="text-decoration:underline;">emailjs.com</a> → Create account → Add Email Service (Gmail) → Create Template.</p>
-          <p><strong>Template variables:</strong> <code>{{employee_name}}</code>, <code>{{clock_time}}</code>, <code>{{facility}}</code>, <code>{{note}}</code>, <code>{{approve_url}}</code>, <code>{{deny_url}}</code>, <code>{{photo_html}}</code></p>
+          <p><strong>Setup (free):</strong> Go to <a href="https://www.emailjs.com" target="_blank" style="text-decoration:underline;">emailjs.com</a> → Create account → Email Services → <strong>Add Office 365</strong> → sign in with your Microsoft account → Create Template.</p>
+          <p><strong>Template variables to include:</strong> <code>{{employee_name}}</code>, <code>{{clock_time}}</code>, <code>{{facility}}</code>, <code>{{note}}</code>, <code>{{approve_url}}</code>, <code>{{deny_url}}</code></p>
+          <p><strong>Template "To Email"</strong> field: set to <code>{{to_email}}</code></p>
         </div>
+        <p id="ejsStatus" class="text-xs font-medium" style="color:#6b7280;min-height:16px;"></p>
         <input id="ejsPublicKey"  type="text" placeholder="EmailJS Public Key (e.g. user_abc123)"  class="inp inp-dk" style="font-size:13px;">
         <input id="ejsServiceId"  type="text" placeholder="Service ID (e.g. service_xyz)" class="inp inp-dk" style="font-size:13px;">
         <input id="ejsTemplateId" type="text" placeholder="Template ID (e.g. template_abc)" class="inp inp-dk" style="font-size:13px;">
@@ -496,7 +498,6 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="testEjsConfig()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
             style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Send Test</button>
         </div>
-        <div id="ejsStatus" class="text-xs" style="color:#6b7280;"></div>
       </div>
 
       <!-- Firebase cloud sync -->
