@@ -1131,7 +1131,7 @@ function _renderTablesImpl() {
         +'</div>'
         +'<span id="'+arrowId+'" class="acc-arrow'+(autoOpen?' open':'')+'">&#9660;</span>'
         +'</div>'
-        +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'\'")+'>';
+        +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'')+'">';
 
       entries.forEach(function(r){
         var time=new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
