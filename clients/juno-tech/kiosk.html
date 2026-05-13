@@ -1778,26 +1778,29 @@ function testEjsConfig(){
   });
 }
 function sendClockInEmail(entry, photoDataUrl, token){
-  var cfg=store.getJ(EJS_STORAGE,{});
-  if(!cfg.publicKey||!cfg.serviceId||!cfg.templateId){
-    // Warn admin via console — remind them to configure in Settings
-    console.warn('EmailJS not configured. Go to Admin → Settings → Clock-In Approval Notifications.');
-    toast('No email sent — configure EmailJS in Settings to enable notifications');
-    return;
-  }
-  var baseUrl=window.location.origin+window.location.pathname;
-  var approveUrl=baseUrl+'?approve='+encodeURIComponent(entry.ts)+'&tok='+token;
-  var denyUrl   =baseUrl+'?deny='   +encodeURIComponent(entry.ts)+'&tok='+token;
-  var clockTime =new Date(entry.ts).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
-  var facility  =(entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
-  // Note: base64 photos are blocked by most email clients — send text link to admin panel instead
-  var photoNote = photoDataUrl
-    ? '&#128247; Photo captured — view it in Admin > Records tab.'
+  // Hardcoded credentials — work on every device automatically
+  var EJS_KEY      = 'BaAmtd4je5XVstCvH';
+  var EJS_SERVICE  = 'service_t30r2d8';
+  var EJS_TEMPLATE = 'template_jtdfx1a';
+  // Allow override from Settings if admin entered different values
+  var cfg = store.getJ(EJS_STORAGE,{});
+  var publicKey  = cfg.publicKey  || EJS_KEY;
+  var serviceId  = cfg.serviceId  || EJS_SERVICE;
+  var templateId = cfg.templateId || EJS_TEMPLATE;
+  var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
+
+  var baseUrl    = window.location.origin+window.location.pathname;
+  var approveUrl = baseUrl+'?approve='+encodeURIComponent(entry.ts)+'&tok='+token;
+  var denyUrl    = baseUrl+'?deny='   +encodeURIComponent(entry.ts)+'&tok='+token;
+  var clockTime  = new Date(entry.ts).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+  var facility   = (entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
+  var photoNote  = photoDataUrl
+    ? '📷 Photo captured — view it in Admin > Records tab.'
     : '(No photo captured)';
 
-  try { emailjs.init({publicKey: cfg.publicKey}); } catch(e){}
-  emailjs.send(cfg.serviceId, cfg.templateId, {
-    to_email:      cfg.notifEmail||'info@junotechlaboratory.com',
+  try { emailjs.init({publicKey: publicKey}); } catch(e){}
+  emailjs.send(serviceId, templateId, {
+    to_email:      notifEmail,
     employee_name: entry.name,
     clock_time:    clockTime,
     facility:      facility,
@@ -1809,7 +1812,6 @@ function sendClockInEmail(entry, photoDataUrl, token){
     console.log('Approval email sent for '+entry.name);
   }).catch(function(e){
     console.error('EmailJS error:', JSON.stringify(e));
-    toast('Email failed: '+( e.text||e.status||JSON.stringify(e))+' — check Admin > Settings');
   });
 }
 
