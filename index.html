@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorkTrail HQ — Master Your Operations</title>
+  <meta name="description" content="The all-in-one platform designed to eliminate administrative friction for mobile workforces.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #F9F9FB;
+      color: #0A0A12;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 0 48px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(9, 9, 15, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-logo {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .nav-logo-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #FFFFFF;
+      text-transform: uppercase;
+    }
+    .nav-logo-tag {
+      font-size: 9px;
+      font-weight: 400;
+      letter-spacing: 0.22em;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-ghost {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.6);
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.18s, border-color 0.18s, background 0.18s;
+      display: inline-block;
+    }
+    .btn-ghost:hover {
+      color: #fff;
+      border-color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.06);
+    }
+    .btn-primary {
+      font-size: 13px;
+      font-weight: 600;
+      color: #09090F;
+      background: #FFFFFF;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.18s, transform 0.12s;
+    }
+    .btn-primary:hover { background: #E8E8F0; }
+    .btn-primary:active { transform: scale(0.97); }
+
+    /* ── Hero ────────────────────────────────────────────── */
+    .hero {
+      background: #09090F;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 100px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79,70,229,0.15) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(99,102,241,0.07) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 28px;
+    }
+    .hero-headline {
+      font-size: clamp(40px, 6vw, 72px);
+      font-weight: 700;
+      line-height: 1.06;
+      color: #FFFFFF;
+      letter-spacing: -0.03em;
+      max-width: 820px;
+      margin: 0 auto 16px;
+    }
+    .hero-headline span {
+      background: linear-gradient(135deg, #818CF8 0%, #C084FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(14px, 2vw, 18px);
+      font-weight: 400;
+      line-height: 1.65;
+      color: rgba(255,255,255,0.45);
+      max-width: 540px;
+      margin: 0 auto 48px;
+    }
+    .hero-ctas {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .cta-explore {
+      font-size: 15px;
+      font-weight: 600;
+      color: #09090F;
+      background: #FFFFFF;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.18s, transform 0.12s;
+    }
+    .cta-explore:hover { background: #E8E8F0; }
+    .cta-explore:active { transform: scale(0.97); }
+    .cta-kiosk {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      padding: 14px 32px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.18s, border-color 0.18s, transform 0.12s;
+    }
+    .cta-kiosk:hover {
+      background: rgba(255,255,255,0.13);
+      border-color: rgba(255,255,255,0.25);
+    }
+    .cta-kiosk:active { transform: scale(0.97); }
+    .hero-scroll {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .scroll-line {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.25), transparent);
+      animation: scroll-pulse 2s ease-in-out infinite;
+    }
+    @keyframes scroll-pulse { 0%,100%{opacity:.3} 50%{opacity:.8} }
+
+    /* ── What We Solve ───────────────────────────────────── */
+    .solutions {
+      background: #F9F9FB;
+      padding: 112px 48px;
+    }
+    .solutions-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(10,10,18,0.35);
+      margin-bottom: 20px;
+    }
+    .section-heading {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.12;
+      color: #0A0A12;
+      max-width: 540px;
+      margin-bottom: 72px;
+    }
+    .solutions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2px;
+      background: rgba(10,10,18,0.06);
+      border: 1px solid rgba(10,10,18,0.06);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .solution-card {
+      background: #F9F9FB;
+      padding: 44px 40px;
+      transition: background 0.22s;
+    }
+    .solution-card:hover { background: #FFFFFF; }
+    .solution-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #09090F;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .solution-icon svg { width: 20px; height: 20px; color: #FFFFFF; }
+    .solution-title {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #0A0A12;
+      margin-bottom: 12px;
+    }
+    .solution-desc {
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1.7;
+      color: rgba(10,10,18,0.5);
+    }
+
+    /* ── CTA Strip ───────────────────────────────────────── */
+    .cta-strip {
+      background: #09090F;
+      padding: 96px 48px;
+      text-align: center;
+    }
+    .cta-strip-heading {
+      font-size: clamp(26px, 4vw, 42px);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #FFFFFF;
+      margin-bottom: 14px;
+    }
+    .cta-strip-sub {
+      font-size: 15px;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 40px;
+    }
+    .cta-strip-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    footer {
+      background: #09090F;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 40px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer-logo {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+    }
+    .footer-copy {
+      font-size: 12px;
+      color: rgba(255,255,255,0.2);
+    }
+    .footer-link {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-link:hover { color: rgba(255,255,255,0.65); }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 640px) {
+      nav { padding: 0 20px; }
+      .solutions { padding: 72px 20px; }
+      .cta-strip { padding: 72px 20px; }
+      footer { padding: 32px 20px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">
+    <span class="nav-logo-name">WorkTrail HQ</span>
+    <span class="nav-logo-tag">Turning a scattered field team into a synchronized operation.</span>
+  </div>
+  <div class="nav-actions">
+    <a href="clients/login.html" class="btn-ghost">Client Login</a>
+    <a href="clients/login.html" class="btn-primary">Access Kiosk</a>
+  </div>
+</nav>
+
+<!-- ── Hero ────────────────────────────────────────────── -->
+<section class="hero">
+  <p class="hero-eyebrow">WorkTrail HQ</p>
+  <h1 class="hero-headline">
+    Master Your Operations.<br>
+    <span>Scale Your Vision.</span>
+  </h1>
+  <p class="hero-headline" style="font-size: clamp(22px, 3.5vw, 42px); margin-bottom: 24px; color: rgba(255,255,255,0.55); font-weight: 300; letter-spacing: -0.01em;">
+    Efficiency, Automated.
+  </p>
+  <p class="hero-sub">
+    The all-in-one platform designed to eliminate administrative friction for mobile workforces. Simplify your workflows, empower your team, and reclaim your time.
+  </p>
+  <div class="hero-ctas">
+    <a href="#solutions" class="cta-explore">Explore the Platform</a>
+    <a href="clients/login.html" class="cta-kiosk">Access Kiosk</a>
+  </div>
+  <div class="hero-scroll">
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ── What We Solve ────────────────────────────────────── -->
+<section id="solutions" class="solutions">
+  <div class="solutions-inner">
+    <p class="section-label">What We Solve</p>
+    <h2 class="section-heading">Built for teams that move fast.</h2>
+    <div class="solutions-grid">
+
+      <div class="solution-card">
+        <div class="solution-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+          </svg>
+        </div>
+        <h3 class="solution-title">Simplified Workflows</h3>
+        <p class="solution-desc">
+          Every business is different. WorkTrail HQ is designed to adapt to your specific operational structure, ensuring a smooth flow from start to finish.
+        </p>
+      </div>
+
+      <div class="solution-card">
+        <div class="solution-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <h3 class="solution-title">Automated Administrative Oversight</h3>
+        <p class="solution-desc">
+          We take the "admin" out of administration. Our system quietly handles the logistics of oversight, leaving you with a clean, organized record of performance.
+        </p>
+      </div>
+
+      <div class="solution-card">
+        <div class="solution-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+          </svg>
+        </div>
+        <h3 class="solution-title">Built for Growth</h3>
+        <p class="solution-desc">
+          Whether you are managing five people or five hundred, WorkTrail HQ scales with you. Our minimalist design ensures your team spends less time on an app and more time on the job.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA Strip ────────────────────────────────────────── -->
+<section class="cta-strip">
+  <h2 class="cta-strip-heading">Ready to synchronize your team?</h2>
+  <p class="cta-strip-sub">Access your workforce management tools in seconds.</p>
+  <div class="cta-strip-btns">
+    <a href="clients/login.html" class="cta-explore">Access Kiosk</a>
+  </div>
+</section>
+
+<!-- ── Footer ──────────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">WorkTrail HQ</div>
+  <span class="footer-copy">&copy; 2026 WorkTrail HQ. All rights reserved.</span>
+  <a href="clients/login.html" class="footer-link">Client Login</a>
+</footer>
+
+</body>
+</html>

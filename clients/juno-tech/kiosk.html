@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Juno Tech Laboratory — Kiosk</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{-webkit-font-smoothing:antialiased;box-sizing:border-box;}
+body{background:#F2F2F7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+video{object-fit:cover;transform:scaleX(-1);}
+.cam-ring{box-shadow:0 0 0 3px rgba(0,0,0,.06),0 10px 36px rgba(0,0,0,.13),inset 0 0 0 2px rgba(255,255,255,.8);}
+.tap{-webkit-tap-highlight-color:transparent;transition:transform .12s,background-color .18s;}
+.tap:active:not(:disabled){transform:scale(0.96);}
+.glass{background:rgba(255,255,255,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(0,0,0,.07);}
+.inp{width:100%;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:13px 16px;color:#111827;outline:none;font-size:15px;transition:border-color .15s,box-shadow .15s;}
+.inp:focus{border-color:#1a2b8c;box-shadow:0 0 0 3px rgba(26,43,140,.14);}
+.inp-dk{background:#F9FAFB;border-color:#E5E7EB;color:#111827;}
+.inp-dk::placeholder{color:#9ca3af;}
+.inp-dk:focus{border-color:#1a2b8c;box-shadow:0 0 0 3px rgba(26,43,140,.14);}
+.sel{-webkit-appearance:none;appearance:none;}
+.pin-dot{width:16px;height:16px;border-radius:50%;background:#e5e7eb;transition:background .15s,transform .15s;}
+.pin-dot.filled{background:#1a2b8c;transform:scale(1.15);}
+.num-btn{background:#fff;border-radius:50%;width:74px;height:74px;font-size:24px;font-weight:600;color:#1a2b8c;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.10);border:none;outline:none;
+  transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;}
+.num-btn:active{transform:scale(0.91);background:#f0f3ff;}
+.num-btn.del{font-size:20px;}.num-btn.empty{background:transparent;box-shadow:none;pointer-events:none;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.shake{animation:shake .38s ease;}
+.m-wrap{display:none;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;}
+.m-sheet{display:none;position:fixed;inset:0;z-index:50;align-items:flex-end;justify-content:center;}
+@media(min-width:640px){.m-sheet.open{align-items:center;}}
+.m-wrap.open,.m-sheet.open{display:flex;}
+.m-bg{position:absolute;inset:0;background:rgba(0,0,0,.46);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.atab{padding:10px 16px;font-size:13px;font-weight:600;color:#9ca3af;border-bottom:2px solid transparent;transition:color .18s,border-color .18s;cursor:pointer;white-space:nowrap;background:transparent;border-left:none;border-right:none;border-top:none;}
+.atab:hover{color:#374151;}.atab.active{color:#1a2b8c;border-bottom-color:#1a2b8c;}
+.apane{display:none;}.apane.active{display:block;}
+.b-in{background:#dcfce7;color:#15803d;}.b-out{background:#fff7ed;color:#c2410c;}.b-break{background:#fef9c3;color:#a16207;}
+.tscroll{max-height:280px;overflow-y:auto;}
+.tscroll::-webkit-scrollbar{width:4px;}.tscroll::-webkit-scrollbar-thumb{background:#4b5563;border-radius:2px;}
+#printArea{display:none;}
+@media print{body>*:not(#printArea){display:none!important;}#printArea{display:block!important;}.no-print{display:none!important;}}
+#gearBtn{opacity:.4;transition:opacity .2s;}#gearBtn:hover{opacity:.8;}
+#toast{transition:opacity .25s ease,transform .25s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes flash-ring{0%{box-shadow:0 0 0 0 rgba(26,43,140,.7)}100%{box-shadow:0 0 0 22px rgba(26,43,140,0)}}
+.flashing{animation:flash-ring .42s ease-out;}
+.rcard{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,.05);}
+.rstat{text-align:center;}.rstat .n{font-size:28px;font-weight:700;color:#111827;}
+.rstat .l{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+.break-ring{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;border:4px solid #fbbf24;background:rgba(251,191,36,.08);}
+.acc-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;border-radius:12px;transition:background .15s;user-select:none;}
+.acc-header:hover{background:rgba(0,0,0,.03);}
+.acc-body{display:none;padding:0 4px 8px 4px;}
+.acc-body.open{display:block;}
+.acc-arrow{transition:transform .2s;color:#9ca3af;font-size:12px;}
+.acc-arrow.open{transform:rotate(180deg);}
+.photo-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid rgba(0,0,0,.1);transition:transform .15s,border-color .15s;}
+.photo-thumb:hover{transform:scale(1.08);border-color:#60a5fa;}
+#photoLightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+#photoLightbox.open{display:flex;}
+#photoLightboxImg{max-width:90vw;max-height:75vh;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.6);}
+.fac-pill{display:inline-flex;align-items:center;padding:6px 12px;border-radius:99px;font-size:12px;font-weight:600;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;color:#374151;background:#f9fafb;user-select:none;}
+.fac-pill.sel{background:#1a2b8c;color:#fff;border-color:#1a2b8c;}
+.type-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.tb-in{background:#dcfce7;color:#15803d;}
+.tb-out{background:#fee2e2;color:#dc2626;}
+.tb-brk{background:#fef9c3;color:#a16207;}
+.tb-brkend{background:#e0f2fe;color:#0369a1;}
+.url-box{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:12px;color:#374151;word-break:break-all;font-family:monospace;}
+</style>
+</head>
+<body class="min-h-screen select-none overflow-x-hidden">
+<canvas id="captureCanvas" class="hidden" width="240" height="240"></canvas>
+
+<!-- Logo template — uses external PNG file -->
+<template id="logoTpl">
+  <img src="logo.png" alt="Juno Tech Laboratory" class="h-10 w-auto flex-shrink-0" style="mix-blend-mode:multiply;">
+</template>
+
+<!-- Toast -->
+<div id="toast" style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(12px);
+  background:#1e293b;color:#f8fafc;padding:11px 22px;border-radius:99px;font-size:14px;font-weight:500;
+  white-space:nowrap;z-index:999;opacity:0;box-shadow:0 8px 24px rgba(0,0,0,.22);pointer-events:none;">
+</div>
+
+<!-- ── PIN VIEW ─────────────────────────────────────────── -->
+<div id="pinView">
+  <button id="gearBtn" onclick="openAdminLogin()"
+    style="position:fixed;bottom:24px;right:24px;z-index:40;background:none;border:none;cursor:pointer;padding:10px;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#1a2b8c" stroke-width="1.8">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    </svg>
+  </button>
+  <div class="min-h-screen flex flex-col items-center justify-center px-6 py-10">
+    <div id="pinLogo" class="mb-6"></div>
+    <div class="text-center mb-6">
+      <p id="pinClock" class="text-3xl font-semibold tabular-nums" style="color:#111827;"></p>
+      <p id="pinDate" class="text-sm mt-1" style="color:#9ca3af;"></p>
+    </div>
+    <p class="text-sm font-medium mb-4" style="color:#6b7280;">Enter your 4-digit employee code</p>
+    <div id="pinDots" class="flex gap-3 mb-3">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <p id="pinErr" class="text-red-500 text-sm font-medium mb-4" style="display:none;">Invalid code. Try again.</p>
+    <div id="numpad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:280px;width:100%;">
+      <button class="num-btn tap" onclick="pinKey(1)">1</button>
+      <button class="num-btn tap" onclick="pinKey(2)">2</button>
+      <button class="num-btn tap" onclick="pinKey(3)">3</button>
+      <button class="num-btn tap" onclick="pinKey(4)">4</button>
+      <button class="num-btn tap" onclick="pinKey(5)">5</button>
+      <button class="num-btn tap" onclick="pinKey(6)">6</button>
+      <button class="num-btn tap" onclick="pinKey(7)">7</button>
+      <button class="num-btn tap" onclick="pinKey(8)">8</button>
+      <button class="num-btn tap" onclick="pinKey(9)">9</button>
+      <button class="num-btn empty"></button>
+      <button class="num-btn tap" onclick="pinKey(0)">0</button>
+      <button class="num-btn tap del" onclick="pinBackspace()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"/>
+        </svg>
+      </button>
+    </div>
+    <p class="mt-8 text-center text-xs leading-relaxed px-4" style="color:#b0b7c3;max-width:320px;">
+      By entering your employee code, you acknowledge and consent to the collection of your photograph
+      for identity verification and timekeeping purposes. Photos are stored securely and used solely
+      for workforce management in accordance with company policy. Continued use constitutes
+      acceptance of these terms.
+    </p>
+    <button onclick="openAdminLogin()" class="mt-4 text-xs font-medium tap"
+      style="color:#c9cdd4;background:none;border:none;cursor:pointer;padding:8px 16px;">
+      &#9881; Admin Login
+    </button>
+  </div>
+</div>
+
+<!-- ── EMPLOYEE VIEW ──────────────────────────────────── -->
+<div id="empView" style="display:none;">
+  <header class="sticky top-0 z-20"
+    style="background:rgba(255,255,255,0.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);">
+    <div class="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+      <div id="empLogo"></div>
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <p id="empClock" class="text-lg font-semibold tabular-nums" style="color:#111827;"></p>
+          <p id="empDate" class="text-xs" style="color:#9ca3af;"></p>
+        </div>
+        <button onclick="lockEmployee()" class="tap flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold"
+          style="background:#f3f4f6;color:#6b7280;border:none;cursor:pointer;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg> Lock
+        </button>
+      </div>
+    </div>
+  </header>
+  <div class="max-w-lg mx-auto px-4 py-6 space-y-4">
+    <div class="glass rounded-3xl px-6 py-5">
+      <p class="text-sm font-medium" style="color:#9ca3af;">Welcome back</p>
+      <p id="empName" class="text-2xl font-bold mt-0.5" style="color:#111827;"></p>
+      <div class="flex items-center gap-2 mt-2">
+        <span id="statusBadge" class="b-out text-xs font-semibold px-3 py-1 rounded-full">Not Clocked In</span>
+        <span id="clockedSince" class="text-xs" style="color:#9ca3af;display:none;"></span>
+      </div>
+    </div>
+    <div id="breakCard" class="glass rounded-3xl px-6 py-6 flex-col items-center gap-3" style="display:none;">
+      <div class="break-ring mx-auto">
+        <p id="breakCountdown" class="text-2xl font-bold tabular-nums" style="color:#d97706;">00:00</p>
+        <p class="text-xs font-medium mt-1" style="color:#d97706;">On Break</p>
+      </div>
+      <p id="breakLabel" class="text-sm font-medium text-center mt-3" style="color:#6b7280;"></p>
+      <button onclick="endBreak()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mt-2"
+        style="background:#fef3c7;color:#92400e;border:none;cursor:pointer;">End Break Early</button>
+    </div>
+    <div id="mainCard" class="glass rounded-3xl px-6 py-6 space-y-3">
+      <button id="clockBtn" onclick="handleClock()" class="tap w-full py-5 rounded-2xl font-bold text-lg"
+        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Clock In</button>
+      <div id="breakBtns" class="grid grid-cols-2 gap-3" style="display:none;">
+        <button onclick="startBreak(30)" class="tap py-3 rounded-2xl font-semibold text-sm"
+          style="background:#fef9c3;color:#92400e;border:none;cursor:pointer;">&#9749; 30-min Break</button>
+        <button onclick="startBreak(15)" class="tap py-3 rounded-2xl font-semibold text-sm"
+          style="background:#fef9c3;color:#92400e;border:none;cursor:pointer;">&#9208; 15-min Break</button>
+      </div>
+    </div>
+    <div id="todaySummary" class="glass rounded-3xl px-6 py-5 space-y-2" style="display:none;">
+      <p class="text-xs font-semibold uppercase tracking-wide" style="color:#9ca3af;">Today's Summary</p>
+      <div class="flex gap-6 flex-wrap">
+        <div><p id="sumClockIn" class="text-base font-semibold" style="color:#111827;">&#8212;</p><p class="text-xs" style="color:#9ca3af;">Clock In</p></div>
+        <div><p id="sumBreaks"  class="text-base font-semibold" style="color:#111827;">&#8212;</p><p class="text-xs" style="color:#9ca3af;">Break Time</p></div>
+        <div><p id="sumTotal"   class="text-base font-semibold" style="color:#111827;">&#8212;</p><p class="text-xs" style="color:#9ca3af;">Hours So Far</p></div>
+      </div>
+    </div>
+    <button onclick="openSupply()" class="tap w-full glass rounded-3xl px-6 py-5 flex items-center gap-4"
+      style="border:none;cursor:pointer;text-align:left;">
+      <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#e0e7ff;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#3b30a0" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+      </div>
+      <div>
+        <p class="font-semibold" style="color:#111827;">Log Supply Request</p>
+        <p class="text-sm" style="color:#9ca3af;">Request office supplies</p>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" class="ml-auto flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#d1d5db" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+      </svg>
+    </button>
+    <div id="camWrap" class="glass rounded-3xl px-6 py-5 flex-col items-center gap-3" style="display:none;">
+      <p id="camTitle" class="text-base font-semibold text-center" style="color:#111827;">Position your face in the frame</p>
+      <div class="cam-ring rounded-full overflow-hidden mx-auto" style="width:160px;height:160px;">
+        <video id="camPreview" autoplay playsinline muted style="width:160px;height:160px;"></video>
+      </div>
+      <div class="w-full rounded-2xl px-4 py-3 flex gap-3 items-start" style="background:#fef9c3;">
+        <span style="font-size:18px;flex-shrink:0;">&#128247;</span>
+        <div>
+          <p class="text-xs font-bold" style="color:#92400e;">Show your work environment</p>
+          <p class="text-xs mt-0.5 leading-relaxed" style="color:#a16207;">Make sure your <strong>work area or surroundings are visible</strong> in the background. This confirms you are on-site and actively working.</p>
+        </div>
+      </div>
+      <div class="w-full">
+        <label class="text-xs font-semibold block mb-2" style="color:#374151;">Facility / Location <span style="color:#9ca3af;font-weight:400;">(select all that apply)</span></label>
+        <div id="facPills" class="flex flex-wrap gap-2 mb-2"></div>
+        <input id="facOther" type="text" placeholder="Describe other location…" class="inp mt-1" style="font-size:13px;display:none;">
+      </div>
+      <div class="w-full">
+        <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Note / Reason <span style="color:#d1d5db;">(optional)</span></label>
+        <input id="clockNote" type="text" placeholder="e.g. Running late, working from field…" class="inp" style="font-size:14px;">
+      </div>
+      <button onclick="captureAndClock()" class="tap w-full py-3 rounded-2xl font-semibold text-white text-sm"
+        style="background:#1a2b8c;border:none;cursor:pointer;">Confirm &amp; Submit</button>
+      <button onclick="cancelCapture()" class="text-sm" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SUPPLY MODAL ───────────────────────────────────── -->
+<div id="supplyWrap" class="m-sheet">
+  <div class="m-bg" onclick="closeSupply()"></div>
+  <div class="relative w-full z-10 glass rounded-t-3xl p-6 space-y-4" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold" style="color:#111827;">Supply Request</h3>
+      <button onclick="closeSupply()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
+    </div>
+    <select id="supplyItem" class="inp sel">
+      <option value="">Select item…</option>
+      <option>Bond paper (ream)</option><option>Ballpen</option><option>Folder</option>
+      <option>Stapler / staples</option><option>Tape</option><option>Marker</option>
+      <option>Sticky notes</option><option>Printer ink</option><option>Alcohol / sanitizer</option><option>Other</option>
+    </select>
+    <input id="supplyQty" type="number" min="1" value="1" placeholder="Quantity" class="inp">
+    <input id="supplyNote" type="text" placeholder="Notes (optional)…" class="inp">
+    <button onclick="submitSupply()" class="tap w-full py-4 rounded-2xl font-semibold text-white"
+      style="background:#1a2b8c;border:none;cursor:pointer;">Submit Request</button>
+  </div>
+</div>
+
+<!-- ── ADMIN LOGIN MODAL ──────────────────────────────── -->
+<div id="adminLoginWrap" class="m-wrap">
+  <div class="m-bg" onclick="closeAdminLogin()"></div>
+  <div class="relative bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl space-y-4 z-10">
+    <div class="text-center">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background:#1a2b8c;">
+        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-semibold" style="color:#111827;">Admin Access</h2>
+      <p class="text-sm mt-1" style="color:#9ca3af;">Default password: admin</p>
+    </div>
+    <input id="adminPassInput" type="password" placeholder="Password…" class="inp text-center tracking-widest" style="font-size:20px;">
+    <p id="loginErr" class="text-red-500 text-sm text-center font-medium" style="display:none;">Incorrect password.</p>
+    <button id="adminLoginBtn" class="tap w-full text-white py-4 rounded-2xl font-semibold text-base"
+      style="background:#1a2b8c;border:none;cursor:pointer;">Unlock Admin</button>
+    <p class="text-center text-xs" style="color:#d1d5db;">Password forgotten? Add <code>?admin</code> to the URL</p>
+  </div>
+</div>
+
+<!-- ── EMPLOYEE DETAIL MODAL ──────────────────────────── -->
+<div id="empDetailWrap" class="m-wrap" style="z-index:60;">
+  <div class="m-bg" onclick="closeEmpDetail()"></div>
+  <div class="relative z-10 bg-white rounded-3xl w-full mx-4 shadow-2xl overflow-hidden"
+    style="max-width:640px;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="px-6 py-5 flex items-center justify-between" style="border-bottom:1px solid #f3f4f6;">
+      <div>
+        <h3 id="detailEmpName" class="text-lg font-bold" style="color:#111827;"></h3>
+        <p id="detailEmpCode" class="text-sm mt-0.5 font-mono" style="color:#9ca3af;"></p>
+      </div>
+      <button onclick="closeEmpDetail()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
+    </div>
+    <div class="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+      <div id="detailStats" class="grid grid-cols-3 gap-3"></div>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:#9ca3af;">Session Log</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" style="border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid #f3f4f6;">
+                <th class="text-left py-2 pr-3 text-xs font-semibold" style="color:#9ca3af;">Date</th>
+                <th class="text-left py-2 pr-3 text-xs font-semibold" style="color:#9ca3af;">In</th>
+                <th class="text-left py-2 pr-3 text-xs font-semibold" style="color:#9ca3af;">Break</th>
+                <th class="text-left py-2 pr-3 text-xs font-semibold" style="color:#9ca3af;">Out</th>
+                <th class="text-right py-2 pr-3 text-xs font-semibold" style="color:#9ca3af;">Hours</th>
+                <th class="text-left py-2 text-xs font-semibold" style="color:#9ca3af;">Note</th>
+              </tr>
+            </thead>
+            <tbody id="detailRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN VIEW ─────────────────────────────────────── -->
+<div id="adminView" style="display:none;min-height:100vh;background:#f1f5f9;">
+  <header style="background:#fff;border-bottom:1px solid rgba(0,0,0,.08);box-shadow:0 1px 4px rgba(0,0,0,.05);">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div id="adminLogo"></div>
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold px-3 py-1 rounded-full" style="background:#dbeafe;color:#1d4ed8;">Admin</span>
+        <button onclick="closeAdmin()" class="tap text-sm font-semibold px-4 py-2 rounded-xl"
+          style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Exit</button>
+      </div>
+    </div>
+  </header>
+  <div style="background:#fff;border-bottom:1px solid rgba(0,0,0,.08);overflow-x:auto;">
+    <div class="max-w-4xl mx-auto px-4 flex">
+      <button class="atab active" id="tab-employees" onclick="switchTab('employees')">Employees</button>
+      <button class="atab" id="tab-records"   onclick="switchTab('records')">Records</button>
+      <button class="atab" id="tab-reports"   onclick="switchTab('reports')">Reports</button>
+      <button class="atab" id="tab-settings"  onclick="switchTab('settings')">Settings</button>
+    </div>
+  </div>
+  <div class="max-w-4xl mx-auto px-4 py-6">
+
+    <!-- Employees tab -->
+    <div id="pane-employees" class="apane active space-y-4">
+      <div class="rcard">
+        <p class="text-sm font-semibold mb-3" style="color:#374151;">Add Employee</p>
+        <div class="flex gap-2 flex-wrap">
+          <input id="newEmpName" type="text" placeholder="Full name…" class="inp inp-dk" style="flex:2;min-width:140px;">
+          <input id="newEmpCode" type="text" maxlength="4" placeholder="Code (4-digit)" class="inp inp-dk" style="flex:1;min-width:100px;">
+          <button onclick="addEmployee()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
+            style="background:#3b52d4;color:#fff;border:none;cursor:pointer;white-space:nowrap;">Add</button>
+        </div>
+        <p class="text-xs mt-2" style="color:#9ca3af;">Leave code blank to auto-generate.</p>
+      </div>
+      <div id="empList" class="space-y-2"></div>
+    </div>
+
+    <!-- Records tab -->
+    <div id="pane-records" class="apane space-y-4">
+      <div class="rcard">
+        <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:#9ca3af;">Click employee to see their full session log</p>
+        <div id="recordEmpBtns" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div class="rcard">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-sm font-semibold" style="color:#374151;">Timesheet — by Date</p>
+          <div class="flex items-center gap-3">
+            <button onclick="refreshFromCloud()" class="text-xs font-semibold" style="color:#059669;background:none;border:none;cursor:pointer;">&#8635; Sync</button>
+            <button onclick="expandAllDays()" class="text-xs" style="color:#1d4ed8;background:none;border:none;cursor:pointer;">Expand all</button>
+          </div>
+        </div>
+        <div id="tsAccordion"></div>
+      </div>
+      <div class="rcard">
+        <p class="text-sm font-semibold mb-3" style="color:#374151;">Supply Log</p>
+        <div id="supplyList"></div>
+      </div>
+    </div>
+
+    <!-- Reports tab -->
+    <div id="pane-reports" class="apane space-y-4">
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">Date Range</p>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button onclick="setRange('today')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">Today</button>
+          <button onclick="setRange('week')"   class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Week</button>
+          <button onclick="setRange('month')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Month</button>
+          <button onclick="setRange('all')"    class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">All Time</button>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <input id="rptFrom" type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
+          <input id="rptTo"   type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
+          <button onclick="generateReport()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
+            style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Generate</button>
+        </div>
+      </div>
+      <div id="reportOut" style="display:none;"></div>
+    </div>
+
+    <!-- Settings tab -->
+    <div id="pane-settings" class="apane space-y-4">
+
+      <!-- Kiosk URL share -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">&#128279; Staff Kiosk URL</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Share this link with your staff so they can clock in and out. No login required for employees — they just enter their 4-digit code.</p>
+        <div id="kioskUrlDisplay" class="url-box"></div>
+        <button onclick="copyKioskUrl()" class="tap px-5 py-2.5 rounded-xl text-sm font-semibold"
+          style="background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">Copy URL</button>
+      </div>
+
+      <!-- Shareable employee link -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold mb-1" style="color:#374151;">&#128279; Shareable Employee Link</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Generate a link that bakes employee codes into the URL. Share it with employees — anyone who opens it gets the correct codes automatically on any device.</p>
+        <button onclick="generateShareLink()" class="tap px-5 py-3 rounded-xl font-semibold text-sm w-full"
+          style="background:#0f766e;color:#ccfbf1;border:none;cursor:pointer;">Copy Shareable Link</button>
+        <div id="shareLinkBox" style="display:none;">
+          <input id="shareLinkInput" type="text" class="inp inp-dk text-xs" readonly style="font-size:11px;">
+          <p class="text-xs mt-1" style="color:#9ca3af;">Copy this link and send to all employees via WhatsApp, email, or QR code.</p>
+        </div>
+      </div>
+
+      <!-- Change password -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">Change Admin Password</p>
+        <input id="newPass1" type="password" placeholder="New password…" class="inp inp-dk">
+        <input id="newPass2" type="password" placeholder="Confirm password…" class="inp inp-dk">
+        <button onclick="changePassword()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
+          style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Update Password</button>
+      </div>
+
+      <!-- Firebase cloud sync -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">&#9729; Cloud Sync (Firebase)</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Connect to Firebase Realtime Database so clock-in/out data syncs across ALL devices in real time.</p>
+        <div class="rounded-xl p-3 text-xs" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">
+          <strong>Setup:</strong> Go to console.firebase.google.com → Create project → Realtime Database → Start in test mode → Copy URL below.
+        </div>
+        <input id="fbUrlInput" type="text" placeholder="https://your-app-default-rtdb.firebaseio.com" class="inp" style="font-size:13px;">
+        <div class="flex gap-2">
+          <button onclick="saveFbConfig()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+            style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save &amp; Connect</button>
+          <button onclick="testFbConnection()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+            style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Test</button>
+        </div>
+        <div id="fbStatus" class="text-xs" style="color:#6b7280;"></div>
+        <button onclick="pushAllToCloud()" class="tap w-full py-2 rounded-xl text-xs font-semibold"
+          style="background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;">Push All Local Data to Cloud</button>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="rcard">
+        <p class="text-sm font-semibold mb-2" style="color:#374151;">Danger Zone</p>
+        <button onclick="clearAllData()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
+          style="background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);cursor:pointer;">Clear All Data</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Admin entry edit modal -->
+<div id="editEntryWrap" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div class="flex items-center justify-between mb-4">
+      <p class="font-bold text-base" style="color:#111827;">Edit Log Entry</p>
+      <button onclick="closeEditEntry()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Type</label>
+        <select id="editType" class="inp w-full mt-1" style="color:#111827;">
+          <option value="in">Clock In</option>
+          <option value="out">Clock Out</option>
+          <option value="break_start">Break Start</option>
+          <option value="break_end">Break End</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Date &amp; Time</label>
+        <input id="editDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Note</label>
+        <input id="editNote" type="text" placeholder="Optional note..." class="inp w-full mt-1" style="color:#111827;">
+      </div>
+      <input type="hidden" id="editOrigTs">
+      <button onclick="saveEditEntry()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-2"
+        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Photo lightbox -->
+<div id="photoLightbox" onclick="closePhoto()">
+  <img id="photoLightboxImg" src="" alt="Clock photo">
+  <div style="text-align:center;">
+    <p id="photoLightboxCaption" style="color:rgba(255,255,255,.7);font-size:13px;"></p>
+    <p style="color:rgba(255,255,255,.35);font-size:11px;margin-top:4px;">Tap anywhere to close</p>
+  </div>
+</div>
+
+<div id="printArea" style="display:none;padding:24px;font-family:sans-serif;font-size:13px;"></div>
+
+<script>
+/* ── safe localStorage ─────────────────────── */
+var store = {
+  get:  function(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } },
+  getJ: function(k,d){ try{ var v=JSON.parse(localStorage.getItem(k)); return v!=null?v:d; }catch(e){ return d!=null?d:[]; } },
+  set:  function(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  setJ: function(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} },
+  del:  function(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+var K = { employees:'jtl_employees', timesheet:'jtl_timesheet', supplies:'jtl_supplies', adminHash:'jtl_admin_hash' };
+
+/* ── password hash ───────────────────────── */
+function hashPwd(str) {
+  var h = 5381;
+  for (var i=0;i<str.length;i++) h = (Math.imul(31,h) + str.charCodeAt(i))|0;
+  var base = Math.abs(h).toString(16).padStart(8,'0');
+  try { return base + '_' + btoa(unescape(encodeURIComponent(str+':jtl-kiosk'))); }
+  catch(e) { return base; }
+}
+var DEFAULT_HASH = hashPwd('admin');
+
+/* ── 4-digit code generator ─────────────── */
+function genCode(existing) {
+  var code;
+  do { code = String(Math.floor(1000 + Math.random()*9000)); }
+  while (existing && existing.some(function(e){ return e.code===code; }));
+  return code;
+}
+
+/* ── state ──────────────────────────────── */
+var currentEmp = null;
+var clockState = 'out';
+var breakTimerID = null;
+var breakStart = null;
+var breakMins = 0;
+var pendingAction = null;
+var camStream = null;
+
+/* ── views ──────────────────────────────── */
+function show(id) {
+  ['pinView','empView','adminView'].forEach(function(v) {
+    var el = document.getElementById(v);
+    if (el) el.style.display = (v===id) ? '' : 'none';
+  });
+}
+
+/* ── logos ──────────────────────────────── */
+function injectLogos() {
+  var tpl = document.getElementById('logoTpl');
+  if (!tpl) return;
+  ['pinLogo','empLogo','adminLogo'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && el.children.length===0) el.appendChild(tpl.content.cloneNode(true));
+  });
+}
+
+/* ── clock ──────────────────────────────── */
+function tick() {
+  var n = new Date();
+  var t = n.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  var d = n.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  ['pinClock','empClock'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=t; });
+  ['pinDate','empDate'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=d; });
+}
+setInterval(tick,1000); tick();
+
+/* ── toast ──────────────────────────────── */
+var toastTimer;
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  el.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.style.opacity='0'; el.style.transform='translateX(-50%) translateY(12px)'; }, 2800);
+}
+
+/* ── PIN ─────────────────────────────────── */
+var pinBuffer = '';
+function updatePinDots() {
+  var dots = document.querySelectorAll('#pinDots .pin-dot');
+  dots.forEach(function(d,i){ d.classList.toggle('filled', i<pinBuffer.length); });
+}
+function pinKey(digit) {
+  if (pinBuffer.length>=4) return;
+  pinBuffer += String(digit);
+  updatePinDots();
+  document.getElementById('pinErr').style.display = 'none';
+  if (pinBuffer.length===4) setTimeout(checkPin,80);
+}
+function pinBackspace() {
+  if (!pinBuffer.length) return;
+  pinBuffer = pinBuffer.slice(0,-1);
+  updatePinDots();
+}
+function checkPin() {
+  var emps = store.getJ(K.employees,[]);
+  var emp = null;
+  for (var i=0;i<emps.length;i++) { if (emps[i].code===pinBuffer) { emp=emps[i]; break; } }
+  if (emp) {
+    currentEmp = emp; pinBuffer=''; updatePinDots();
+    document.getElementById('pinErr').style.display='none';
+    enterEmpView();
+  } else {
+    document.getElementById('pinErr').style.display='block';
+    var np = document.getElementById('numpad');
+    np.classList.add('shake');
+    setTimeout(function(){ np.classList.remove('shake'); pinBuffer=''; updatePinDots(); }, 450);
+  }
+}
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('pinView') || document.getElementById('pinView').style.display==='none') return;
+  if (e.key>='0' && e.key<='9') pinKey(Number(e.key));
+  if (e.key==='Backspace') pinBackspace();
+});
+
+/* ── employee view ──────────────────────── */
+function enterEmpView() {
+  show('empView');
+  document.getElementById('empName').textContent = currentEmp.name;
+  syncClockState();
+  updateTodaySummary();
+  initCamera();
+}
+function lockEmployee() {
+  stopCamera(); stopBreakTimer();
+  currentEmp=null; clockState='out'; pendingAction=null;
+  show('pinView');
+}
+function syncClockState() {
+  var entries = store.getJ(K.timesheet,[])
+    .filter(function(e){ return e.name===currentEmp.name; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||""}; })
+    .sort(function(a,b){ return a._d-b._d; });
+  var last = entries[entries.length-1];
+  if (!last)                         clockState='out';
+  else if (last.type==='in')         clockState='in';
+  else if (last.type==='break_start') clockState='break';
+  else if (last.type==='break_end')  clockState='in';
+  else                               clockState='out';
+  renderEmpState();
+}
+function renderEmpState() {
+  var badge    = document.getElementById('statusBadge');
+  var since    = document.getElementById('clockedSince');
+  var clockBtn = document.getElementById('clockBtn');
+  var breakBtns= document.getElementById('breakBtns');
+  var breakCard= document.getElementById('breakCard');
+  var mainCard = document.getElementById('mainCard');
+  var camWrap  = document.getElementById('camWrap');
+
+  if (clockState==='out') {
+    badge.textContent='Not Clocked In'; badge.className='b-out text-xs font-semibold px-3 py-1 rounded-full';
+    since.style.display='none';
+    clockBtn.textContent='Clock In'; clockBtn.style.background='#1a2b8c';
+    breakBtns.style.display='none'; breakCard.style.display='none';
+    mainCard.style.display=''; camWrap.style.display='none';
+  } else if (clockState==='in') {
+    badge.textContent='Clocked In'; badge.className='b-in text-xs font-semibold px-3 py-1 rounded-full';
+    var entries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; });
+    var lastIn = null;
+    entries.forEach(function(e){ if(e.type==='in') lastIn=e; });
+    if (lastIn) { since.textContent='since '+new Date(lastIn.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); since.style.display=''; }
+    clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
+    breakBtns.style.display=''; breakCard.style.display='none';
+    mainCard.style.display=''; camWrap.style.display='none';
+  } else if (clockState==='break') {
+    badge.textContent='On Break'; badge.className='b-break text-xs font-semibold px-3 py-1 rounded-full';
+    since.style.display='none';
+    breakCard.style.display='flex'; breakCard.style.flexDirection='column';
+    mainCard.style.display='none'; camWrap.style.display='none';
+  }
+}
+
+/* ── clock in/out ───────────────────────── */
+function handleClock() {
+  pendingAction = (clockState==='out') ? 'in' : 'out';
+  document.getElementById('mainCard').style.display='none';
+  document.getElementById('camTitle').textContent = pendingAction==='in'
+    ? 'Clock In — Show your work area' : 'Clock Out — Show your work area';
+  var cw = document.getElementById('camWrap');
+  cw.style.display='flex'; cw.style.flexDirection='column';
+  resetFacilityPills();
+  startCamera();
+}
+function cancelCapture() {
+  pendingAction=null;
+  document.getElementById('camWrap').style.display='none';
+  document.getElementById('mainCard').style.display='';
+}
+function captureAndClock() {
+  var video  = document.getElementById('camPreview');
+  var canvas = document.getElementById('captureCanvas');
+  var ctx    = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (video.readyState >= 2) {
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-240,0,240,240); ctx.restore();
+  }
+  var photo = (video.readyState >= 2) ? canvas.toDataURL('image/jpeg',0.45) : null;
+  var note  = (document.getElementById('clockNote').value||'').trim();
+  var facOther = document.getElementById('facOther');
+  var otherTxt = (facOther && facOther.style.display!=='none') ? (facOther.value||'').trim() : '';
+  var facList  = selectedFacilities.slice();
+  if (otherTxt) facList.push(otherTxt);
+  var entry = {name:currentEmp.name, type:pendingAction, ts:new Date().toISOString(), photo:photo, note:note, facilities:facList};
+  var arr = store.getJ(K.timesheet,[]);
+  arr.push(entry);
+  store.setJ(K.timesheet,arr);
+  fbAppend('timesheet', entry);
+  if (pendingAction==='in')  { clockState='in';  toast('Clocked in — have a great day!'); }
+  if (pendingAction==='out') {
+    clockState='out';
+    toast('Clocked out · '+computeTodayHours(currentEmp.name)+' hrs today');
+  }
+  pendingAction=null;
+  document.getElementById('clockNote').value='';
+  stopCamera(); cancelCapture(); renderEmpState(); updateTodaySummary();
+}
+
+/* ── breaks ─────────────────────────────── */
+function startBreak(mins) {
+  breakMins=mins; breakStart=new Date(); clockState='break';
+  document.getElementById('breakLabel').textContent=mins+'-minute break started';
+  var arr=store.getJ(K.timesheet,[]);
+  arr.push({name:currentEmp.name,type:'break_start',ts:breakStart.toISOString(),note:mins+' min',photo:null});
+  store.setJ(K.timesheet,arr);
+  renderEmpState(); startBreakTimer(mins); toast('Break started · '+mins+' min');
+}
+function startBreakTimer(mins) {
+  stopBreakTimer();
+  var endTime = new Date(breakStart.getTime()+mins*60000);
+  breakTimerID = setInterval(function(){
+    var rem = endTime - new Date();
+    if (rem<=0) { clearInterval(breakTimerID); endBreak(); return; }
+    var m=String(Math.floor(rem/60000)).padStart(2,'0');
+    var s=String(Math.floor((rem%60000)/1000)).padStart(2,'0');
+    var el=document.getElementById('breakCountdown');
+    if(el) el.textContent=m+':'+s;
+  },1000);
+}
+function stopBreakTimer() { if(breakTimerID){ clearInterval(breakTimerID); breakTimerID=null; } }
+function endBreak() {
+  stopBreakTimer(); clockState='in';
+  var arr=store.getJ(K.timesheet,[]);
+  arr.push({name:currentEmp.name,type:'break_end',ts:new Date().toISOString(),note:breakMins+' min',photo:null});
+  store.setJ(K.timesheet,arr);
+  breakStart=null; breakMins=0; renderEmpState(); updateTodaySummary(); toast('Break ended — welcome back!');
+}
+
+/* ── hours calculation ──────────────────── */
+function computeHoursFromEntries(entries) {
+  var totalMs=0, inTime=null, bst=null, brkMs=0;
+  for (var i=0;i<entries.length;i++) {
+    var e=entries[i];
+    if      (e.type==='in')          { inTime=e._d; bst=null; brkMs=0; }
+    else if (e.type==='break_start') { bst=e._d; }
+    else if (e.type==='break_end')   { if(bst){ brkMs+=e._d-bst; bst=null; } }
+    else if (e.type==='out' && inTime) {
+      var sb=brkMs; if(bst) sb+=e._d-bst;
+      totalMs += Math.max(0, e._d-inTime-sb);
+      inTime=null; bst=null; brkMs=0;
+    }
+  }
+  if (inTime) { var sb=brkMs; var now=new Date(); if(bst) sb+=now-bst; totalMs+=Math.max(0,now-inTime-sb); }
+  return totalMs/3600000;
+}
+function computeTodayHours(name) {
+  var today=new Date().toDateString();
+  var entries=store.getJ(K.timesheet,[])
+    .filter(function(e){ return e.name===name && new Date(e.ts).toDateString()===today; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts)}; })
+    .sort(function(a,b){ return a._d-b._d; });
+  return computeHoursFromEntries(entries).toFixed(2);
+}
+function updateTodaySummary() {
+  if (!currentEmp) return;
+  var today=new Date().toDateString();
+  var entries=store.getJ(K.timesheet,[])
+    .filter(function(e){ return e.name===currentEmp.name && new Date(e.ts).toDateString()===today; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts)}; })
+    .sort(function(a,b){ return a._d-b._d; });
+  var sumDiv=document.getElementById('todaySummary');
+  if (!entries.length) { sumDiv.style.display='none'; return; }
+  sumDiv.style.display='';
+  var firstIn=null;
+  for(var i=0;i<entries.length;i++) { if(entries[i].type==='in'){ firstIn=entries[i]; break; } }
+  document.getElementById('sumClockIn').textContent = firstIn
+    ? firstIn._d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—';
+  var brkMs=0, bst=null;
+  entries.forEach(function(e){
+    if(e.type==='break_start') bst=e._d;
+    else if(e.type==='break_end'&&bst){ brkMs+=e._d-bst; bst=null; }
+  });
+  var bMins=Math.round(brkMs/60000);
+  document.getElementById('sumBreaks').textContent = bMins>0 ? bMins+' min' : 'None';
+  document.getElementById('sumTotal').textContent  = computeHoursFromEntries(entries).toFixed(2)+' hrs';
+}
+
+/* ── camera ─────────────────────────────── */
+function initCamera() { startCamera(); }
+function stopCamera() {
+  if (camStream) { camStream.getTracks().forEach(function(t){ t.stop(); }); camStream=null; }
+  var v = document.getElementById('camPreview');
+  if (v) { v.srcObject=null; }
+}
+function startCamera() {
+  stopCamera();
+  if (!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return;
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:320,height:320}})
+    .then(function(s){ camStream=s; document.getElementById('camPreview').srcObject=s; })
+    .catch(function(){
+      navigator.mediaDevices.getUserMedia({video:true})
+        .then(function(s){ camStream=s; document.getElementById('camPreview').srcObject=s; })
+        .catch(function(){});
+    });
+}
+
+/* ── supply ─────────────────────────────── */
+function openSupply()  { document.getElementById('supplyWrap').classList.add('open'); }
+function closeSupply() { document.getElementById('supplyWrap').classList.remove('open'); }
+function submitSupply() {
+  var item=document.getElementById('supplyItem').value;
+  var qty=parseInt(document.getElementById('supplyQty').value)||1;
+  var note=document.getElementById('supplyNote').value.trim();
+  if (!item) { toast('Please select an item'); return; }
+  var arr=store.getJ(K.supplies,[]);
+  arr.push({name:currentEmp?currentEmp.name:'Unknown',item:item,qty:qty,note:note,ts:new Date().toISOString()});
+  store.setJ(K.supplies,arr);
+  document.getElementById('supplyItem').value='';
+  document.getElementById('supplyQty').value='1';
+  document.getElementById('supplyNote').value='';
+  closeSupply(); toast('Supply request logged!');
+}
+
+/* ── admin login ─────────────────────────── */
+function openAdminLogin() {
+  var w=document.getElementById('adminLoginWrap');
+  w.classList.add('open');
+  document.getElementById('adminPassInput').value='';
+  document.getElementById('loginErr').style.display='none';
+  setTimeout(function(){ document.getElementById('adminPassInput').focus(); },100);
+}
+function closeAdminLogin() { document.getElementById('adminLoginWrap').classList.remove('open'); }
+
+document.getElementById('adminLoginBtn').addEventListener('click', function() {
+  var input  = document.getElementById('adminPassInput').value;
+  var stored = store.get(K.adminHash) || DEFAULT_HASH;
+  if (hashPwd(input)===stored) {
+    closeAdminLogin(); show('adminView');
+    renderTables(); renderEmployeeList(); renderRecordEmpBtns();
+    renderKioskUrl();
+  } else {
+    document.getElementById('loginErr').style.display='block';
+  }
+});
+document.getElementById('adminPassInput').addEventListener('keydown', function(e) {
+  if (e.key==='Enter') document.getElementById('adminLoginBtn').click();
+});
+
+function closeAdmin() { show('pinView'); }
+
+/* ── Kiosk URL ───────────────────────────── */
+function renderKioskUrl() {
+  var el = document.getElementById('kioskUrlDisplay');
+  if (!el) return;
+  el.textContent = window.location.origin + window.location.pathname;
+}
+function copyKioskUrl() {
+  var url = window.location.origin + window.location.pathname;
+  navigator.clipboard.writeText(url).then(function(){ toast('Kiosk URL copied!'); })
+    .catch(function(){
+      var el = document.getElementById('kioskUrlDisplay');
+      var r = document.createRange(); r.selectNode(el);
+      window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+      toast('Select and copy the URL above');
+    });
+}
+
+/* ── admin tabs ─────────────────────────── */
+function switchTab(name) {
+  document.querySelectorAll('.atab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.apane').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('pane-'+name).classList.add('active');
+  if (name==='records')   { if(fbCfg.url){ syncFromCloud(function(){ renderTables(); }); } else { renderTables(); } renderRecordEmpBtns(); }
+  if (name==='employees') renderEmployeeList();
+  if (name==='settings')  renderKioskUrl();
+}
+
+/* ── employee management ────────────────── */
+function addEmployee() {
+  var inp=document.getElementById('newEmpName');
+  var codeInp=document.getElementById('newEmpCode');
+  var name=inp.value.trim();
+  if (!name) return;
+  var emps=store.getJ(K.employees,[]);
+  for(var i=0;i<emps.length;i++) { if(emps[i].name.toLowerCase()===name.toLowerCase()){ toast('Employee already exists'); return; } }
+  var customCode=(codeInp.value||'').trim();
+  var code;
+  if (customCode.length===4 && /^\d{4}$/.test(customCode)) {
+    if (emps.some(function(e){ return e.code===customCode; })) { toast('That code is already taken'); return; }
+    code=customCode;
+  } else {
+    code=genCode(emps);
+  }
+  emps.push({name:name,code:code});
+  store.setJ(K.employees,emps);
+  inp.value=''; codeInp.value='';
+  renderEmployeeList(); renderRecordEmpBtns();
+  toast(name+' added — code: '+code);
+}
+function removeEmployee(name) {
+  if (!confirm('Remove '+name+' and all their data?')) return;
+  var emps=store.getJ(K.employees,[]).filter(function(e){ return e.name!==name; });
+  store.setJ(K.employees,emps);
+  renderEmployeeList(); renderRecordEmpBtns(); toast(name+' removed');
+}
+function regenCode(name) {
+  var emps=store.getJ(K.employees,[]);
+  var emp=null; for(var i=0;i<emps.length;i++) if(emps[i].name===name){ emp=emps[i]; break; }
+  if (!emp) return;
+  emp.code=genCode(emps.filter(function(e){ return e.name!==name; }));
+  store.setJ(K.employees,emps);
+  renderEmployeeList(); toast('New code for '+name+': '+emp.code);
+}
+function renderEmployeeList() {
+  var emps=store.getJ(K.employees,[]);
+  var c=document.getElementById('empList');
+  if (!emps.length) {
+    c.innerHTML='<p style="color:#9ca3af;font-size:13px;text-align:center;padding:24px;">No employees yet.</p>';
+    return;
+  }
+  var html='';
+  emps.forEach(function(emp) {
+    var safeName = emp.name.replace(/"/g,'&quot;');
+    html += '<div class="rcard flex items-center gap-3 flex-wrap">'
+      + '<div class="flex-1 min-w-0">'
+      + '<p class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</p>'
+      + '<p class="text-xs mt-0.5 font-mono tracking-widest" style="color:#1d4ed8;">'+emp.code+'</p>'
+      + '</div>'
+      + '<div class="flex gap-2">'
+      + '<button onclick="regenCode(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
+      + '<button onclick="removeEmployee(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
+      + '</div></div>';
+  });
+  c.innerHTML=html;
+}
+
+/* ── records tab ─────────────────────────── */
+function renderRecordEmpBtns() {
+  var emps=store.getJ(K.employees,[]);
+  var html='';
+  emps.forEach(function(emp) {
+    var safeName=emp.name.replace(/"/g,'&quot;');
+    html += '<button onclick="openEmpDetail(\''+safeName+'\')" class="tap px-4 py-2 rounded-xl text-sm font-semibold" '
+      + 'style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">'+emp.name+'</button>';
+  });
+  document.getElementById('recordEmpBtns').innerHTML = html;
+}
+
+var TYPE_LABEL = {in:'Clock In',out:'Clock Out',break_start:'Break Start',break_end:'Break End'};
+var TYPE_CLS   = {in:'tb-in',out:'tb-out',break_start:'tb-brk',break_end:'tb-brkend'};
+
+function _renderTablesImpl() {
+  var ts   = store.getJ(K.timesheet,[]).slice();
+  var sups = store.getJ(K.supplies,[]).slice().reverse();
+
+  var byDate={};
+  ts.forEach(function(r){
+    var d=new Date(r.ts).toDateString();
+    if(!byDate[d]) byDate[d]=[];
+    byDate[d].push(r);
+  });
+  var dates=Object.keys(byDate).sort(function(a,b){ return new Date(b)-new Date(a); });
+
+  var accHtml='';
+  if (!dates.length) {
+    accHtml='<p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:13px;">No timesheet records yet.</p>';
+  } else {
+    dates.forEach(function(d,idx){
+      var entries=byDate[d].sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+      var empSet={};
+      entries.forEach(function(e){ empSet[e.name]=1; });
+      var empNames=Object.keys(empSet).join(', ');
+      var dateLabel=new Date(d).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      var bodyId='acc-body-'+idx;
+      var arrowId='acc-arrow-'+idx;
+
+      accHtml += '<div style="border-bottom:1px solid rgba(0,0,0,.06);">'
+        +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')">'
+        +'<div>'
+        +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel+'</p>'
+        +'<p class="text-xs mt-0.5" style="color:#6b7280;">'+entries.length+' entries &middot; '+empNames+'</p>'
+        +'</div>'
+        +'<span id="'+arrowId+'" class="acc-arrow">&#9660;</span>'
+        +'</div>'
+        +'<div id="'+bodyId+'" class="acc-body">';
+
+      entries.forEach(function(r){
+        var time=new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+        var badgeCls=TYPE_CLS[r.type]||'tb-in';
+        var label=TYPE_LABEL[r.type]||r.type;
+        var photoCaption=r.name+' — '+time;
+        var photoHtml=r.photo
+          ? '<img src="'+r.photo+'" class="photo-thumb" onclick="openPhoto(\''+r.photo+'\',\''+photoCaption.replace(/'/g,"\\'")+'\')" alt="photo">'
+          : '<span style="color:#d1d5db;font-size:11px;">no photo</span>';
+
+        var safeTs = String(r.ts).replace(/'/g,'');
+        accHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;margin:2px 0;background:#f8fafc;border:1px solid rgba(0,0,0,.05);">'
+          +'<div style="flex:1;min-width:0;">'
+          +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">'
+          +'<span class="type-badge '+badgeCls+'">'+label+'</span>'
+          +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
+          +'<span style="color:#6b7280;font-size:11px;">'+time+'</span>'
+          +'</div>'
+          +(r.facilities && r.facilities.length ? '<p style="color:#1d4ed8;font-size:10px;font-weight:600;margin-top:3px;">'+r.facilities.join(' · ')+'</p>' : '')
+          +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
+          +'</div>'
+          +photoHtml
+          +'<div style="display:flex;gap:4px;flex-shrink:0;">'
+          +'<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
+          +'<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
+          +'</div>'
+          +'</div>';
+      });
+
+      accHtml += '</div></div>';
+    });
+  }
+  document.getElementById('tsAccordion').innerHTML=accHtml;
+
+  var supHtml='';
+  if (!sups.length) {
+    supHtml='<p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:13px;">No supply requests yet.</p>';
+  } else {
+    sups.forEach(function(r){
+      supHtml += '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:#f8fafc;border:1px solid rgba(0,0,0,.05);">'
+        +'<div style="flex:1;">'
+        +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+        +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
+        +'<span style="color:#1d4ed8;font-size:12px;">'+r.item+'</span>'
+        +'<span style="color:#6b7280;font-size:11px;">x'+r.qty+'</span>'
+        +'</div>'
+        +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
+        +'</div>'
+        +'<span style="color:#9ca3af;font-size:11px;white-space:nowrap;">'+new Date(r.ts).toLocaleString()+'</span>'
+        +'</div>';
+    });
+  }
+  document.getElementById('supplyList').innerHTML=supHtml;
+}
+
+/* ── edit/delete entries ─────────────────── */
+function openEditEntry(ts) {
+  var records = store.getJ(K.timesheet, []);
+  var entry = null;
+  records.forEach(function(r){ if (String(r.ts) === String(ts)) entry = r; });
+  if (!entry) { toast('Entry not found'); return; }
+  var dt = new Date(ts);
+  var pad = function(n){ return n < 10 ? '0'+n : n; };
+  var local = dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+'T'+pad(dt.getHours())+':'+pad(dt.getMinutes());
+  document.getElementById('editType').value = entry.type || 'in';
+  document.getElementById('editDatetime').value = local;
+  document.getElementById('editNote').value = entry.note || '';
+  document.getElementById('editOrigTs').value = ts;
+  document.getElementById('editEntryWrap').style.display = 'flex';
+}
+function closeEditEntry() { document.getElementById('editEntryWrap').style.display = 'none'; }
+function saveEditEntry() {
+  var origTs = document.getElementById('editOrigTs').value;
+  var newType = document.getElementById('editType').value;
+  var rawDt = document.getElementById('editDatetime').value;
+  var newNote = document.getElementById('editNote').value.trim();
+  if (!rawDt) { toast('Select a date and time'); return; }
+  var records = store.getJ(K.timesheet, []);
+  var found = false;
+  records.forEach(function(r) {
+    if (String(r.ts) === String(origTs)) { r.type=newType; r.ts=new Date(rawDt).toISOString(); r.note=newNote; found=true; }
+  });
+  if (!found) { toast('Entry not found'); return; }
+  store.setJ(K.timesheet, records);
+  closeEditEntry(); renderTables(); toast('Entry updated');
+}
+function deleteEntry(ts) {
+  if (!confirm('Delete this log entry? This cannot be undone.')) return;
+  store.setJ(K.timesheet, store.getJ(K.timesheet,[]).filter(function(r){ return String(r.ts)!==String(ts); }));
+  renderTables(); toast('Entry deleted');
+}
+
+function toggleAcc(bodyId, arrowId) {
+  var body=document.getElementById(bodyId), arrow=document.getElementById(arrowId);
+  if (!body) return;
+  body.classList.toggle('open');
+  if(arrow) arrow.classList.toggle('open');
+}
+function expandAllDays() {
+  document.querySelectorAll('.acc-body').forEach(function(b){ b.classList.add('open'); });
+  document.querySelectorAll('.acc-arrow').forEach(function(a){ a.classList.add('open'); });
+}
+function openPhoto(src, caption) {
+  document.getElementById('photoLightboxImg').src=src;
+  document.getElementById('photoLightboxCaption').textContent=caption||'';
+  document.getElementById('photoLightbox').classList.add('open');
+}
+function closePhoto() { document.getElementById('photoLightbox').classList.remove('open'); }
+
+/* ── employee detail modal ───────────────── */
+function buildSessions(entries) {
+  var sessions=[], inTime=null, bst=null, brkMs=0, inNote='', outNote='';
+  entries.forEach(function(e) {
+    if      (e.type==='in')          { inTime=e._d; bst=null; brkMs=0; inNote=e.note||''; outNote=''; }
+    else if (e.type==='break_start') { bst=e._d; }
+    else if (e.type==='break_end')   { if(bst){ brkMs+=e._d-bst; bst=null; } }
+    else if (e.type==='out' && inTime) {
+      var tb=brkMs; if(bst) tb+=e._d-bst; outNote=e.note||'';
+      sessions.push({inTime:inTime,outTime:e._d,breakMs:tb,netMs:Math.max(0,e._d-inTime-tb),inNote:inNote,outNote:outNote});
+      inTime=null; bst=null; brkMs=0; inNote=''; outNote='';
+    }
+  });
+  return sessions;
+}
+function openEmpDetail(name) {
+  var emps=store.getJ(K.employees,[]);
+  var emp=null; for(var i=0;i<emps.length;i++) if(emps[i].name===name){ emp=emps[i]; break; }
+  if(!emp) return;
+  document.getElementById('detailEmpName').textContent = emp.name;
+  document.getElementById('detailEmpCode').textContent = 'Code: '+emp.code;
+  var allEntries = store.getJ(K.timesheet,[])
+    .filter(function(e){ return e.name===name; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||""}; })
+    .sort(function(a,b){ return a._d-b._d; });
+  var sessions=buildSessions(allEntries);
+  var totalHrs=0, totalBrkMs=0, days={};
+  sessions.forEach(function(s){ totalHrs+=s.netMs; totalBrkMs+=s.breakMs; days[s.inTime.toDateString()]=1; });
+  totalHrs/=3600000;
+  var daysCount=Object.keys(days).length;
+  document.getElementById('detailStats').innerHTML =
+    '<div class="rounded-2xl p-4 text-center" style="background:#f0fdf4;">'
+    +'<p class="text-2xl font-bold" style="color:#15803d;">'+totalHrs.toFixed(2)+'</p>'
+    +'<p class="text-xs mt-1" style="color:#86efac;">Total Hrs</p></div>'
+    +'<div class="rounded-2xl p-4 text-center" style="background:#fef9c3;">'
+    +'<p class="text-2xl font-bold" style="color:#a16207;">'+Math.round(totalBrkMs/60000)+'</p>'
+    +'<p class="text-xs mt-1" style="color:#fbbf24;">Break Mins</p></div>'
+    +'<div class="rounded-2xl p-4 text-center" style="background:#eff6ff;">'
+    +'<p class="text-2xl font-bold" style="color:#1d4ed8;">'+daysCount+'</p>'
+    +'<p class="text-xs mt-1" style="color:#93c5fd;">Days</p></div>';
+  var rowsHtml='';
+  if (!sessions.length) {
+    rowsHtml='<tr><td colspan="5" style="color:#9ca3af;text-align:center;padding:20px;">No sessions</td></tr>';
+  } else {
+    sessions.forEach(function(sess) {
+      var fmt=function(d){ return d?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—'; };
+      var fmtD=function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
+      var bm=Math.round(sess.breakMs/60000);
+      rowsHtml += '<tr style="border-bottom:1px solid #f3f4f6;">'
+        +'<td class="py-2.5 pr-3 text-xs" style="color:#6b7280;">'+fmtD(sess.inTime)+'</td>'
+        +'<td class="py-2.5 pr-3 text-xs font-medium" style="color:#111827;">'+fmt(sess.inTime)+'</td>'
+        +'<td class="py-2.5 pr-3 text-xs" style="color:'+(bm>0?'#d97706':'#9ca3af')+';">'+(bm>0?bm+' min':'—')+'</td>'
+        +'<td class="py-2.5 pr-3 text-xs font-medium" style="color:#111827;">'+fmt(sess.outTime)+'</td>'
+        +'<td class="py-2.5 pr-3 text-xs font-bold" style="color:#1d4ed8;">'+(sess.netMs/3600000).toFixed(2)+' hrs</td>'
+        +'<td class="py-2.5 text-xs" style="color:#6b7280;font-style:italic;">'+(sess.inNote||sess.outNote||'')+'</td>'
+        +'</tr>';
+    });
+  }
+  document.getElementById('detailRows').innerHTML=rowsHtml;
+  document.getElementById('empDetailWrap').classList.add('open');
+}
+function closeEmpDetail() { document.getElementById('empDetailWrap').classList.remove('open'); }
+
+/* ── shareable link ──────────────────────── */
+function generateShareLink() {
+  var emps=store.getJ(K.employees,[]);
+  if (!emps.length) { toast('Add employees first'); return; }
+  try {
+    var data=btoa(JSON.stringify(emps));
+    var url=window.location.origin+window.location.pathname+'#emp='+data;
+    var box=document.getElementById('shareLinkBox');
+    var inp=document.getElementById('shareLinkInput');
+    box.style.display='block';
+    inp.value=url; inp.select();
+    try { navigator.clipboard.writeText(url).then(function(){ toast('Link copied to clipboard!'); }); }
+    catch(e) { toast('Link ready — copy from box below'); }
+  } catch(e) { toast('Error generating link'); }
+}
+
+/* ── reports ─────────────────────────────── */
+function setRange(period) {
+  var now=new Date(), from, to=new Date();
+  if      (period==='today') { from=new Date(now.getFullYear(),now.getMonth(),now.getDate()); }
+  else if (period==='week')  { from=new Date(now); from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0); }
+  else if (period==='month') { from=new Date(now.getFullYear(),now.getMonth(),1); }
+  else                       { from=new Date(2020,0,1); to=new Date(2099,0,1); }
+  document.getElementById('rptFrom').value=from.toISOString().slice(0,10);
+  document.getElementById('rptTo').value=to.toISOString().slice(0,10);
+}
+function generateReport() {
+  var fromStr=document.getElementById('rptFrom').value;
+  var toStr=document.getElementById('rptTo').value;
+  if(!fromStr||!toStr){ toast('Select a date range'); return; }
+  if(fbCfg.url){ syncFromCloud(function(){ _doGenerateReport(fromStr,toStr); }); } else { _doGenerateReport(fromStr,toStr); }
+}
+function _doGenerateReport(fromStr,toStr){
+  var from=new Date(fromStr), to=new Date(toStr); to.setHours(23,59,59,999);
+  var emps=store.getJ(K.employees,[]);
+  var ts=store.getJ(K.timesheet,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
+  var sups=store.getJ(K.supplies,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
+  var grouped={};
+  ts.forEach(function(e){ if(!grouped[e.name]) grouped[e.name]=[]; grouped[e.name].push({type:e.type,_d:new Date(e.ts),ts:e.ts,photo:e.photo||null,note:e.note||''}); });
+  Object.keys(grouped).forEach(function(n){ grouped[n].sort(function(a,b){ return a._d-b._d; }); });
+  var empStats={};
+  emps.forEach(function(emp) {
+    var sessions=buildSessions(grouped[emp.name]||[]);
+    var hrs=0,brkMs=0,days={};
+    sessions.forEach(function(s){ hrs+=s.netMs; brkMs+=s.breakMs; days[s.inTime.toDateString()]=1; });
+    empStats[emp.name]={totalHrs:hrs/3600000,breakMins:Math.round(brkMs/60000),days:Object.keys(days).length,sessions:sessions};
+  });
+  var supByItem={};
+  sups.forEach(function(r){ supByItem[r.item]=(supByItem[r.item]||0)+r.qty; });
+  var totalHrs=0,present=0;
+  Object.keys(empStats).forEach(function(n){ totalHrs+=empStats[n].totalHrs; if(empStats[n].days>0) present++; });
+
+  var out=document.getElementById('reportOut');
+  out.style.display='';
+
+  var html = '<div class="grid grid-cols-3 gap-3 rcard">'
+    +'<div class="rstat"><p class="n" style="color:#1a2b8c;">'+present+'</p><p class="l">Employees</p></div>'
+    +'<div class="rstat"><p class="n">'+totalHrs.toFixed(1)+'</p><p class="l">Total Hrs</p></div>'
+    +'<div class="rstat"><p class="n">'+sups.length+'</p><p class="l">Requests</p></div>'
+    +'</div>';
+
+  html += '<div class="rcard"><p class="text-sm font-semibold mb-3" style="color:#374151;">Employee Timesheet</p>';
+  emps.forEach(function(emp, ei) {
+    var s = empStats[emp.name] || {totalHrs:0,breakMins:0,days:0,sessions:[]};
+    var bodyId='rptEmpBody'+ei, arrowId='rptEmpArrow'+ei;
+    html += '<div style="border:1px solid rgba(0,0,0,.08);border-radius:12px;margin-bottom:8px;overflow:hidden;">'
+      +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')">'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<span class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</span>'
+      +'<span class="text-xs" style="color:#15803d;">'+s.totalHrs.toFixed(2)+' hrs</span>'
+      +'<span class="text-xs" style="color:#a16207;">'+s.breakMins+' min break</span>'
+      +'<span class="text-xs" style="color:#6b7280;">'+s.days+' day'+(s.days===1?'':'s')+'</span>'
+      +'</div>'
+      +'<span id="'+arrowId+'" style="color:#60a5fa;font-size:18px;transition:transform .2s;">&#9660;</span>'
+      +'</div>';
+    html += '<div id="'+bodyId+'" style="display:none;padding:0 16px 12px;">';
+    if (!s.sessions||!s.sessions.length) {
+      html += '<p class="text-xs" style="color:#9ca3af;padding:8px 0;">No sessions in this period.</p>';
+    } else {
+      s.sessions.forEach(function(sess,si) {
+        var inStr=sess.inTime?sess.inTime.toLocaleString():'—';
+        var outStr=sess.outTime?sess.outTime.toLocaleString():'—';
+        var netH=(sess.netMs/3600000).toFixed(2);
+        var brkMin=Math.round(sess.breakMs/60000);
+        var empEntries=grouped[emp.name]||[];
+        var inEntry=null,outEntry=null;
+        empEntries.forEach(function(e){
+          if(e.type==='in'&&e._d.getTime()===sess.inTime.getTime()) inEntry=e;
+          if(e.type==='out'&&e._d.getTime()===sess.outTime.getTime()) outEntry=e;
+        });
+        html += '<div style="border-top:1px solid rgba(0,0,0,.06);padding:10px 0;">'
+          +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'
+          +'<div style="flex:1;">'
+          +'<p class="text-xs font-semibold" style="color:#1d4ed8;margin-bottom:4px;">Session '+(si+1)+'</p>'
+          +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+          +'<div><p class="text-xs" style="color:#6b7280;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+inStr+'</p>'+(sess.inNote?'<p class="text-xs" style="color:#92400e;">'+sess.inNote+'</p>':'')+'</div>'
+          +'<div><p class="text-xs" style="color:#6b7280;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+outStr+'</p>'+(sess.outNote?'<p class="text-xs" style="color:#92400e;">'+sess.outNote+'</p>':'')+'</div>'
+          +'<div><p class="text-xs" style="color:#6b7280;">Break</p><p class="text-xs font-semibold" style="color:#a16207;">'+brkMin+' min</p></div>'
+          +'<div><p class="text-xs" style="color:#6b7280;">Net</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+' hrs</p></div>'
+          +'</div></div>'
+          +'<div style="display:flex;gap:6px;flex-shrink:0;">';
+        if(inEntry&&inEntry.photo){
+          var cap1=emp.name+' — Clock In '+inStr;
+          html+='<img src="'+inEntry.photo+'" class="photo-thumb" title="Clock In photo" onclick="openPhoto(\''+inEntry.photo.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',' +'\''+cap1.replace(/'/g,"\\'")+'\')">';
+        }
+        if(outEntry&&outEntry.photo){
+          var cap2=emp.name+' — Clock Out '+outStr;
+          html+='<img src="'+outEntry.photo+'" class="photo-thumb" title="Clock Out photo" onclick="openPhoto(\''+outEntry.photo.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',' +'\''+cap2.replace(/'/g,"\\'")+'\')">';
+        }
+        html+='</div></div></div>';
+      });
+    }
+    html+='</div></div>';
+  });
+  html+='</div>';
+
+  if(Object.keys(supByItem).length){
+    html+='<div class="rcard"><p class="text-sm font-semibold mb-3" style="color:#374151;">Supply Summary</p>'
+      +'<div class="overflow-x-auto"><table class="w-full text-xs" style="border-collapse:collapse;">'
+      +'<thead><tr><th class="text-left py-2 pr-3 font-semibold" style="color:#6b7280;">Item</th>'
+      +'<th class="text-right py-2 font-semibold" style="color:#6b7280;">Qty</th></tr></thead><tbody>';
+    Object.keys(supByItem).forEach(function(item){
+      html+='<tr style="border-bottom:1px solid rgba(0,0,0,.05);"><td class="py-2 pr-3" style="color:#111827;">'+item+'</td>'
+        +'<td class="py-2 text-right" style="color:#1d4ed8;">'+supByItem[item]+'</td></tr>';
+    });
+    html+='</tbody></table></div></div>';
+  }
+
+  html+='<button onclick="window.print()" class="tap w-full py-4 rounded-2xl font-semibold no-print" style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Print / Save as PDF</button>';
+  out.innerHTML=html;
+
+  var pa=document.getElementById('printArea');
+  pa.innerHTML='<h2 style="margin:0 0 4px;">Juno Tech Laboratory</h2>'
+    +'<p style="margin:0 0 16px;color:#666;">Report: '+fromStr+' to '+toStr+'</p>'
+    +'<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:12px;">'
+    +'<tr style="background:#f3f4f6;"><th>Employee</th><th>Days</th><th>Break (min)</th><th>Net Hours</th></tr>';
+  emps.forEach(function(emp){ var s=empStats[emp.name]||{}; pa.innerHTML+='<tr><td>'+emp.name+'</td><td>'+(s.days||0)+'</td><td>'+(s.breakMins||0)+'</td><td>'+(s.totalHrs||0).toFixed(2)+'</td></tr>'; });
+  pa.innerHTML+='</table>';
+}
+
+/* ── Firebase Cloud Sync ─────────────────────────── */
+var fbCfg = { url: '' };
+function fbInit() {
+  fbCfg.url = (store.get('fb_url') || '').replace(/\/+$/, '');
+  var inp = document.getElementById('fbUrlInput');
+  if (inp) inp.value = fbCfg.url;
+  setFbStatus(fbCfg.url ? 'Connected: ' + fbCfg.url : '');
+}
+function setFbStatus(msg, ok) {
+  var el = document.getElementById('fbStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok === false ? '#dc2626' : ok ? '#059669' : '#6b7280';
+}
+function saveFbConfig() {
+  var url = (document.getElementById('fbUrlInput').value || '').trim().replace(/\/+$/, '');
+  store.set('fb_url', url); fbCfg.url = url;
+  if (!url) { setFbStatus('Cloud sync disabled.'); return; }
+  testFbConnection();
+}
+function testFbConnection() {
+  var url = fbCfg.url || (document.getElementById('fbUrlInput').value||'').trim().replace(/\/+$/,'');
+  if (!url) { setFbStatus('Enter a database URL first.', false); return; }
+  setFbStatus('Testing…');
+  fetch(url+'/jtl_ping.json',{method:'PUT',body:'"ok"',headers:{'Content-Type':'application/json'}})
+    .then(function(r){ return r.ok?r.json():Promise.reject(r.status); })
+    .then(function(){ setFbStatus('Connected!', true); fbCfg.url=url; })
+    .catch(function(){ setFbStatus('Connection failed: check URL and database rules.', false); });
+}
+function fbAppend(path, data) {
+  if (!fbCfg.url) return;
+  var d=JSON.parse(JSON.stringify(data));
+  if(d.photo) d.photo_len=d.photo.length;
+  fetch(fbCfg.url+'/jtl/'+path+'.json',{method:'POST',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}}).catch(function(){});
+}
+function fbFetchAll(path, cb) {
+  if (!fbCfg.url) { cb(null); return; }
+  fetch(fbCfg.url+'/jtl/'+path+'.json').then(function(r){ return r.json(); }).then(function(data){ cb(data); }).catch(function(){ cb(null); });
+}
+function syncFromCloud(cb) {
+  fbFetchAll('timesheet',function(raw){
+    if(raw&&typeof raw==='object'&&!Array.isArray(raw)){
+      store.setJ(K.timesheet,Object.values(raw).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }));
+    }
+    fbFetchAll('supplies',function(rawS){
+      if(rawS&&typeof rawS==='object'&&!Array.isArray(rawS)){
+        store.setJ(K.supplies,Object.values(rawS).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }));
+      }
+      if(cb) cb();
+    });
+  });
+}
+function refreshFromCloud() {
+  if(!fbCfg.url){ toast('No cloud configured — go to Settings to connect Firebase.'); return; }
+  toast('Syncing from cloud…');
+  syncFromCloud(function(){ renderTables(); toast('Records updated from cloud!'); });
+}
+function pushAllToCloud() {
+  if(!fbCfg.url){ toast('Configure Firebase URL in Settings first.'); return; }
+  var ts=store.getJ(K.timesheet,[]), sups=store.getJ(K.supplies,[]);
+  var pushed=0, total=ts.length+sups.length;
+  if(!total){ toast('No local data to push.'); return; }
+  ts.forEach(function(e){
+    var d=JSON.parse(JSON.stringify(e)); if(d.photo) d.photo_len=d.photo.length;
+    fetch(fbCfg.url+'/jtl/timesheet.json',{method:'POST',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}})
+      .then(function(){ pushed++; if(pushed===total) toast('All data pushed to cloud!'); }).catch(function(){});
+  });
+  sups.forEach(function(e){
+    fetch(fbCfg.url+'/jtl/supplies.json',{method:'POST',body:JSON.stringify(e),headers:{'Content-Type':'application/json'}})
+      .then(function(){ pushed++; if(pushed===total) toast('All data pushed to cloud!'); }).catch(function(){});
+  });
+  toast('Pushing '+total+' records to cloud…');
+}
+
+/* ── Facility selector ───────────────────── */
+var FACILITIES = [
+  'Leisure Garden ALF','Springfield Manor ALF','FairOaks Manor ALF',
+  'Rosewood ALF','SDI Lab','Sunshine ALF','Juno Tech Lab','Others'
+];
+var selectedFacilities = [];
+function renderFacilityPills() {
+  var container = document.getElementById('facPills'); if(!container) return;
+  container.innerHTML='';
+  FACILITIES.forEach(function(f){
+    var sel=selectedFacilities.indexOf(f)>=0;
+    var span=document.createElement('span');
+    span.className='fac-pill'+(sel?' sel':'');
+    span.textContent=f;
+    span.onclick=(function(name){ return function(){ toggleFacility(this,name); }; })(f);
+    container.appendChild(span);
+  });
+}
+function toggleFacility(el,name){
+  var idx=selectedFacilities.indexOf(name);
+  if(idx>=0){ selectedFacilities.splice(idx,1); el.classList.remove('sel'); }
+  else{ selectedFacilities.push(name); el.classList.add('sel'); }
+  var other=document.getElementById('facOther');
+  if(other) other.style.display=selectedFacilities.indexOf('Others')>=0?'':'none';
+}
+function resetFacilityPills(){ selectedFacilities=[]; renderFacilityPills(); var o=document.getElementById('facOther'); if(o){o.value='';o.style.display='none';} }
+
+/* ── renderTables ────────────────────────── */
+function renderTables() { _renderTablesImpl(); }
+
+/* ── settings ────────────────────────────── */
+function changePassword() {
+  var p1=document.getElementById('newPass1').value;
+  var p2=document.getElementById('newPass2').value;
+  if(!p1){ toast('Enter a new password'); return; }
+  if(p1!==p2){ toast('Passwords do not match'); return; }
+  if(p1.length<4){ toast('Minimum 4 characters'); return; }
+  store.set(K.adminHash,hashPwd(p1));
+  document.getElementById('newPass1').value=''; document.getElementById('newPass2').value='';
+  toast('Password updated!');
+}
+function clearAllData() {
+  if(!confirm('Delete ALL data? This cannot be undone.')) return;
+  [K.employees,K.timesheet,K.supplies].forEach(function(k){ store.del(k); });
+  toast('All data cleared');
+  renderEmployeeList(); renderTables(); renderRecordEmpBtns();
+}
+
+/* ── INIT ────────────────────────────────── */
+(function init() {
+  try {
+    var hash=window.location.hash;
+    if(hash&&hash.indexOf('#emp=')===0){
+      var empData=JSON.parse(atob(hash.slice(5)));
+      if(empData&&empData.length>0){
+        store.setJ(K.employees,empData);
+        history.replaceState(null,'',window.location.pathname+window.location.search);
+        toast('Employee codes loaded!');
+      }
+    }
+  } catch(e){}
+
+  var emps=store.getJ(K.employees,null);
+  var needsSeed=!emps||emps.length===0||typeof emps[0]==='string'||emps.some(function(e){ return !e.code||String(e.code).length!==4; });
+  if(needsSeed){
+    var DEFAULT_EMPLOYEES=[
+      {name:'Krys Ellis',code:'1001'},
+      {name:'Enrique Blanco',code:'1002'},
+      {name:'Hans Duran',code:'1003'}
+    ];
+    if(emps&&emps.length>0&&typeof emps[0]==='string'){
+      emps=emps.map(function(name,i){ return {name:name,code:String(1001+i)}; });
+    } else if(emps&&emps.length>0){
+      var idx=0; emps.forEach(function(e){ if(!e.code||String(e.code).length!==4){ e.code=String(1001+idx); idx++; } });
+    } else { emps=DEFAULT_EMPLOYEES; }
+    store.setJ(K.employees,emps);
+  }
+  store.set(K.adminHash,DEFAULT_HASH);
+  injectLogos(); fbInit(); renderFacilityPills();
+
+  try {
+    var params=new URLSearchParams(window.location.search);
+    if(params.has('admin')||params.has('reset')){
+      show('adminView');
+      renderTables(); renderEmployeeList(); renderRecordEmpBtns(); renderKioskUrl();
+      setTimeout(function(){ toast('Admin open — password is: admin'); },200);
+      return;
+    }
+  } catch(e){}
+
+  show('pinView');
+})();
+</script>
+</body>
+</html>
