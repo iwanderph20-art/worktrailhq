@@ -535,8 +535,13 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div class="flex gap-2 flex-wrap">
           <input id="rptFrom" type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
           <input id="rptTo"   type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
+        </div>
+        <div class="flex gap-2 flex-wrap items-center">
+          <select id="rptEmpFilter" class="inp inp-dk sel" style="flex:1;min-width:140px;">
+            <option value="">All Employees</option>
+          </select>
           <button onclick="generateReport()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
-            style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Generate</button>
+            style="background:#3b52d4;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Generate</button>
         </div>
       </div>
       <div id="reportOut" style="display:none;"></div>
@@ -1259,7 +1264,8 @@ function submitClockInQuestions() {
   var token   = genApprovalToken(entryTs);
   var entry   = {
     name:currentEmp.name, type:'in', ts:entryTs,
-    hasPhoto:!!pendingPhoto, note:note, facilities:facList,
+    hasPhoto:!!pendingPhoto, photo: pendingPhoto||null,
+    note:note, facilities:facList,
     location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null,
     approval:'pending', approvalToken:token,
     trackMileage: trackMileage
@@ -1286,7 +1292,7 @@ function submitClockOut() {
   var finalMiles = mileageTracking ? Math.round(mileageTotalMiles*100)/100 : null;
   var entry = {
     name: currentEmp.name, type:'out', ts: entryTs,
-    hasPhoto: !!pendingPhoto,
+    hasPhoto: !!pendingPhoto, photo: pendingPhoto||null,
     location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null,
     mileage: finalMiles
   };
@@ -1598,6 +1604,7 @@ function switchTab(name) {
     else { renderEmployeeList(); }
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
+  if (name==='reports')   { populateRptEmpFilter(); }
   // (map tab removed — map is now a modal via seeEmpOnMap())
 }
 
@@ -1858,34 +1865,42 @@ function _renderTablesImpl() {
           +(milesVal!=null?'<span style="font-size:12px;font-weight:700;color:#7c3aed;">'+Number(milesVal).toFixed(1)+' mi</span><span style="color:#d1d5db;margin:0 5px;">|</span>':'')
           +(breakCount?'<span style="font-size:12px;font-weight:600;color:#d97706;">'+breakCount+' break'+(breakCount!==1?'s':'')+'</span>':'<span style="font-size:12px;color:#d1d5db;">No breaks</span>');
 
-        accHtml += '<div style="background:'+cardBg2+';border-radius:12px;border-left:3px solid '+accentColor+';border-top:1px solid rgba(0,0,0,.06);border-right:1px solid rgba(0,0,0,.06);border-bottom:1px solid rgba(0,0,0,.06);margin-bottom:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);">'
+        accHtml += '<div style="background:'+cardBg2+';border-radius:12px;border-left:3px solid '+accentColor+';border:1px solid rgba(0,0,0,.07);border-left:3px solid '+accentColor+';margin-bottom:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);">'
           // ── Top row: avatar + name + facility + status badge
-          +'<div style="display:flex;align-items:center;gap:8px;padding:10px 12px 8px;">'
-          +'<div style="width:30px;height:30px;border-radius:50%;background:'+accentColor+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;opacity:.9;">'+initials+'</div>'
+          +'<div style="display:flex;align-items:center;gap:9px;padding:10px 13px 9px;">'
+          +'<div style="width:34px;height:34px;border-radius:50%;background:'+accentColor+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">'+initials+'</div>'
           +'<div style="flex:1;min-width:0;">'
-          +'<p style="font-size:13px;font-weight:700;color:#111827;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</p>'
-          +(facStr?'<p style="font-size:10px;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+facStr+'</p>':'')
+          +'<p style="font-size:15px;font-weight:700;color:#111827;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</p>'
+          +(facStr?'<p style="font-size:11px;color:#6b7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+facStr+'</p>':'')
           +'</div>'
           +statusBadge
           +'</div>'
-          // ── Time row: Clock In → Clock Out on one line
-          +'<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.6);border-top:1px solid rgba(0,0,0,.04);border-bottom:1px solid rgba(0,0,0,.04);">'
-          +'<span style="font-size:9px;font-weight:600;color:#15803d;text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">In</span>'
-          +'<span style="font-size:13px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums;">'+inTime+'</span>'
-          +'<span style="color:#d1d5db;font-size:11px;flex:1;text-align:center;">&#8212;&#8212;&#8212;</span>'
-          +'<span style="font-size:13px;font-weight:700;color:'+(isStillIn&&!clockOutE?'#d97706':'#111827')+';font-variant-numeric:tabular-nums;">'+outTime+'</span>'
-          +'<span style="font-size:9px;font-weight:600;color:'+(clockOutE?'#dc2626':isStillIn?'#d97706':'#9ca3af')+';text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;">Out</span>'
+          // ── Time row: IN time — [photos] — OUT time on one line
+          +'<div style="display:flex;align-items:center;gap:8px;padding:7px 13px;background:rgba(255,255,255,.65);border-top:1px solid rgba(0,0,0,.05);border-bottom:1px solid rgba(0,0,0,.05);">'
+          +'<div style="text-align:left;flex-shrink:0;">'
+          +'<span style="font-size:9px;font-weight:600;color:#15803d;text-transform:uppercase;letter-spacing:.06em;display:block;">In</span>'
+          +'<span style="font-size:15px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums;">'+inTime+'</span>'
           +'</div>'
-          // ── Stats + photos + actions
-          +'<div style="padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+          // Photos sit in the center of the timeline
+          +'<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">'
+          +(inPhotoHtml||outPhotoHtml
+            ?(inPhotoHtml+outPhotoHtml)
+            :'<span style="font-size:10px;color:#d1d5db;">——</span>')
+          +'</div>'
+          +'<div style="text-align:right;flex-shrink:0;">'
+          +'<span style="font-size:9px;font-weight:600;color:'+(clockOutE?'#dc2626':isStillIn?'#d97706':'#9ca3af')+';text-transform:uppercase;letter-spacing:.06em;display:block;">Out</span>'
+          +'<span style="font-size:15px;font-weight:700;color:'+(isStillIn&&!clockOutE?'#d97706':'#111827')+';font-variant-numeric:tabular-nums;">'+outTime+'</span>'
+          +'</div>'
+          +'</div>'
+          // ── Stats + action buttons
+          +'<div style="padding:7px 13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
           +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">'+statsLine+'</div>'
           +'<div style="display:flex;gap:5px;align-items:center;">'
-          +(inPhotoHtml+outPhotoHtml)
           +approvalBtns+liveLocBtn
           +'</div>'
           +'</div>'
           // ── Edit/Delete (tiny tertiary row)
-          +(editBtns?'<div style="padding:4px 12px 7px;display:flex;gap:4px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'</div>':'')
+          +(editBtns?'<div style="padding:3px 13px 7px;display:flex;gap:4px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'</div>':'')
           +'</div>'; // end employee card
       });
 
@@ -2154,16 +2169,34 @@ function setRange(period) {
   document.getElementById('rptFrom').value=from.toISOString().slice(0,10);
   document.getElementById('rptTo').value=to.toISOString().slice(0,10);
 }
+function populateRptEmpFilter() {
+  var sel = document.getElementById('rptEmpFilter');
+  if (!sel) return;
+  var current = sel.value;
+  var emps = store.getJ(K.employees, []);
+  // rebuild options
+  sel.innerHTML = '<option value="">All Employees</option>';
+  emps.forEach(function(emp) {
+    var opt = document.createElement('option');
+    opt.value = emp.name;
+    opt.textContent = emp.name;
+    if (emp.name === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
 function generateReport() {
   var fromStr=document.getElementById('rptFrom').value;
   var toStr=document.getElementById('rptTo').value;
   if(!fromStr||!toStr){ toast('Select a date range'); return; }
-  if(fbCfg.url){ syncFromCloud(function(){ _doGenerateReport(fromStr,toStr); }); } else { _doGenerateReport(fromStr,toStr); }
+  var empFilter=(document.getElementById('rptEmpFilter')||{}).value||'';
+  if(fbCfg.url){ syncFromCloud(function(){ _doGenerateReport(fromStr,toStr,empFilter); }); } else { _doGenerateReport(fromStr,toStr,empFilter); }
 }
-function _doGenerateReport(fromStr,toStr){
+function _doGenerateReport(fromStr,toStr,empFilter){
+  empFilter=empFilter||'';
   var from=new Date(fromStr), to=new Date(toStr); to.setHours(23,59,59,999);
-  var emps=store.getJ(K.employees,[]);
-  var ts=store.getJ(K.timesheet,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
+  var allEmps=store.getJ(K.employees,[]);
+  var emps=empFilter ? allEmps.filter(function(e){ return e.name===empFilter; }) : allEmps;
+  var ts=store.getJ(K.timesheet,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to&&(!empFilter||e.name===empFilter); });
   var sups=store.getJ(K.supplies,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
   var grouped={};
   ts.forEach(function(e){
@@ -2198,12 +2231,35 @@ function _doGenerateReport(fromStr,toStr){
   var out=document.getElementById('reportOut');
   out.style.display='';
 
-  // ── Summary cards
-  var html = '<div class="grid grid-cols-3 gap-3 rcard">'
-    +'<div class="rstat"><p class="n" style="color:#1a2b8c;">'+present+'</p><p class="l">Employees</p></div>'
-    +'<div class="rstat"><p class="n">'+totalNetHrs.toFixed(2)+'</p><p class="l">Net Paid Hrs</p></div>'
-    +'<div class="rstat"><p class="n">'+sups.length+'</p><p class="l">Supply Req</p></div>'
-    +'</div>';
+  var html = '';
+
+  // ── Single-employee cumulative banner
+  if (empFilter && emps.length===1) {
+    var es = empStats[emps[0].name] || {netHrs:0,mealMins:0,restMins:0,days:0,sessions:[]};
+    var totalMi = 0;
+    (es.sessions||[]).forEach(function(s){ if(s.mileage!=null) totalMi+=s.mileage; });
+    var dateLabel = fromStr===toStr ? fromStr : fromStr+' → '+toStr;
+    html += '<div class="rcard" style="background:linear-gradient(135deg,#1a2b8c 0%,#3b52d4 100%);border:none;text-align:center;padding:20px;">'
+      +'<p style="color:rgba(255,255,255,.75);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">'+emps[0].name+'</p>'
+      +'<p style="color:rgba(255,255,255,.6);font-size:11px;margin-bottom:16px;">'+dateLabel+'</p>'
+      +'<p style="color:#fff;font-size:48px;font-weight:800;line-height:1;margin-bottom:4px;">'+es.netHrs.toFixed(2)+'</p>'
+      +'<p style="color:rgba(255,255,255,.75);font-size:13px;font-weight:600;margin-bottom:18px;">cumulative net hours</p>'
+      +'<div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;">'
+      +'<div style="text-align:center;"><p style="color:#fff;font-size:20px;font-weight:700;">'+es.days+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">day'+(es.days===1?'':'s')+ ' worked</p></div>'
+      +'<div style="text-align:center;"><p style="color:#fff;font-size:20px;font-weight:700;">'+(es.sessions||[]).length+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">session'+(es.sessions.length===1?'':'s')+'</p></div>'
+      +(totalMi>0?'<div style="text-align:center;"><p style="color:#fff;font-size:20px;font-weight:700;">'+totalMi.toFixed(1)+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">mi driven</p></div>':'')
+      +'<div style="text-align:center;"><p style="color:#fff;font-size:20px;font-weight:700;">'+es.mealMins+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">min meal (unpaid)</p></div>'
+      +'</div>'
+      +(es.hasViolation?'<p style="color:#fbbf24;font-size:11px;margin-top:14px;font-weight:600;">⚠ Break compliance issue detected — see sessions below</p>':'')
+      +'</div>';
+  } else {
+    // ── Summary cards (all employees)
+    html += '<div class="grid grid-cols-3 gap-3 rcard">'
+      +'<div class="rstat"><p class="n" style="color:#1a2b8c;">'+present+'</p><p class="l">Employees</p></div>'
+      +'<div class="rstat"><p class="n">'+totalNetHrs.toFixed(2)+'</p><p class="l">Net Paid Hrs</p></div>'
+      +'<div class="rstat"><p class="n">'+sups.length+'</p><p class="l">Supply Req</p></div>'
+      +'</div>';
+  }
 
   // ── CA Break Law legend
   html += '<div class="rcard" style="background:#eff6ff;border:1px solid #bfdbfe;">'
@@ -2329,7 +2385,7 @@ function _doGenerateReport(fromStr,toStr){
     });
   });
   pa.innerHTML='<h2 style="margin:0 0 4px;">Juno Tech Laboratory — Payroll Report</h2>'
-    +'<p style="margin:0 0 16px;color:#666;">Period: '+fromStr+' to '+toStr+'</p>'
+    +'<p style="margin:0 0 16px;color:#666;">'+(empFilter?'Employee: '+empFilter+' &nbsp;|&nbsp; ':' ')+'Period: '+fromStr+' to '+toStr+'</p>'
     +'<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:11px;">'
     +'<tr style="background:#f3f4f6;"><th>Employee</th><th>Session</th><th>Clock In</th><th>Clock Out</th>'
     +'<th>Facility</th><th>Mileage</th><th>Meal Mins (unpaid)</th><th>Rest Mins (paid)</th><th>Net Hrs</th><th>CA Compliance</th></tr>'
@@ -3191,6 +3247,14 @@ function savePhoto(ts, dataUrl) {
   });
 }
 function loadPhoto(ts, cb) {
+  // 1. Check localStorage timesheet entries for an inline photo (cross-device — comes via Firebase sync)
+  var allEntries = store.getJ(K.timesheet, []);
+  for (var i = 0; i < allEntries.length; i++) {
+    if (String(allEntries[i].ts) === String(ts) && allEntries[i].photo) {
+      cb(allEntries[i].photo); return;
+    }
+  }
+  // 2. Fall back to IndexedDB (same-device local storage)
   initPhotoDB(function() {
     if(!photoDB) { cb(null); return; }
     try {
@@ -3199,11 +3263,8 @@ function loadPhoto(ts, cb) {
       req.onsuccess=function(){
         if(!req.result){ cb(null); return; }
         var raw=req.result.data;
-        // Plain string (current format)
         if(typeof raw==='string'){ cb(raw); return; }
-        // Legacy encrypted object — try to extract plain value, else null
         if(raw && raw._plain && raw.d){ cb(raw.d); return; }
-        // Encrypted object from old builds — can't recover, return null
         cb(null);
       };
       req.onerror=function(){ cb(null); };
