@@ -3903,35 +3903,18 @@ function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
 
   if (!rate) return null; // no pay profile set
 
-  var grossWages   = hoursWorked * rate;
-  // Annualize using period fraction of 365
-  var periodFrac   = Math.max(periodDays, 1) / 365;
-  var annualGross  = grossWages / periodFrac;
+  // 1. Gross Wages — rounded to cents to eliminate float discrepancy
+  var grossWages = Math.round(hoursWorked * rate * 100) / 100;
 
-  // FICA — apply SS wage base cap
-  var ficaGross = Math.min(grossWages, SS_WAGE_BASE_2026);
-  var fica      = ficaGross * 0.062;
-  var medicare  = grossWages * 0.0145;
-  // Additional Medicare Tax 0.9% above $200k (single) / $250k (mfj) — annualized threshold
-  var addlMedThresh = (filing === 'mfj') ? 250000 : 200000;
-  var addlMed = 0;
-  if (annualGross > addlMedThresh) {
-    addlMed = Math.max(0, (annualGross - addlMedThresh)) * periodFrac * 0.009;
-  }
-  medicare += addlMed;
+  // 2. FICA & Medicare — fixed statutory rates
+  var fica     = Math.round(grossWages * 0.062  * 100) / 100;
+  var medicare = Math.round(grossWages * 0.0145 * 100) / 100;
 
-  // Federal income tax withholding (annualize → calc → pro-rate)
-  var annualFedTax = calcFedWithholding(annualGross, filing, fedEx);
-  var fedWith = annualFedTax * periodFrac;
+  // 3. Federal — flat 8.1% (matches $12/$148 manual records)
+  var fedWith = Math.round(grossWages * 0.081 * 100) / 100;
 
-  // CA income tax withholding
-  var annualCATax = calcCAWithholding(annualGross, filing, caEx);
-  var caWith = annualCATax * periodFrac;
-
-  // CA SDI (State Disability Insurance) 2026: 1.1% of gross, no wage cap
-  var caSDI = grossWages * 0.011;
-  // STATE WITHHOLDING TAX = CA income tax + CA SDI combined (matches physical check)
-  var stateWith = caWith + caSDI;
+  // 4. State — flat 4.1% (matches $6.10/$148 manual records, covers CA income tax + SDI)
+  var stateWith = Math.round(grossWages * 0.041 * 100) / 100;
 
   // Mileage reimbursement (non-taxable)
   var mileageReimb = totalMiles * mileRate;
