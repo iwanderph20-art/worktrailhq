@@ -3948,7 +3948,7 @@ function renderPaycheck(result, fromStr, toStr) {
     +'<div class="paycheck-row deduct"><span>STATE WITHHOLDING TAX</span><span>– '+fmt$(result.stateWith)+'</span></div>'
     +'<div class="paycheck-row total"><span>TOTAL DEDUCTIONS</span><span>– '+fmt$(result.totalDeductions)+'</span></div>'
     +'<div class="paycheck-row reimb"><span>MILEAGE + NON-TAXABLE'+(result.totalMiles > 0 ? ' ('+result.totalMiles.toFixed(1)+' mi @ $'+result.mileRate.toFixed(2)+'/mi)' : '')+'</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
-    +'<div class="paycheck-row net"><span>AMOUNT OF THIS CHECK</span><span>'+fmt$(result.netPay)+'</span></div>'
+    +'<div class="paycheck-row net"><span>CHECK AMOUNT</span><span>'+fmt$(result.netPay)+'</span></div>'
     +'</div>';
 }
 
@@ -4071,21 +4071,65 @@ function runPayroll() {
 
   out.style.display = '';
   out.innerHTML = html;
+  _printPayrollData = { results: allResults, fromVal: fromVal, toVal: toVal };
   document.getElementById('payrollPrintBtn').style.display = '';
   logAdminAction('payroll_run', 'Period: '+fromVal+' to '+toVal+(empFilter?' ('+empFilter+')':''));
 }
 
+var _printPayrollData = null;
+
 function printPayroll() {
-  var out = document.getElementById('payrollOut');
-  if (!out || !out.innerHTML) { toast('Generate a payroll report first.'); return; }
+  if (!_printPayrollData) { toast('Generate a payroll report first.'); return; }
+  var d = _printPayrollData;
   var pa = document.getElementById('printArea');
-  var fromVal = document.getElementById('payFrom').value;
-  var toVal   = document.getElementById('payTo').value;
-  pa.innerHTML = '<div style="font-family:sans-serif;padding:8px;">'
-    + '<h2 style="margin:0 0 4px;font-size:16px;">Juno Tech Laboratory — Payroll Report</h2>'
-    + '<p style="margin:0 0 16px;font-size:12px;color:#6b7280;">Pay Period: '+fromVal+' – '+toVal+'</p>'
-    + out.innerHTML
-    + '</div>';
+
+  var pRow = function(label, value, color, bold, bg) {
+    return '<tr style="background:'+(bg||'#fff')+';">'
+      +'<td style="padding:7px 14px;font-size:12px;font-weight:'+(bold?'700':'400')+';color:'+(color||'#111827')+';border-bottom:1px solid #e5e7eb;">'+label+'</td>'
+      +'<td style="padding:7px 14px;font-size:12px;font-weight:'+(bold?'700':'400')+';color:'+(color||'#111827')+';text-align:right;border-bottom:1px solid #e5e7eb;">'+value+'</td>'
+      +'</tr>';
+  };
+
+  var cards = '';
+  d.results.forEach(function(r) {
+    if (r.noProfile || !r.grossWages) return; // skip employees with no profile/hours in print
+    cards += '<div style="border:1.5px solid #d1d5db;border-radius:10px;overflow:hidden;margin-bottom:20px;page-break-inside:avoid;">'
+      // Header
+      +'<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#1a2b8c;padding:14px 18px;">'
+      +'<p style="margin:0 0 2px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#a5b4fc;font-weight:600;">JUNO TECH LABORATORY</p>'
+      +'<p style="margin:0 0 4px;font-size:18px;font-weight:800;color:#ffffff;">'+r.empName+'</p>'
+      +'<p style="margin:0;font-size:11px;color:#c7d2fe;">Pay Period: '+d.fromVal+' – '+d.toVal+' &nbsp;|&nbsp; '+({single:'Single',mfj:'Married Filing Jointly',hoh:'Head of Household'}[r.filing]||r.filing)+'</p>'
+      +'</div>'
+      // Table
+      +'<table style="width:100%;border-collapse:collapse;">'
+      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+r.hoursWorked.toFixed(2)+' hrs worked @ $'+r.hourlyRate.toFixed(2)+'/hr</td></tr>'
+      + pRow('WAGES EARNED', fmt$(r.grossWages), '#111827', true)
+      + pRow('F.I.C.A. TAX WITHHOLDING', '– '+fmt$(r.fica), '#b91c1c')
+      + pRow('MEDICARE TAX WITHHOLDING', '– '+fmt$(r.medicare), '#b91c1c')
+      + pRow('FED. WITHHOLDING TAX', '– '+fmt$(r.fedWith), '#b91c1c')
+      + pRow('STATE WITHHOLDING TAX', '– '+fmt$(r.stateWith), '#b91c1c')
+      + pRow('TOTAL DEDUCTIONS', '– '+fmt$(r.totalDeductions), '#111827', true, '#f9fafb')
+      + pRow('MILEAGE + NON-TAXABLE'+(r.totalMiles>0?' ('+r.totalMiles.toFixed(1)+' mi @ $'+r.mileRate.toFixed(2)+'/mi)':''), '+ '+fmt$(r.mileageReimb), '#065f46')
+      +'<tr style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#dcfce7;">'
+      +'<td style="padding:11px 14px;font-size:14px;font-weight:900;color:#14532d;">CHECK AMOUNT</td>'
+      +'<td style="padding:11px 14px;font-size:14px;font-weight:900;color:#14532d;text-align:right;">'+fmt$(r.netPay)+'</td>'
+      +'</tr>'
+      +'</table>'
+      +'</div>';
+  });
+
+  pa.innerHTML = '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px;max-width:680px;margin:0 auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #1a2b8c;">'
+    +'<div>'
+    +'<p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#1a2b8c;letter-spacing:.1em;text-transform:uppercase;">Juno Tech Laboratory</p>'
+    +'<h1 style="margin:0 0 4px;font-size:20px;font-weight:800;color:#111827;">Payroll Report</h1>'
+    +'<p style="margin:0;font-size:12px;color:#6b7280;">Pay Period: '+d.fromVal+' – '+d.toVal+'</p>'
+    +'</div>'
+    +'<p style="margin:0;font-size:11px;color:#9ca3af;">Generated: '+new Date().toLocaleDateString()+'</p>'
+    +'</div>'
+    + cards
+    +'</div>';
+
   window.print();
 }
 
