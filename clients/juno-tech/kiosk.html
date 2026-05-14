@@ -3930,11 +3930,13 @@ function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
 
   // CA SDI (State Disability Insurance) 2026: 1.1% of gross, no wage cap
   var caSDI = grossWages * 0.011;
+  // STATE WITHHOLDING TAX = CA income tax + CA SDI combined (matches physical check)
+  var stateWith = caWith + caSDI;
 
   // Mileage reimbursement (non-taxable)
   var mileageReimb = totalMiles * mileRate;
 
-  var totalDeductions = fica + medicare + fedWith + caWith + caSDI;
+  var totalDeductions = fica + medicare + fedWith + stateWith;
   var netPay = grossWages - totalDeductions + mileageReimb;
 
   return {
@@ -3945,8 +3947,7 @@ function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
     fica:        fica,
     medicare:    medicare,
     fedWith:     fedWith,
-    caWith:      caWith,
-    caSDI:       caSDI,
+    stateWith:   stateWith,
     totalDeductions: totalDeductions,
     mileageReimb:    mileageReimb,
     totalMiles:      totalMiles,
@@ -3975,17 +3976,14 @@ function renderPaycheck(result, fromStr, toStr) {
       +' &nbsp;|&nbsp; '+filingLabel[result.filing]+'</p>'
     +'</div>'
     +'<div class="paycheck-row"><span>Hours Worked</span><span>'+result.hoursWorked.toFixed(2)+' hrs @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
-    +'<div class="paycheck-row" style="font-weight:600;"><span>Gross Wages</span><span>'+fmt$(result.grossWages)+'</span></div>'
-    +'<div class="paycheck-row deduct"><span>Social Security (6.2%)</span><span>– '+fmt$(result.fica)+'</span></div>'
-    +'<div class="paycheck-row deduct"><span>Medicare (1.45%)</span><span>– '+fmt$(result.medicare)+'</span></div>'
-    +'<div class="paycheck-row deduct"><span>Federal Income Tax</span><span>– '+fmt$(result.fedWith)+'</span></div>'
-    +'<div class="paycheck-row deduct"><span>CA Income Tax</span><span>– '+fmt$(result.caWith)+'</span></div>'
-    +'<div class="paycheck-row deduct"><span>CA SDI (1.1%)</span><span>– '+fmt$(result.caSDI)+'</span></div>'
-    +'<div class="paycheck-row total"><span>Total Deductions</span><span>– '+fmt$(result.totalDeductions)+'</span></div>'
-    +(result.mileageReimb > 0
-      ? '<div class="paycheck-row reimb"><span>Mileage Reimbursement ('+result.totalMiles.toFixed(1)+' mi @ $'+result.mileRate.toFixed(3)+')</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
-      : '')
-    +'<div class="paycheck-row net"><span>Amount of This Check</span><span>'+fmt$(result.netPay)+'</span></div>'
+    +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>F.I.C.A. TAX WITHHOLDING</span><span>– '+fmt$(result.fica)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>MEDICARE TAX WITHHOLDING</span><span>– '+fmt$(result.medicare)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>FED. WITHHOLDING TAX</span><span>– '+fmt$(result.fedWith)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>STATE WITHHOLDING TAX</span><span>– '+fmt$(result.stateWith)+'</span></div>'
+    +'<div class="paycheck-row total"><span>TOTAL DEDUCTIONS</span><span>– '+fmt$(result.totalDeductions)+'</span></div>'
+    +'<div class="paycheck-row reimb"><span>MILEAGE + NON-TAXABLE'+(result.totalMiles > 0 ? ' ('+result.totalMiles.toFixed(1)+' mi @ $'+result.mileRate.toFixed(2)+'/mi)' : '')+'</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
+    +'<div class="paycheck-row net"><span>AMOUNT OF THIS CHECK</span><span>'+fmt$(result.netPay)+'</span></div>'
     +'</div>';
 }
 
@@ -4097,7 +4095,7 @@ function runPayroll() {
       results: allResults.map(function(r){ return {
         emp: r.empName, hours: r.hoursWorked||0, gross: r.grossWages||0,
         fica: r.fica||0, medicare: r.medicare||0, fedWith: r.fedWith||0,
-        caWith: r.caWith||0, caSDI: r.caSDI||0,
+        stateWith: r.stateWith||0,
         mileageReimb: r.mileageReimb||0, net: r.netPay||0
       }; })
     };
