@@ -3905,7 +3905,9 @@ function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
 
   var r2 = function(n) { return Math.round(n * 100) / 100; };
 
-  // 1. Gross Wages — forced precision: 1.39 * 24 = 33.36 exactly
+  // 1. Round hours to 2dp first so displayed hours match the number used in math
+  //    e.g. raw 1.39167 → 1.39, then 1.39 * 24 = 33.36 exactly
+  hoursWorked = r2(hoursWorked);
   var grossWages = r2(hoursWorked * rate);
 
   // 2. FICA 6.2% / Medicare 1.45%
