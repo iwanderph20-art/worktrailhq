@@ -3914,11 +3914,11 @@ function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
   var fica     = r2(grossWages * 0.062);
   var medicare = r2(grossWages * 0.0145);
 
-  // 3. Federal flat 8.11% (matches $12.00 / $148.80 manual ratio)
-  var fedWith = r2(grossWages * 0.0811);
+  // 3. Federal flat 8.0%
+  var fedWith = r2(grossWages * 0.08);
 
-  // 4. State flat 4.10% (matches $6.10 / $148.80 manual ratio, covers CA income tax + SDI)
-  var stateWith = r2(grossWages * 0.041);
+  // 4. State flat 4.0% (CA income tax + SDI combined)
+  var stateWith = r2(grossWages * 0.04);
 
   // 5. Mileage reimbursement — non-taxable, uses Pay Profile rate
   var mileageReimb = r2(totalMiles * mileRate);
