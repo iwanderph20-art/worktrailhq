@@ -112,6 +112,19 @@ video{object-fit:cover;transform:scaleX(-1);}
 /* clock-out summary */
 #clockOutSummaryModal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);}
 #clockOutSummaryModal.open{display:flex;}
+/* pay profile modal */
+#payProfileModal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);}
+#payProfileModal.open{display:flex;}
+#payProfileInner{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:420px;margin:16px;box-shadow:0 24px 64px rgba(0,0,0,.22);}
+/* paycheck card */
+.paycheck{background:#fff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.paycheck-header{background:linear-gradient(135deg,#1a2b8c,#3b52d4);color:#fff;padding:14px 18px;}
+.paycheck-row{display:flex;justify-content:space-between;padding:7px 18px;font-size:13px;border-bottom:1px solid #f3f4f6;}
+.paycheck-row:last-child{border-bottom:none;}
+.paycheck-row.deduct{color:#b91c1c;}
+.paycheck-row.reimb{color:#059669;}
+.paycheck-row.total{font-weight:700;font-size:14px;background:#f9fafb;}
+.paycheck-row.net{font-weight:900;font-size:16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#15803d;}
 </style>
 </head>
 <body class="min-h-screen select-none overflow-x-hidden">
@@ -473,6 +486,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button class="atab active" id="tab-employees" onclick="switchTab('employees')">Employees</button>
       <button class="atab" id="tab-records"   onclick="switchTab('records')">Records</button>
       <button class="atab" id="tab-reports"   onclick="switchTab('reports')">Reports</button>
+      <button class="atab" id="tab-payroll"   onclick="switchTab('payroll')">Payroll</button>
       <button class="atab" id="tab-settings"  onclick="switchTab('settings')">Settings</button>
     </div>
   </div>
@@ -644,6 +658,79 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
     </div>
 
+    <!-- Payroll tab -->
+    <div id="pane-payroll" class="apane space-y-4">
+
+      <!-- Pay period selector -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">Pay Period</p>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button onclick="setPayRange('week')"   class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Week</button>
+          <button onclick="setPayRange('biweek')" class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">Last 2 Weeks</button>
+          <button onclick="setPayRange('month')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Month</button>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <input id="payFrom" type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
+          <input id="payTo"   type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
+        </div>
+        <div class="flex gap-2 flex-wrap items-center">
+          <select id="payEmpFilter" class="inp inp-dk sel" style="flex:1;min-width:140px;">
+            <option value="">All Employees</option>
+          </select>
+          <button onclick="runPayroll()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
+            style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Calculate Payroll</button>
+        </div>
+        <p class="text-xs" style="color:#9ca3af;">Mileage reimbursement uses IRS 2026 rate: $0.70/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
+      </div>
+
+      <div id="payrollOut"></div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Pay Profile Modal -->
+<div id="payProfileModal" onclick="if(event.target===this)closePayProfile()">
+  <div id="payProfileInner">
+    <div class="flex items-center justify-between mb-4">
+      <p class="font-bold text-base" style="color:#111827;">Pay Profile — <span id="ppEmpName"></span></p>
+      <button onclick="closePayProfile()" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;">&#10005;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Hourly Rate (USD)</p>
+        <input id="ppRate" type="number" min="0" step="0.01" placeholder="e.g. 18.50" class="inp inp-dk w-full">
+      </div>
+      <div>
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Filing Status</p>
+        <select id="ppFiling" class="inp inp-dk sel w-full">
+          <option value="single">Single</option>
+          <option value="mfj">Married Filing Jointly</option>
+          <option value="hoh">Head of Household</option>
+        </select>
+      </div>
+      <div class="flex gap-2">
+        <div style="flex:1;">
+          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Federal Allowances</p>
+          <input id="ppFedEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+        </div>
+        <div style="flex:1;">
+          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">CA Allowances</p>
+          <input id="ppStateEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+        </div>
+      </div>
+      <div>
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Mileage Rate ($/mile) — leave blank for IRS default $0.70</p>
+        <input id="ppMileage" type="number" min="0" step="0.001" placeholder="0.70" class="inp inp-dk w-full">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button onclick="savePayProfile()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save</button>
+      <button onclick="closePayProfile()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+        style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1638,6 +1725,7 @@ function switchTab(name) {
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
   if (name==='reports')   { populateRptEmpFilter(); }
+  if (name==='payroll')   { populatePayEmpFilter(); }
   // (map tab removed — map is now a modal via seeEmpOnMap())
 }
 
@@ -1737,6 +1825,7 @@ function renderEmployeeList() {
       + '<p class="text-xs mt-0.5 font-mono tracking-widest" style="color:#1d4ed8;">'+emp.code+'</p>'
       + '</div>'
       + '<div class="flex gap-2 flex-wrap">'
+      + '<button onclick="openPayProfile(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;cursor:pointer;">Pay Profile</button>'
       + '<button onclick="regenCode(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
       + '<button onclick="removeEmployee(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
       + '</div></div>';
@@ -3681,6 +3770,382 @@ function acceptPhiDisclaimer() {
   store.set('jtl_phi_accepted','1');
   var dm=document.getElementById('phiDisclaimerModal');
   if(dm) dm.style.display='none';
+}
+
+/* ── PAYROLL ENGINE ──────────────────────────────────────────────────────── */
+
+// 2026 Federal tax tables — annualized wage method (IRS Pub 15-T)
+var TAX_FED = {
+  single: {
+    stdDed: 15350,
+    brackets: [
+      {min:0,      max:11925,  rate:0.10, base:0},
+      {min:11925,  max:48475,  rate:0.12, base:1192.50},
+      {min:48475,  max:103350, rate:0.22, base:5578.50},
+      {min:103350, max:197300, rate:0.24, base:17651.50},
+      {min:197300, max:250525, rate:0.32, base:40199.50},
+      {min:250525, max:626350, rate:0.35, base:57231.00},
+      {min:626350, max:Infinity,rate:0.37,base:188769.75}
+    ]
+  },
+  mfj: {
+    stdDed: 30700,
+    brackets: [
+      {min:0,      max:23850,  rate:0.10, base:0},
+      {min:23850,  max:96950,  rate:0.12, base:2385.00},
+      {min:96950,  max:206700, rate:0.22, base:11157.00},
+      {min:206700, max:394600, rate:0.24, base:35302.00},
+      {min:394600, max:501050, rate:0.32, base:80398.00},
+      {min:501050, max:751600, rate:0.35, base:114462.00},
+      {min:751600, max:Infinity,rate:0.37,base:202154.50}
+    ]
+  },
+  hoh: {
+    stdDed: 22650,
+    brackets: [
+      {min:0,      max:17000,  rate:0.10, base:0},
+      {min:17000,  max:64850,  rate:0.12, base:1700.00},
+      {min:64850,  max:103350, rate:0.22, base:7442.00},
+      {min:103350, max:197300, rate:0.24, base:15892.00},
+      {min:197300, max:250500, rate:0.32, base:38444.00},
+      {min:250500, max:626350, rate:0.35, base:55452.00},
+      {min:626350, max:Infinity,rate:0.37,base:187664.50}
+    ]
+  }
+};
+
+// 2026 California tax tables (estimated, based on 2025 FTB DE 4)
+var TAX_CA = {
+  single: {
+    stdDed: 5202,
+    exemptionCredit: 144,
+    brackets: [
+      {min:0,      max:10756,  rate:0.01, base:0},
+      {min:10756,  max:25499,  rate:0.02, base:107.56},
+      {min:25499,  max:40245,  rate:0.04, base:402.42},
+      {min:40245,  max:55866,  rate:0.06, base:992.26},
+      {min:55866,  max:70606,  rate:0.08, base:1929.52},
+      {min:70606,  max:360659, rate:0.093,base:3108.72},
+      {min:360659, max:432787, rate:0.103,base:30086.15},
+      {min:432787, max:721314, rate:0.113,base:37517.47},
+      {min:721314, max:Infinity,rate:0.123,base:70120.69}
+    ]
+  },
+  mfj: {
+    stdDed: 10404,
+    exemptionCredit: 288,
+    brackets: [
+      {min:0,      max:21512,  rate:0.01, base:0},
+      {min:21512,  max:50998,  rate:0.02, base:215.12},
+      {min:50998,  max:80490,  rate:0.04, base:804.84},
+      {min:80490,  max:111732, rate:0.06, base:1984.52},
+      {min:111732, max:141212, rate:0.08, base:3859.04},
+      {min:141212, max:721318, rate:0.093,base:6217.44},
+      {min:721318, max:865574, rate:0.103,base:60172.30},
+      {min:865574, max:Infinity,rate:0.113,base:75035.02}
+    ]
+  },
+  hoh: {
+    stdDed: 10404,
+    exemptionCredit: 288,
+    brackets: [
+      {min:0,      max:21512,  rate:0.01, base:0},
+      {min:21512,  max:50998,  rate:0.02, base:215.12},
+      {min:50998,  max:65744,  rate:0.04, base:804.84},
+      {min:65744,  max:81364,  rate:0.06, base:1394.68},
+      {min:81364,  max:96106,  rate:0.08, base:2332.00},
+      {min:96106,  max:490493, rate:0.093,base:3511.36},
+      {min:490493, max:588593, rate:0.103,base:40207.33},
+      {min:588593, max:Infinity,rate:0.113,base:50322.66}
+    ]
+  }
+};
+
+var IRS_MILEAGE_2026 = 0.70; // IRS standard mileage rate 2026
+var SS_WAGE_BASE_2026 = 176100; // OASDI wage base 2026 (est.)
+var FED_ALLOWANCE_2026 = 4300; // federal withholding allowance value 2026
+var CA_ALLOWANCE_2026  = 144;  // CA DE-4 allowance credit per allowance
+
+function applyBrackets(taxableIncome, brackets) {
+  if (taxableIncome <= 0) return 0;
+  var tax = 0;
+  for (var i = 0; i < brackets.length; i++) {
+    var b = brackets[i];
+    if (taxableIncome > b.min) {
+      var slice = Math.min(taxableIncome, b.max === Infinity ? taxableIncome : b.max) - b.min;
+      tax = b.base + slice * b.rate;
+    }
+  }
+  return Math.max(0, tax);
+}
+
+function calcFedWithholding(annualGross, filing, allowances) {
+  var tbl = TAX_FED[filing] || TAX_FED.single;
+  var taxableIncome = annualGross - tbl.stdDed - (allowances * FED_ALLOWANCE_2026);
+  return Math.max(0, applyBrackets(taxableIncome, tbl.brackets));
+}
+
+function calcCAWithholding(annualGross, filing, allowances) {
+  var tbl = TAX_CA[filing] || TAX_CA.single;
+  var taxableIncome = annualGross - tbl.stdDed;
+  var annualTax = applyBrackets(taxableIncome, tbl.brackets);
+  annualTax -= (allowances * CA_ALLOWANCE_2026);
+  return Math.max(0, annualTax);
+}
+
+function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
+  var profile = emp.payProfile || {};
+  var rate    = parseFloat(profile.hourlyRate) || 0;
+  var filing  = profile.filingStatus || 'single';
+  var fedEx   = parseInt(profile.fedAllowances) || 0;
+  var caEx    = parseInt(profile.caAllowances) || 0;
+  var mileRate = parseFloat(profile.mileageRate) || IRS_MILEAGE_2026;
+
+  if (!rate) return null; // no pay profile set
+
+  var grossWages   = hoursWorked * rate;
+  // Annualize using period fraction of 365
+  var periodFrac   = Math.max(periodDays, 1) / 365;
+  var annualGross  = grossWages / periodFrac;
+
+  // FICA — apply SS wage base cap
+  var ficaGross = Math.min(grossWages, SS_WAGE_BASE_2026);
+  var fica      = ficaGross * 0.062;
+  var medicare  = grossWages * 0.0145;
+  // Additional Medicare Tax 0.9% above $200k (single) / $250k (mfj) — annualized threshold
+  var addlMedThresh = (filing === 'mfj') ? 250000 : 200000;
+  var addlMed = 0;
+  if (annualGross > addlMedThresh) {
+    addlMed = Math.max(0, (annualGross - addlMedThresh)) * periodFrac * 0.009;
+  }
+  medicare += addlMed;
+
+  // Federal income tax withholding (annualize → calc → pro-rate)
+  var annualFedTax = calcFedWithholding(annualGross, filing, fedEx);
+  var fedWith = annualFedTax * periodFrac;
+
+  // CA income tax withholding
+  var annualCATax = calcCAWithholding(annualGross, filing, caEx);
+  var caWith = annualCATax * periodFrac;
+
+  // CA SDI (State Disability Insurance) 2026: 1.1% of gross, no wage cap
+  var caSDI = grossWages * 0.011;
+
+  // Mileage reimbursement (non-taxable)
+  var mileageReimb = totalMiles * mileRate;
+
+  var totalDeductions = fica + medicare + fedWith + caWith + caSDI;
+  var netPay = grossWages - totalDeductions + mileageReimb;
+
+  return {
+    empName:    emp.name,
+    hoursWorked: hoursWorked,
+    hourlyRate:  rate,
+    grossWages:  grossWages,
+    fica:        fica,
+    medicare:    medicare,
+    fedWith:     fedWith,
+    caWith:      caWith,
+    caSDI:       caSDI,
+    totalDeductions: totalDeductions,
+    mileageReimb:    mileageReimb,
+    totalMiles:      totalMiles,
+    mileRate:        mileRate,
+    netPay:      netPay,
+    filing:      filing,
+    noProfile:   !rate
+  };
+}
+
+function fmt$(n) { return '$'+(Math.abs(n)).toFixed(2); }
+
+function renderPaycheck(result, fromStr, toStr) {
+  if (result.noProfile || !result.grossWages) {
+    return '<div class="rcard" style="text-align:center;padding:20px;">'
+      +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
+      +'<p class="text-xs mt-2" style="color:#9ca3af;">'+(result.noProfile ? 'No pay profile set. Go to Employees → Pay Profile.' : 'No hours recorded in this period.')+'</p>'
+      +'</div>';
+  }
+  var filingLabel = {single:'Single',mfj:'Married Filing Jointly',hoh:'Head of Household'};
+  return '<div class="paycheck">'
+    +'<div class="paycheck-header">'
+    +'<p style="font-size:11px;opacity:.7;letter-spacing:.08em;text-transform:uppercase;margin:0 0 2px;">Juno Tech Laboratory</p>'
+    +'<p style="font-size:17px;font-weight:800;margin:0 0 4px;">'+result.empName+'</p>'
+    +'<p style="font-size:11px;opacity:.75;margin:0;">Pay Period: '+fromStr+' – '+toStr
+      +' &nbsp;|&nbsp; '+filingLabel[result.filing]+'</p>'
+    +'</div>'
+    +'<div class="paycheck-row"><span>Hours Worked</span><span>'+result.hoursWorked.toFixed(2)+' hrs @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+    +'<div class="paycheck-row" style="font-weight:600;"><span>Gross Wages</span><span>'+fmt$(result.grossWages)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>Social Security (6.2%)</span><span>– '+fmt$(result.fica)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>Medicare (1.45%)</span><span>– '+fmt$(result.medicare)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>Federal Income Tax</span><span>– '+fmt$(result.fedWith)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>CA Income Tax</span><span>– '+fmt$(result.caWith)+'</span></div>'
+    +'<div class="paycheck-row deduct"><span>CA SDI (1.1%)</span><span>– '+fmt$(result.caSDI)+'</span></div>'
+    +'<div class="paycheck-row total"><span>Total Deductions</span><span>– '+fmt$(result.totalDeductions)+'</span></div>'
+    +(result.mileageReimb > 0
+      ? '<div class="paycheck-row reimb"><span>Mileage Reimbursement ('+result.totalMiles.toFixed(1)+' mi @ $'+result.mileRate.toFixed(3)+')</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
+      : '')
+    +'<div class="paycheck-row net"><span>Amount of This Check</span><span>'+fmt$(result.netPay)+'</span></div>'
+    +'</div>';
+}
+
+function setPayRange(mode) {
+  var now = new Date();
+  var from, to = new Date(now);
+  if (mode === 'week') {
+    var dow = now.getDay();
+    from = new Date(now); from.setDate(now.getDate() - dow);
+  } else if (mode === 'biweek') {
+    from = new Date(now); from.setDate(now.getDate() - 13);
+  } else if (mode === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  var fmt = function(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
+  document.getElementById('payFrom').value = fmt(from);
+  document.getElementById('payTo').value   = fmt(to);
+}
+
+function populatePayEmpFilter() {
+  var sel = document.getElementById('payEmpFilter');
+  var current = sel.value;
+  sel.innerHTML = '<option value="">All Employees</option>';
+  store.getJ(K.employees,[]).forEach(function(emp) {
+    var opt = document.createElement('option');
+    opt.value = emp.name; opt.textContent = emp.name;
+    if (emp.name === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // init date range to this pay period (biweekly)
+  if (!document.getElementById('payFrom').value) setPayRange('biweek');
+}
+
+function runPayroll() {
+  var fromVal = document.getElementById('payFrom').value;
+  var toVal   = document.getElementById('payTo').value;
+  var empFilter = document.getElementById('payEmpFilter').value;
+  var out = document.getElementById('payrollOut');
+
+  if (!fromVal || !toVal) { toast('Select a pay period first'); return; }
+
+  var fromDate = new Date(fromVal+'T00:00:00');
+  var toDate   = new Date(toVal+'T23:59:59');
+  var periodDays = Math.round((toDate - fromDate) / 86400000) + 1;
+
+  var ts   = store.getJ(K.timesheet, []);
+  var emps = store.getJ(K.employees, []);
+  if (empFilter) emps = emps.filter(function(e){ return e.name === empFilter; });
+
+  // Build sessions per employee
+  function buildSessMap(empName) {
+    var entries = ts.filter(function(e){ return e.emp === empName; })
+      .filter(function(e){
+        var d = new Date(e.ts);
+        return d >= fromDate && d <= toDate;
+      })
+      .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+
+    var sessions = [], cur = null;
+    entries.forEach(function(e) {
+      if (e.type === 'in')  { cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0}; sessions.push(cur); }
+      if (e.type === 'out' && cur) { cur.outTs = new Date(e.ts); cur.mileage = e.mileage || cur.mileage || 0; cur = null; }
+    });
+
+    var totalHours = 0, totalMiles = 0;
+    sessions.forEach(function(s) {
+      if (s.inTs && s.outTs) {
+        var hrs = (s.outTs - s.inTs) / 3600000;
+        // subtract unpaid meal breaks (>= 30 min gaps counted as break_start/break_end)
+        totalHours += hrs;
+      }
+      totalMiles += parseFloat(s.mileage) || 0;
+    });
+    return {totalHours: totalHours, totalMiles: totalMiles};
+  }
+
+  var html = '<div style="margin-bottom:10px;"><p class="text-xs font-semibold" style="color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Pay Period: '+fromVal+' – '+toVal+' ('+periodDays+' days)</p></div>';
+  var allResults = [];
+
+  emps.forEach(function(emp) {
+    var stats = buildSessMap(emp.name);
+    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, periodDays);
+    if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
+    allResults.push(result);
+    html += renderPaycheck(result, fromVal, toVal);
+  });
+
+  // Summary row
+  if (allResults.length > 1) {
+    var totalGross = allResults.reduce(function(s,r){ return s+(r.grossWages||0); }, 0);
+    var totalNet   = allResults.reduce(function(s,r){ return s+(r.netPay||0); }, 0);
+    var totalDed   = allResults.reduce(function(s,r){ return s+(r.totalDeductions||0); }, 0);
+    var totalMiRe  = allResults.reduce(function(s,r){ return s+(r.mileageReimb||0); }, 0);
+    html += '<div class="rcard" style="background:#1a2b8c;color:#fff;padding:16px 18px;">'
+      +'<p class="text-xs font-bold mb-3" style="opacity:.7;text-transform:uppercase;letter-spacing:.08em;">Payroll Summary — All Employees</p>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Gross Wages</span><span style="font-weight:700;">'+fmt$(totalGross)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Deductions</span><span>– '+fmt$(totalDed)+'</span></div>'
+      +(totalMiRe>0?'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Mileage Reimbursement</span><span>+ '+fmt$(totalMiRe)+'</span></div>':'')
+      +'<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;border-top:1px solid rgba(255,255,255,.2);padding-top:10px;margin-top:4px;"><span>Total Payroll Cost</span><span>'+fmt$(totalNet)+'</span></div>'
+      +'</div>';
+  }
+
+  // Save payroll run to Firebase
+  if (fbCfg.url) {
+    var periodKey = fromVal+'_'+toVal;
+    var payrollData = {
+      periodStart: fromVal, periodEnd: toVal, generatedAt: new Date().toISOString(),
+      results: allResults.map(function(r){ return {
+        emp: r.empName, hours: r.hoursWorked||0, gross: r.grossWages||0,
+        fica: r.fica||0, medicare: r.medicare||0, fedWith: r.fedWith||0,
+        caWith: r.caWith||0, caSDI: r.caSDI||0,
+        mileageReimb: r.mileageReimb||0, net: r.netPay||0
+      }; })
+    };
+    fetch(fbCfg.url+'/jtl/payroll/'+periodKey.replace(/-/g,'')+'.json',
+      {method:'PUT', body:JSON.stringify(payrollData), headers:{'Content-Type':'application/json'}})
+      .catch(function(){});
+  }
+
+  out.style.display = '';
+  out.innerHTML = html;
+  logAdminAction('payroll_run', 'Period: '+fromVal+' to '+toVal+(empFilter?' ('+empFilter+')':''));
+}
+
+/* ── Pay Profile modal ──────────────────────────────────────── */
+var _ppEmpName = '';
+function openPayProfile(empName) {
+  _ppEmpName = empName;
+  var emps = store.getJ(K.employees, []);
+  var emp = emps.find(function(e){ return e.name === empName; });
+  if (!emp) return;
+  var profile = emp.payProfile || {};
+  document.getElementById('ppEmpName').textContent = empName;
+  document.getElementById('ppRate').value    = profile.hourlyRate || '';
+  document.getElementById('ppFiling').value  = profile.filingStatus || 'single';
+  document.getElementById('ppFedEx').value   = profile.fedAllowances || '';
+  document.getElementById('ppStateEx').value = profile.caAllowances || '';
+  document.getElementById('ppMileage').value = profile.mileageRate || '';
+  document.getElementById('payProfileModal').classList.add('open');
+}
+function closePayProfile() {
+  document.getElementById('payProfileModal').classList.remove('open');
+}
+function savePayProfile() {
+  var emps = store.getJ(K.employees, []);
+  var emp = emps.find(function(e){ return e.name === _ppEmpName; });
+  if (!emp) return;
+  emp.payProfile = {
+    hourlyRate:    parseFloat(document.getElementById('ppRate').value) || 0,
+    filingStatus:  document.getElementById('ppFiling').value || 'single',
+    fedAllowances: parseInt(document.getElementById('ppFedEx').value) || 0,
+    caAllowances:  parseInt(document.getElementById('ppStateEx').value) || 0,
+    mileageRate:   parseFloat(document.getElementById('ppMileage').value) || IRS_MILEAGE_2026
+  };
+  store.setJ(K.employees, emps);
+  pushEmployeeToFirebase(emp);
+  closePayProfile();
+  toast('Pay profile saved for '+_ppEmpName);
+  logAdminAction('pay_profile_update', _ppEmpName);
 }
 </script>
 </body>
