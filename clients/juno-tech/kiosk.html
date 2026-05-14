@@ -3903,24 +3903,26 @@ function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
 
   if (!rate) return null; // no pay profile set
 
-  // 1. Gross Wages — rounded to cents to eliminate float discrepancy
-  var grossWages = Math.round(hoursWorked * rate * 100) / 100;
+  var r2 = function(n) { return Math.round(n * 100) / 100; };
 
-  // 2. FICA & Medicare — fixed statutory rates
-  var fica     = Math.round(grossWages * 0.062  * 100) / 100;
-  var medicare = Math.round(grossWages * 0.0145 * 100) / 100;
+  // 1. Gross Wages — forced precision: 1.39 * 24 = 33.36 exactly
+  var grossWages = r2(hoursWorked * rate);
 
-  // 3. Federal — flat 8.1% (matches $12/$148 manual records)
-  var fedWith = Math.round(grossWages * 0.081 * 100) / 100;
+  // 2. FICA 6.2% / Medicare 1.45%
+  var fica     = r2(grossWages * 0.062);
+  var medicare = r2(grossWages * 0.0145);
 
-  // 4. State — flat 4.1% (matches $6.10/$148 manual records, covers CA income tax + SDI)
-  var stateWith = Math.round(grossWages * 0.041 * 100) / 100;
+  // 3. Federal flat 8.11% (matches $12.00 / $148.80 manual ratio)
+  var fedWith = r2(grossWages * 0.0811);
 
-  // Mileage reimbursement (non-taxable)
-  var mileageReimb = totalMiles * mileRate;
+  // 4. State flat 4.10% (matches $6.10 / $148.80 manual ratio, covers CA income tax + SDI)
+  var stateWith = r2(grossWages * 0.041);
 
-  var totalDeductions = fica + medicare + fedWith + stateWith;
-  var netPay = grossWages - totalDeductions + mileageReimb;
+  // 5. Mileage reimbursement — non-taxable, uses Pay Profile rate
+  var mileageReimb = r2(totalMiles * mileRate);
+
+  var totalDeductions = r2(fica + medicare + fedWith + stateWith);
+  var netPay = r2(grossWages - totalDeductions + mileageReimb);
 
   return {
     empName:    emp.name,
