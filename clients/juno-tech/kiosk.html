@@ -1606,12 +1606,27 @@ function copyKioskUrl() {
 }
 
 /* ── admin tabs ─────────────────────────── */
+var _recordsAutoRefresh = null;
+function startRecordsAutoRefresh() {
+  stopRecordsAutoRefresh();
+  if (!fbCfg.url) return;
+  _recordsAutoRefresh = setInterval(function() {
+    syncFromCloud(function() { renderTables(); renderAdminLog(); });
+  }, 30000); // re-sync every 30 s while records tab is open
+}
+function stopRecordsAutoRefresh() {
+  if (_recordsAutoRefresh) { clearInterval(_recordsAutoRefresh); _recordsAutoRefresh = null; }
+}
 function switchTab(name) {
   document.querySelectorAll('.atab').forEach(function(t){ t.classList.remove('active'); });
   document.querySelectorAll('.apane').forEach(function(p){ p.classList.remove('active'); });
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('pane-'+name).classList.add('active');
-  if (name==='records')   { if(fbCfg.url){ syncFromCloud(function(){ renderTables(); renderAdminLog(); }); } else { renderTables(); renderAdminLog(); } }
+  stopRecordsAutoRefresh();
+  if (name==='records') {
+    if (fbCfg.url) { syncFromCloud(function(){ renderTables(); renderAdminLog(); }); startRecordsAutoRefresh(); }
+    else { renderTables(); renderAdminLog(); }
+  }
   if (name==='employees') {
     if (fbCfg.url) { syncEmployeesFromCloud(function(){ renderEmployeeList(); }); }
     else { renderEmployeeList(); }
@@ -2054,6 +2069,12 @@ function deleteEntry(ts) {
   // Track deleted ts so sync never restores it
   var deleted = store.getJ(K.deletedTs,[]);
   if(deleted.indexOf(String(ts))<0){ deleted.push(String(ts)); store.setJ(K.deletedTs, deleted); }
+  // Push deletion marker to Firebase so ALL devices honour it on next sync
+  if (fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(ts)+'.json',
+      {method:'PUT', body:JSON.stringify({ts:String(ts), deletedAt:new Date().toISOString()}),
+       headers:{'Content-Type':'application/json'}}).catch(function(){});
+  }
   // Delete from Firebase
   fbDeleteEntry('timesheet', ts);
   // Delete photo from IndexedDB
@@ -2551,20 +2572,48 @@ function fbGetState(empName, cb) {
     .catch(function(){cb(null);});
 }
 function syncFromCloud(cb) {
-  var deletedTs = store.getJ(K.deletedTs,[]);
-  fbFetchAll('timesheet',function(raw){
-    if(raw&&typeof raw==='object'){
-      var entries = (Array.isArray(raw)?raw:Object.values(raw))
-        .filter(function(e){ return e&&e.ts && deletedTs.indexOf(String(e.ts))<0; })
-        .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
-      if(entries.length) store.setJ(K.timesheet, entries);
+  // Step 1: merge cloud deletedTs so this device honours deletions made elsewhere
+  fbFetchAll('deletedTs', function(rawDel) {
+    var deletedTs = store.getJ(K.deletedTs, []);
+    if (rawDel && typeof rawDel === 'object') {
+      var cloudDel = (Array.isArray(rawDel) ? rawDel : Object.values(rawDel))
+        .filter(function(e){ return e && e.ts; })
+        .map(function(e){ return String(e.ts); });
+      cloudDel.forEach(function(t){ if (deletedTs.indexOf(t) < 0) deletedTs.push(t); });
+      store.setJ(K.deletedTs, deletedTs);
     }
-    fbFetchAll('supplies',function(rawS){
-      if(rawS&&typeof rawS==='object'){
-        var sups = Array.isArray(rawS)?rawS:Object.values(rawS);
-        if(sups.length) store.setJ(K.supplies, sups.sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }));
+    // Step 2: fetch timesheet, always overwrite local (handles all-deleted case)
+    fbFetchAll('timesheet', function(raw) {
+      if (raw && typeof raw === 'object') {
+        var entries = (Array.isArray(raw) ? raw : Object.values(raw))
+          .filter(function(e){ return e && e.ts && deletedTs.indexOf(String(e.ts)) < 0; })
+          .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+        store.setJ(K.timesheet, entries);
       }
-      if(cb) cb();
+      // Step 3: fetch supplies
+      fbFetchAll('supplies', function(rawS) {
+        if (rawS && typeof rawS === 'object') {
+          var sups = Array.isArray(rawS) ? rawS : Object.values(rawS);
+          if (sups.length) store.setJ(K.supplies, sups.sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); }));
+        }
+        // Step 4: fetch and merge admin log from all devices
+        fbFetchAll('adminLog', function(rawLog) {
+          if (rawLog && typeof rawLog === 'object') {
+            var cloudLog = (Array.isArray(rawLog) ? rawLog : Object.values(rawLog))
+              .filter(function(e){ return e && e.ts; });
+            if (cloudLog.length) {
+              var localLog = store.getJ(K.adminLog, []);
+              var seen = {};
+              localLog.forEach(function(e){ seen[e.ts] = true; });
+              cloudLog.forEach(function(e){ if (!seen[e.ts]) { localLog.push(e); seen[e.ts] = true; } });
+              localLog.sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+              if (localLog.length > 500) localLog = localLog.slice(localLog.length - 500);
+              store.setJ(K.adminLog, localLog);
+            }
+          }
+          if (cb) cb();
+        });
+      });
     });
   });
 }
@@ -3416,9 +3465,15 @@ function deletePhoto(ts) {
 /* ── Admin Action Log ────────────────────── */
 function logAdminAction(action, details) {
   var log = store.getJ(K.adminLog, []);
-  log.push({action:action, details:details, ts:new Date().toISOString()});
+  var entry = {action:action, details:details, ts:new Date().toISOString()};
+  log.push(entry);
   if(log.length>500) log=log.slice(log.length-500); // keep last 500
   store.setJ(K.adminLog, log);
+  // Push to Firebase so ALL admin devices see this log entry
+  if (fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/adminLog/'+tsToKey(entry.ts)+'.json',
+      {method:'PUT', body:JSON.stringify(entry), headers:{'Content-Type':'application/json'}}).catch(function(){});
+  }
 }
 function renderAdminLog() {
   var el = document.getElementById('adminLogList');
