@@ -1556,15 +1556,19 @@ document.getElementById('adminLoginBtn').addEventListener('click', function() {
   var stored = store.get(K.adminHash) || DEFAULT_HASH;
   if (hashPwd(input)===stored) {
     closeAdminLogin(); show('adminView');
-    // Sync employees bidirectionally: push local to cloud, pull cloud to local
+    renderTables(); // immediate render from localStorage so screen isn't blank
+    renderKioskUrl(); updateStorageUsage();
     if (fbCfg.url) {
+      // Sync employees bidirectionally
       pushAllEmployeesToCloud();
       syncEmployeesFromCloud(function(){ renderEmployeeList(); });
+      // Sync timesheet from cloud immediately on login so deleted/edited entries
+      // on other devices are visible right away (don't wait for a tab switch)
+      syncFromCloud(function(){ renderTables(); renderAdminLog(); });
+      startRecordsAutoRefresh(); // start 30-second polling while admin is open
     } else {
       renderEmployeeList();
     }
-    renderTables();
-    renderKioskUrl(); updateStorageUsage();
   } else {
     document.getElementById('loginErr').style.display='block';
   }
@@ -3553,8 +3557,16 @@ function clearOldRecords() {
   // immediately re-check clock state from Firebase so the approval
   // result is applied without waiting for the throttled poll
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible' && currentEmp && clockState === 'pending') {
-      syncClockState();
+    if (document.visibilityState === 'visible') {
+      // Employee pending approval — re-check clock state
+      if (currentEmp && clockState === 'pending') {
+        syncClockState();
+      }
+      // Admin on records tab — re-sync immediately when tab returns from background
+      // (iOS Safari suspends setInterval timers, so the 30s auto-refresh can stall)
+      if (fbCfg.url && _recordsAutoRefresh !== null) {
+        syncFromCloud(function() { renderTables(); renderAdminLog(); });
+      }
     }
   });
 
