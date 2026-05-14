@@ -2618,6 +2618,7 @@ function clearAllData() {
 /* ── Geolocation Engine ──────────────────── */
 var currentLocation = null; // {lat, lng, accuracy, timestamp}
 var locationWatchID = null;
+var locationIntervalID = null; // periodic backup in case watchPosition stalls on mobile
 var _liveMap = null;        // Leaflet map instance (admin)
 var _liveMapRefreshID = null;
 
@@ -2662,42 +2663,61 @@ function haversineMiles(lat1,lng1,lat2,lng2){
   var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
+// Shared handler called by both watchPosition and the periodic backup
+function _onLocationUpdate(pos) {
+  var newLat = pos.coords.latitude, newLng = pos.coords.longitude;
+  var newAcc = Math.round(pos.coords.accuracy);
+  // GPS mileage accumulation
+  if (mileageTracking && mileageLastPos) {
+    var d = haversineMiles(mileageLastPos.lat, mileageLastPos.lng, newLat, newLng);
+    if (d > 0.001 && d < 50) { mileageTotalMiles += d; updateMileagePill(); }
+  }
+  if (mileageTracking) mileageLastPos = {lat:newLat, lng:newLng};
+  currentLocation = {lat:newLat, lng:newLng, accuracy:newAcc, timestamp:new Date().toISOString()};
+  // Keep the location pill updated
+  updateLocationPill('found', newAcc < 50 ? 'Location ±'+newAcc+'m' : 'Location ±'+newAcc+'m (low accuracy)');
+  // Push fresh location to Firebase so admin map moves
+  if (currentEmp && fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/locations/'+empKey(currentEmp.name)+'.json', {
+      method:'PUT',
+      body: JSON.stringify({
+        lat:currentLocation.lat, lng:currentLocation.lng,
+        accuracy:currentLocation.accuracy, timestamp:currentLocation.timestamp,
+        name:currentEmp.name, state:clockState
+      }),
+      headers:{'Content-Type':'application/json'}
+    }).catch(function(){});
+  }
+}
 function startLocationWatch() {
   stopLocationWatch();
   if (!navigator.geolocation) return;
+  // Primary: watchPosition — fires whenever the device reports a new position
+  // maximumAge:0 forces a fresh reading every time (never serve cached position)
   locationWatchID = navigator.geolocation.watchPosition(
-    function(pos) {
-      var newLat=pos.coords.latitude, newLng=pos.coords.longitude;
-      // GPS mileage accumulation
-      if (mileageTracking && mileageLastPos) {
-        var d=haversineMiles(mileageLastPos.lat,mileageLastPos.lng,newLat,newLng);
-        if (d < 50) { mileageTotalMiles += d; updateMileagePill(); }
-      }
-      if (mileageTracking) mileageLastPos={lat:newLat,lng:newLng};
-      currentLocation = {
-        lat:newLat, lng:newLng,
-        accuracy:Math.round(pos.coords.accuracy),
-        timestamp:new Date().toISOString()
-      };
-      // Push live location to Firebase
-      if (currentEmp && fbCfg.url) {
-        fetch(fbCfg.url+'/jtl/locations/'+empKey(currentEmp.name)+'.json', {
-          method:'PUT',
-          body:JSON.stringify({lat:currentLocation.lat,lng:currentLocation.lng,
-            accuracy:currentLocation.accuracy,timestamp:currentLocation.timestamp,
-            name:currentEmp.name,state:clockState}),
-          headers:{'Content-Type':'application/json'}
-        }).catch(function(){});
-      }
-    },
-    function(){},
-    {enableHighAccuracy:true, maximumAge:30000, timeout:20000}
+    _onLocationUpdate,
+    function() {},
+    {enableHighAccuracy:true, maximumAge:0, timeout:20000}
   );
+  // Backup: force a getCurrentPosition every 25 seconds
+  // watchPosition can stall on iOS Safari when the screen locks or tab is backgrounded
+  locationIntervalID = setInterval(function() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      _onLocationUpdate,
+      function() {},
+      {enableHighAccuracy:true, maximumAge:0, timeout:15000}
+    );
+  }, 25000);
 }
 function stopLocationWatch() {
   if (locationWatchID !== null) {
     navigator.geolocation.clearWatch(locationWatchID);
     locationWatchID = null;
+  }
+  if (locationIntervalID !== null) {
+    clearInterval(locationIntervalID);
+    locationIntervalID = null;
   }
 }
 function clearFirebaseLocation() {
@@ -2732,7 +2752,7 @@ function openLiveMapModal(focusName) {
   setTimeout(function(){
     renderLiveMapModal(focusName);
     if (_modalMapRefreshID) clearInterval(_modalMapRefreshID);
-    _modalMapRefreshID = setInterval(function(){ renderLiveMapModal(_modalMapFocusEmp); }, 30000);
+    _modalMapRefreshID = setInterval(function(){ renderLiveMapModal(_modalMapFocusEmp); }, 12000);
   }, 80);
 }
 function closeLiveMapModal() {
@@ -2762,12 +2782,17 @@ function renderLiveMapModal(focusName) {
   fetch(fbCfg.url+'/jtl/locations.json')
     .then(function(r){return r.json();})
     .then(function(data){
-      _mapMarkers={};
-      _modalMap.eachLayer(function(l){ if(l instanceof L.Marker||l instanceof L.Circle) _modalMap.removeLayer(l); });
-      if(!data||typeof data!=='object') return;
-      var locs=Object.values(data), bounds=[], rowsHtml='';
+      // Remove only accuracy circles (re-drawn each time); keep markers so they animate smoothly
+      _modalMap.eachLayer(function(l){ if(l instanceof L.Circle) _modalMap.removeLayer(l); });
+      if(!data||typeof data!=='object'){
+        // Remove markers for employees no longer in Firebase
+        Object.keys(_mapMarkers).forEach(function(n){ _modalMap.removeLayer(_mapMarkers[n]); delete _mapMarkers[n]; });
+        return;
+      }
+      var locs=Object.values(data), activeLocs={}, bounds=[], rowsHtml='';
       locs.forEach(function(loc){
-        if(!loc.lat||!loc.lng) return;
+        if(!loc.lat||!loc.lng||!loc.name) return;
+        activeLocs[loc.name]=true;
         var color=loc.state==='in'?'#16a34a':loc.state==='break'?'#f59e0b':'#9ca3af';
         var stateLabel=loc.state==='in'?'Clocked In':loc.state==='break'?'On Break':'Last Known';
         var lastSeen=loc.timestamp?new Date(loc.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—';
@@ -2780,9 +2805,19 @@ function renderLiveMapModal(focusName) {
           +(loc.accuracy?'<p style="margin:4px 0 0;font-size:10px;color:#d1d5db;">Accuracy: ±'+loc.accuracy+'m</p>':'')
           +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;margin-top:8px;font-size:11px;color:#1a2b8c;font-weight:600;">Google Maps &#8599;</a>'
           +'</div>';
-        var mk=L.marker([loc.lat,loc.lng],{icon:icon}).addTo(_modalMap).bindPopup(popup);
-        if(loc.name) _mapMarkers[loc.name]=mk;
+        // Reuse existing marker (smooth slide) or create a new one
+        var mk = _mapMarkers[loc.name];
+        if (mk) {
+          mk.setLatLng([loc.lat,loc.lng]);
+          mk.setIcon(icon);
+          mk.getPopup().setContent(popup);
+        } else {
+          mk = L.marker([loc.lat,loc.lng],{icon:icon}).addTo(_modalMap).bindPopup(popup);
+          _mapMarkers[loc.name]=mk;
+        }
         if(loc.accuracy) L.circle([loc.lat,loc.lng],{radius:loc.accuracy,color:color,fillColor:color,fillOpacity:.08,weight:1}).addTo(_modalMap);
+        // Remove markers for employees who left Firebase
+        Object.keys(_mapMarkers).forEach(function(n){ if(!activeLocs[n]){ _modalMap.removeLayer(_mapMarkers[n]); delete _mapMarkers[n]; } });
         bounds.push([loc.lat,loc.lng]);
         var safeN=(loc.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         rowsHtml+='<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f3f4f6;">'
