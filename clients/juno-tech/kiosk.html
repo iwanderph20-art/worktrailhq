@@ -1907,7 +1907,7 @@ function _renderTablesImpl() {
         raw.forEach(function(e){
           var safeTs=String(e.ts).replace(/'/g,'');
           var tl=TYPE_LABEL[e.type]||e.type;
-          editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit '+tl+'</button> ';
+          editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:500;">Edit '+tl+'</button> ';
           editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
         });
 
@@ -1954,24 +1954,20 @@ function _renderTablesImpl() {
               +'</div>'
             :'')
 
-          // ── Row 4: Summary (right-aligned) + action buttons
-          +'<div style="padding:10px 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
-
-          // Action buttons (left / bottom-left)
-          +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
-          +approvalBtns+liveLocBtn
-          +'</div>'
-
-          // Summary block (right-aligned)
-          +'<div style="text-align:right;">'
-          +'<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin:0 0 5px;">Summary</p>'
-          +'<p style="font-size:13px;font-weight:600;color:#111827;margin:0 0 3px;">Total hours worked: <strong>'+hoursStr+'</strong></p>'
+          // ── Row 4: Total hours — full-width centered, prominent
+          +'<div style="padding:12px 14px 10px;text-align:center;background:rgba(0,0,0,.025);border-top:1px solid rgba(0,0,0,.06);">'
+          +'<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin:0 0 3px;">Total Hours Worked</p>'
+          +'<p style="font-size:28px;font-weight:900;color:#111827;letter-spacing:-.03em;line-height:1;margin:0 0 5px;">'+hoursStr+'</p>'
           +(milesVal!=null
-            ?'<p style="font-size:13px;font-weight:600;color:#7c3aed;margin:0 0 3px;">Mileage: <strong>'+Number(milesVal).toFixed(1)+' mi</strong></p>'
+            ?'<p style="font-size:12px;font-weight:600;color:#7c3aed;margin:0 0 4px;">Mileage: <strong>'+Number(milesVal).toFixed(1)+' mi</strong></p>'
             :'')
-          +'<p style="font-size:13px;font-weight:600;color:#d97706;margin:0;">Breaks: <strong>'+breakSummaryText+'</strong></p>'
+          +'<p style="font-size:12px;font-weight:600;color:#d97706;margin:0;">Breaks: <strong>'+breakSummaryText+'</strong></p>'
           +'</div>'
-          +'</div>'
+
+          // ── Action buttons row (approve/deny/live) — only shown when needed
+          +((approvalBtns||liveLocBtn)
+            ?'<div style="padding:8px 14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.05);">'+approvalBtns+liveLocBtn+'</div>'
+            :'')
 
           // ── Edit/Delete row (tertiary)
           +(editBtns?'<div style="padding:4px 14px 8px;display:flex;gap:4px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'</div>':'')
@@ -2912,8 +2908,6 @@ function renderLiveMapModal(focusName) {
           _mapMarkers[loc.name]=mk;
         }
         if(loc.accuracy) L.circle([loc.lat,loc.lng],{radius:loc.accuracy,color:color,fillColor:color,fillOpacity:.08,weight:1}).addTo(_modalMap);
-        // Remove markers for employees who left Firebase
-        Object.keys(_mapMarkers).forEach(function(n){ if(!activeLocs[n]){ _modalMap.removeLayer(_mapMarkers[n]); delete _mapMarkers[n]; } });
         bounds.push([loc.lat,loc.lng]);
         var safeN=(loc.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         rowsHtml+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6;">'
@@ -2922,6 +2916,8 @@ function renderLiveMapModal(focusName) {
           +'<button onclick="showEmployeeOnMap(\''+safeN+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:'+color+';color:#fff;border:none;cursor:pointer;font-weight:700;flex-shrink:0;">&#128205; Fly to</button>'
           +'</div>';
       });
+      // Remove markers for employees no longer in Firebase (done AFTER full loop)
+      Object.keys(_mapMarkers).forEach(function(n){ if(!activeLocs[n]){ _modalMap.removeLayer(_mapMarkers[n]); delete _mapMarkers[n]; } });
       if (focusName && _mapMarkers[focusName]) {
         _modalMap.flyTo(_mapMarkers[focusName].getLatLng(),15,{animate:true,duration:1});
         _mapMarkers[focusName].openPopup();
