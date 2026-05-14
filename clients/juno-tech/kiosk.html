@@ -960,18 +960,26 @@ function _syncClockStateLocal() {
     .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,approval:e.approval,approvalToken:e.approvalToken}; })
     .sort(function(a,b){ return a._d-b._d; });
   var last = entries[entries.length-1];
-  if (!last)                          { clockState='out'; }
-  else if (last.type==='in' && last.approval==='pending') {
+  if (!last) {
+    clockState='out';
+  } else if (last.type==='in' && last.approval==='denied') {
+    // Denied entry — treat as out so employee can clock in again
+    clockState='out';
+    stopApprovalPoll();
+  } else if (last.type==='in' && last.approval==='pending') {
     var status = getApprovalStatus(last.ts);
     if (status==='approved') {
       allEntries.forEach(function(e){ if(e.ts===last.ts) e.approval='approved'; });
       store.setJ(K.timesheet, allEntries);
       clockState='in';
+      stopApprovalPoll();
     } else if (status==='denied') {
       clockState='out';
+      stopApprovalPoll();
     } else {
       clockState='pending'; pendingEntryTs=last.ts;
-      startApprovalPoll(last.ts);
+      // Only (re)start poll if not already running for this ts
+      if (!approvalPollID) startApprovalPoll(last.ts);
     }
   }
   else if (last.type==='in')          { clockState='in'; }
@@ -991,11 +999,15 @@ function syncClockState() {
     var fbTs    = d.ts || '';
     if (fbState === 'pending' && fbTs) {
       var localStatus = getApprovalStatus(fbTs);
-      if (localStatus !== 'approved' && localStatus !== 'denied' && clockState !== 'pending') {
-        clockState = 'pending'; pendingEntryTs = fbTs;
-        // Fetch the timesheet entry from Firebase so we have it locally
+      if (localStatus === 'approved' || localStatus === 'denied') {
+        // Approval already resolved locally — just apply it
+        handleApprovalResult(fbTs, localStatus);
+      } else {
+        // Sync timesheet + re-evaluate; restart poll if not already running
         syncFromCloud(function(){
-          startApprovalPoll(fbTs);
+          _syncClockStateLocal();
+          // If still pending after sync, make sure poll is running
+          if (clockState === 'pending' && !approvalPollID) startApprovalPoll(fbTs);
           renderEmpState();
         });
       }
@@ -3174,12 +3186,14 @@ function handleApprovalResult(ts, status) {
     if(badge){badge.textContent='Approved ✓';badge.className='b-approved text-xs font-semibold px-3 py-1 rounded-full';}
     updateTodaySummary(); toast('Clock-in approved! You\'re all set.');
   } else {
-    var arr=store.getJ(K.timesheet,[]).filter(function(e){return e.ts!==ts;});
+    // Mark entry as denied in local timesheet (keeps record, stops it looping as pending)
+    var arr=store.getJ(K.timesheet,[]);
+    arr.forEach(function(e){ if(e.ts===ts) e.approval='denied'; });
     store.setJ(K.timesheet,arr);
     clockState='out'; pendingEntryTs=null;
     if(currentEmp) fbPutState(currentEmp.name,'out',ts); // cross-device state
     renderEmpState(); updateTodaySummary();
-    toast('Clock-in was not approved. Please see admin.');
+    toast('Your clock-in was not approved. Please speak to your admin.', 5000);
   }
 }
 
@@ -3483,6 +3497,15 @@ function clearOldRecords() {
   injectLogos(); fbInit(); renderFacilityPills();
   initPhotoDB(); // warm up IndexedDB for photos
   updateStorageUsage();
+
+  // When employee returns to tab after phone lock / screen wake,
+  // immediately re-check clock state from Firebase so the approval
+  // result is applied without waiting for the throttled poll
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && currentEmp && clockState === 'pending') {
+      syncClockState();
+    }
+  });
 
   try {
     var params=new URLSearchParams(window.location.search);
