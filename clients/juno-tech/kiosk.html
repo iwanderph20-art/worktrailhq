@@ -4038,7 +4038,7 @@ function runPayroll() {
 
   // Build sessions per employee
   function buildSessMap(empName) {
-    var entries = ts.filter(function(e){ return e.emp === empName; })
+    var entries = ts.filter(function(e){ return e.name === empName; })
       .filter(function(e){
         var d = new Date(e.ts);
         return d >= fromDate && d <= toDate;
