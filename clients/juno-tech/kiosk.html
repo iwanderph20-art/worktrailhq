@@ -485,7 +485,6 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div class="max-w-4xl mx-auto px-4 flex">
       <button class="atab active" id="tab-employees" onclick="switchTab('employees')">Employees</button>
       <button class="atab" id="tab-records"   onclick="switchTab('records')">Records</button>
-      <button class="atab" id="tab-reports"   onclick="switchTab('reports')">Reports</button>
       <button class="atab" id="tab-payroll"   onclick="switchTab('payroll')">Payroll</button>
       <button class="atab" id="tab-settings"  onclick="switchTab('settings')">Settings</button>
     </div>
@@ -537,30 +536,6 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
     </div>
 
-    <!-- Reports tab -->
-    <div id="pane-reports" class="apane space-y-4">
-      <div class="rcard space-y-3">
-        <p class="text-sm font-semibold" style="color:#374151;">Date Range</p>
-        <div class="flex flex-wrap gap-2 text-xs">
-          <button onclick="setRange('today')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">Today</button>
-          <button onclick="setRange('week')"   class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Week</button>
-          <button onclick="setRange('month')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Month</button>
-          <button onclick="setRange('all')"    class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">All Time</button>
-        </div>
-        <div class="flex gap-2 flex-wrap">
-          <input id="rptFrom" type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
-          <input id="rptTo"   type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
-        </div>
-        <div class="flex gap-2 flex-wrap items-center">
-          <select id="rptEmpFilter" class="inp inp-dk sel" style="flex:1;min-width:140px;">
-            <option value="">All Employees</option>
-          </select>
-          <button onclick="generateReport()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
-            style="background:#3b52d4;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Generate</button>
-        </div>
-      </div>
-      <div id="reportOut" style="display:none;"></div>
-    </div>
 
     <!-- Settings tab -->
     <div id="pane-settings" class="apane space-y-4">
@@ -684,6 +659,10 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
 
       <div id="payrollOut"></div>
+      <div id="payrollPrintBtn" style="display:none;" class="no-print">
+        <button onclick="printPayroll()" class="tap w-full py-3 rounded-xl font-semibold text-sm"
+          style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#128438; Print / Download PDF</button>
+      </div>
 
     </div>
 
@@ -1724,7 +1703,6 @@ function switchTab(name) {
     else { renderEmployeeList(); }
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
-  if (name==='reports')   { populateRptEmpFilter(); }
   if (name==='payroll')   { populatePayEmpFilter(); }
   // (map tab removed — map is now a modal via seeEmpOnMap())
 }
@@ -4093,7 +4071,22 @@ function runPayroll() {
 
   out.style.display = '';
   out.innerHTML = html;
+  document.getElementById('payrollPrintBtn').style.display = '';
   logAdminAction('payroll_run', 'Period: '+fromVal+' to '+toVal+(empFilter?' ('+empFilter+')':''));
+}
+
+function printPayroll() {
+  var out = document.getElementById('payrollOut');
+  if (!out || !out.innerHTML) { toast('Generate a payroll report first.'); return; }
+  var pa = document.getElementById('printArea');
+  var fromVal = document.getElementById('payFrom').value;
+  var toVal   = document.getElementById('payTo').value;
+  pa.innerHTML = '<div style="font-family:sans-serif;padding:8px;">'
+    + '<h2 style="margin:0 0 4px;font-size:16px;">Juno Tech Laboratory — Payroll Report</h2>'
+    + '<p style="margin:0 0 16px;font-size:12px;color:#6b7280;">Pay Period: '+fromVal+' – '+toVal+'</p>'
+    + out.innerHTML
+    + '</div>';
+  window.print();
 }
 
 /* ── Pay Profile modal ──────────────────────────────────────── */
