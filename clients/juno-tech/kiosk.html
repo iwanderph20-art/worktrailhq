@@ -942,6 +942,7 @@ function enterEmpView() {
   updateTodaySummary();
   initCamera();
   requestLocation(); // ask for GPS on entry
+  repairPhotoSync(); // silently re-push any photos that didn't make it to Firebase
 }
 function lockEmployee() {
   stopCamera(); stopBreakTimer(); stopApprovalPoll(); stopBreakCheck(); stopLocationWatch();
@@ -2478,7 +2479,7 @@ function tsToKey(ts) {
 function fbPut(path, ts, data) {
   if (!fbCfg.url) return;
   var d = JSON.parse(JSON.stringify(data));
-  delete d.photo; // photos are in IndexedDB, not Firebase
+  // photo (inline base64) is intentionally kept — admin needs it to view photos cross-device
   fetch(fbCfg.url+'/jtl/'+path+'/'+tsToKey(ts)+'.json',
     {method:'PUT', body:JSON.stringify(d), headers:{'Content-Type':'application/json'}}).catch(function(){});
 }
@@ -2543,6 +2544,15 @@ function pushAllToCloud() {
   sups.forEach(function(e){ fbPut('supplies', e.ts, e); });
   emps.forEach(function(e){ pushEmployeeToFirebase(e); });
   toast('Pushed '+ts.length+' timesheet + '+sups.length+' supply + '+emps.length+' employees to cloud!');
+}
+// Silently re-push any entries that have inline photos but may have been stored in Firebase
+// without the photo field (before the photo-sync fix). Runs once on employee device startup.
+function repairPhotoSync() {
+  if (!fbCfg.url) return;
+  var ts = store.getJ(K.timesheet, []);
+  var withPhotos = ts.filter(function(e){ return e.photo && e.ts; });
+  if (!withPhotos.length) return;
+  withPhotos.forEach(function(e){ fbPut('timesheet', e.ts, e); });
 }
 
 /* ── Facility selector ───────────────────── */
