@@ -688,6 +688,43 @@ video{object-fit:cover;transform:scaleX(-1);}
   </div>
 </div>
 
+<!-- Edit Supply Modal -->
+<div id="editSupplyModal" onclick="if(event.target===this)closeEditSupply()" style="position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);">
+  <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:400px;margin:16px;box-shadow:0 24px 64px rgba(0,0,0,.22);">
+    <div class="flex items-center justify-between mb-4">
+      <p class="font-bold text-base" style="color:#111827;">Edit Supply Entry</p>
+      <button onclick="closeEditSupply()" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;">&#10005;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Item</p>
+        <select id="editSupplyItem" class="inp inp-dk sel w-full">
+          <option>Tiger Tubes</option><option>Alcohol Pads</option><option>RPP Swab</option>
+          <option>Sharps Container</option><option>Urine Container / Cups</option><option>Cotton Balls</option>
+          <option>Lab Coat</option><option>Hand Sanitizer</option><option>Lavender</option>
+          <option>Vacuette</option><option>Bandages</option><option>Label Roll</option>
+          <option>Exam Gloves</option><option>Butterfly 23G</option><option>Butterfly 21G</option>
+          <option>Centrifuge</option><option>Tourniquet</option>
+        </select>
+      </div>
+      <div>
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Quantity</p>
+        <input id="editSupplyQty" type="text" inputmode="numeric" placeholder="Quantity" class="inp inp-dk w-full">
+      </div>
+      <div>
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Notes</p>
+        <input id="editSupplyNote" type="text" placeholder="Notes (optional)…" class="inp inp-dk w-full">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button onclick="saveEditSupply()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save</button>
+      <button onclick="closeEditSupply()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+        style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- Pay Profile Modal -->
 <div id="payProfileModal" onclick="if(event.target===this)closePayProfile()">
   <div id="payProfileInner">
@@ -2084,6 +2121,7 @@ function _renderTablesImpl() {
     supHtml='<p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:13px;">No supply requests yet.</p>';
   } else {
     sups.forEach(function(r){
+      var safeTs = String(r.ts).replace(/'/g,"\\'");
       supHtml += '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:#f8fafc;border:1px solid rgba(0,0,0,.05);">'
         +'<div style="flex:1;">'
         +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
@@ -2093,7 +2131,11 @@ function _renderTablesImpl() {
         +'</div>'
         +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
         +'</div>'
+        +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
         +'<span style="color:#9ca3af;font-size:11px;white-space:nowrap;">'+new Date(r.ts).toLocaleString()+'</span>'
+        +'<button onclick="openEditSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
+        +'<button onclick="deleteSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
+        +'</div>'
         +'</div>';
     });
   }
@@ -4096,6 +4138,45 @@ function runPayroll() {
 }
 
 var _printPayrollData = null;
+
+/* ── Supply edit/delete (admin) ─────────────────────────── */
+var _editSupplyTs = '';
+function openEditSupply(ts) {
+  var sups = store.getJ(K.supplies, []);
+  var entry = sups.find(function(s){ return String(s.ts) === String(ts); });
+  if (!entry) return;
+  _editSupplyTs = ts;
+  document.getElementById('editSupplyItem').value = entry.item || '';
+  document.getElementById('editSupplyQty').value  = entry.qty  || '';
+  document.getElementById('editSupplyNote').value = entry.note || '';
+  document.getElementById('editSupplyModal').style.display = 'flex';
+}
+function closeEditSupply() {
+  document.getElementById('editSupplyModal').style.display = 'none';
+}
+function saveEditSupply() {
+  var sups = store.getJ(K.supplies, []);
+  var idx = sups.findIndex(function(s){ return String(s.ts) === String(_editSupplyTs); });
+  if (idx < 0) return;
+  sups[idx].item = document.getElementById('editSupplyItem').value;
+  sups[idx].qty  = document.getElementById('editSupplyQty').value;
+  sups[idx].note = document.getElementById('editSupplyNote').value.trim();
+  store.setJ(K.supplies, sups);
+  if (fbCfg.url) fbPut('supplies', _editSupplyTs, sups[idx]);
+  closeEditSupply();
+  renderTables();
+  logAdminAction('supply_edit', sups[idx].item + ' x' + sups[idx].qty);
+  toast('Supply entry updated');
+}
+function deleteSupply(ts) {
+  if (!confirm('Delete this supply entry?')) return;
+  var sups = store.getJ(K.supplies, []);
+  store.setJ(K.supplies, sups.filter(function(s){ return String(s.ts) !== String(ts); }));
+  if (fbCfg.url) fetch(fbCfg.url+'/jtl/supplies/'+tsToKey(ts)+'.json', {method:'DELETE'}).catch(function(){});
+  renderTables();
+  logAdminAction('supply_delete', String(ts));
+  toast('Supply entry deleted');
+}
 
 function printPayroll() {
   if (!_printPayrollData) { toast('Generate a payroll report first.'); return; }
