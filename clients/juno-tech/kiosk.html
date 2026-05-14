@@ -1781,19 +1781,33 @@ function _renderTablesImpl() {
         var emp=raw.map(function(e){ return Object.assign({},e,{_d:new Date(e.ts)}); })
           .sort(function(a,b){return a._d-b._d;});
 
-        var clockInE=null, clockOutE=null;
-        emp.forEach(function(e){ if(e.type==='in'&&!clockInE) clockInE=e; if(e.type==='out') clockOutE=e; });
+        // ── Use the LAST clock-in as the "current" entry (handles re-clock-ins)
+        var allIns = emp.filter(function(e){ return e.type==='in'; });
+        var clockInE = allIns.length ? allIns[allIns.length-1] : null;
+
+        // ── Clock-out only counts if it comes AFTER the last clock-in
+        var clockOutE = null;
+        emp.forEach(function(e){
+          if(e.type==='out' && clockInE && e._d > clockInE._d) clockOutE = e;
+        });
+
+        // ── Find any pending entry — needed even when it isn't the last in
+        var pendingEntry = null;
+        allIns.forEach(function(e){ if(e.approval==='pending') pendingEntry = e; });
 
         var sessions=buildSessions(emp);
-        var sess=sessions[0]; // one session per employee per day
+        // Use the last complete session for stats; running clock if still in
+        var sess=sessions.length ? sessions[sessions.length-1] : null;
 
-        var isPending  = !!(clockInE && clockInE.approval==='pending');
-        var isApproved = !!(clockInE && clockInE.approval==='approved');
-        var isDenied   = !!(clockInE && clockInE.approval==='denied');
+        var isPending  = !!pendingEntry;
+        var isApproved = !!(clockInE && clockInE.approval==='approved' && !pendingEntry);
+        var isDenied   = !!(clockInE && clockInE.approval==='denied' && !pendingEntry);
         var isStillIn  = !!(clockInE && !clockOutE);
 
-        // Computed stats
-        var hoursVal = sess ? (sess.netMs/3600000) : (isStillIn ? (Date.now()-clockInE._d)/3600000 : null);
+        // Computed stats — running hours if active, else last complete session
+        var hoursVal = isStillIn
+          ? (Date.now()-clockInE._d)/3600000
+          : (sess ? sess.netMs/3600000 : null);
         var hoursStr = hoursVal!==null ? hoursVal.toFixed(2)+' hrs' : '—';
         var milesVal = sess ? sess.mileage : (clockInE&&clockInE.mileage!=null?clockInE.mileage:null);
         if(!milesVal && clockOutE && clockOutE.mileage!=null) milesVal=clockOutE.mileage;
@@ -1801,7 +1815,7 @@ function _renderTablesImpl() {
         var restCount = sess ? sess.restTaken : 0;
         var mealCount = sess ? sess.mealTaken : 0;
 
-        // Facilities
+        // Facilities from the LAST clock-in
         var facStr=(clockInE&&clockInE.facilities&&clockInE.facilities.length)?clockInE.facilities.join(' · '):'';
 
         // Employee initials avatar
@@ -1850,8 +1864,8 @@ function _renderTablesImpl() {
           outPhotoBlock=photoPlaceholder;
         }
 
-        // Action buttons
-        var safeInTs2=clockInE?String(clockInE.ts).replace(/'/g,''):'';
+        // Action buttons — approve/deny target the PENDING entry, not necessarily clockInE
+        var safeInTs2=(pendingEntry||clockInE)?String((pendingEntry||clockInE).ts).replace(/'/g,''):'';
         var approvalBtns=isPending
           ?'<button onclick="adminApproveEntry(\''+safeInTs2+'\')" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#10003; Approve</button>'
            +'<button onclick="adminDenyEntry(\''+safeInTs2+'\')" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#10005; Deny</button>'
@@ -2032,11 +2046,21 @@ function deleteEntry(ts) {
   fbDeleteEntry('timesheet', ts);
   // Delete photo from IndexedDB
   deletePhoto(ts);
+  // If this was a pending clock-in, unblock the employee's device:
+  // write 'denied' to approvals so their approval poll resolves,
+  // and set their Firebase state to 'out' so they can clock in again
+  if (target && target.type==='in' && target.approval==='pending') {
+    setApprovalStatus(ts, 'denied');
+    fbPutState(target.name, 'out', ts);
+    toast('Pending entry deleted — employee has been notified and can clock in again.');
+  } else {
+    toast('Entry deleted permanently');
+  }
   // Log action
   logAdminAction('DELETE', target
     ? (target.name+' — '+(TYPE_LABEL[target.type]||target.type)+' at '+new Date(target.ts).toLocaleString())
     : 'Entry at '+ts);
-  renderTables(); toast('Entry deleted permanently');
+  renderTables();
 }
 
 function toggleAcc(bodyId, arrowId) {
