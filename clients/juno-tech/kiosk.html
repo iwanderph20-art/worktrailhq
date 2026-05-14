@@ -2727,6 +2727,13 @@ function clearFirebaseLocation() {
 }
 
 /* ── Map Helpers ─────────────────────────── */
+// Returns a consistent, distinct color for each employee name
+var _EMP_COLORS = ['#e11d48','#7c3aed','#0284c7','#059669','#d97706','#db2777','#0891b2','#65a30d','#ea580c','#6366f1','#0f766e','#b45309'];
+function empColor(name) {
+  var h = 0;
+  for (var i = 0; i < (name||'').length; i++) h = (name.charCodeAt(i) + ((h << 5) - h)) | 0;
+  return _EMP_COLORS[Math.abs(h) % _EMP_COLORS.length];
+}
 var _mapMarkers = {}; // empName → L.Marker
 var _modalMap   = null; // Leaflet instance inside the modal
 var _modalMapRefreshID = null;
@@ -2793,17 +2800,21 @@ function renderLiveMapModal(focusName) {
       locs.forEach(function(loc){
         if(!loc.lat||!loc.lng||!loc.name) return;
         activeLocs[loc.name]=true;
-        var color=loc.state==='in'?'#16a34a':loc.state==='break'?'#f59e0b':'#9ca3af';
+        var color=empColor(loc.name); // distinct per-employee color, consistent across refreshes
+        var stateColor=loc.state==='in'?'#16a34a':loc.state==='break'?'#f59e0b':'#6b7280';
         var stateLabel=loc.state==='in'?'Clocked In':loc.state==='break'?'On Break':'Last Known';
         var lastSeen=loc.timestamp?new Date(loc.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—';
-        var markerHtml='<div style="background:'+color+';width:36px;height:36px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;">'+(loc.name||'?').charAt(0)+'</div>';
-        var icon=L.divIcon({html:markerHtml,className:'',iconSize:[36,36],iconAnchor:[18,18],popupAnchor:[0,-20]});
-        var popup='<div style="font-family:-apple-system,sans-serif;min-width:160px;">'
-          +'<p style="margin:0 0 4px;font-weight:700;font-size:14px;color:#111827;">'+loc.name+'</p>'
-          +'<p style="margin:0 0 2px;font-size:12px;color:'+color+';font-weight:600;">'+stateLabel+'</p>'
-          +'<p style="margin:0;font-size:11px;color:#9ca3af;">Updated: '+lastSeen+'</p>'
-          +(loc.accuracy?'<p style="margin:4px 0 0;font-size:10px;color:#d1d5db;">Accuracy: ±'+loc.accuracy+'m</p>':'')
-          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;margin-top:8px;font-size:11px;color:#1a2b8c;font-weight:600;">Google Maps &#8599;</a>'
+        var initials=(loc.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+        var markerHtml='<div style="background:'+color+';width:40px;height:40px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;letter-spacing:-.5px;">'+initials+'</div>';
+        var icon=L.divIcon({html:markerHtml,className:'',iconSize:[40,40],iconAnchor:[20,20],popupAnchor:[0,-22]});
+        var popup='<div style="font-family:-apple-system,sans-serif;min-width:170px;">'
+          +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+          +'<div style="width:32px;height:32px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">'+initials+'</div>'
+          +'<div><p style="margin:0;font-weight:700;font-size:14px;color:#111827;">'+loc.name+'</p>'
+          +'<p style="margin:0;font-size:11px;color:'+stateColor+';font-weight:600;">'+stateLabel+'</p></div></div>'
+          +'<p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">Updated: '+lastSeen+'</p>'
+          +(loc.accuracy?'<p style="margin:0 0 6px;font-size:10px;color:#d1d5db;">Accuracy: ±'+loc.accuracy+'m</p>':'')
+          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;margin-top:4px;font-size:11px;color:#1a2b8c;font-weight:600;">Open in Google Maps &#8599;</a>'
           +'</div>';
         // Reuse existing marker (smooth slide) or create a new one
         var mk = _mapMarkers[loc.name];
@@ -2820,10 +2831,10 @@ function renderLiveMapModal(focusName) {
         Object.keys(_mapMarkers).forEach(function(n){ if(!activeLocs[n]){ _modalMap.removeLayer(_mapMarkers[n]); delete _mapMarkers[n]; } });
         bounds.push([loc.lat,loc.lng]);
         var safeN=(loc.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        rowsHtml+='<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f3f4f6;">'
-          +'<div style="width:28px;height:28px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:11px;flex-shrink:0;">'+(loc.name||'?').charAt(0)+'</div>'
-          +'<div style="flex:1;min-width:0;"><p style="margin:0;font-size:12px;font-weight:600;color:#111827;">'+loc.name+'</p><p style="margin:0;font-size:10px;color:'+color+';font-weight:600;">'+stateLabel+' · '+lastSeen+'</p></div>'
-          +'<button onclick="showEmployeeOnMap(\''+safeN+'\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;flex-shrink:0;">&#128205; Fly to</button>'
+        rowsHtml+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6;">'
+          +'<div style="width:30px;height:30px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:10px;flex-shrink:0;letter-spacing:-.5px;">'+initials+'</div>'
+          +'<div style="flex:1;min-width:0;"><p style="margin:0;font-size:13px;font-weight:700;color:#111827;">'+loc.name+'</p><p style="margin:0;font-size:11px;color:'+stateColor+';font-weight:600;">'+stateLabel+' · '+lastSeen+'</p></div>'
+          +'<button onclick="showEmployeeOnMap(\''+safeN+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:'+color+';color:#fff;border:none;cursor:pointer;font-weight:700;flex-shrink:0;">&#128205; Fly to</button>'
           +'</div>';
       });
       if (focusName && _mapMarkers[focusName]) {
@@ -2870,37 +2881,37 @@ function renderLocationMap() {
       var rowsHtml = '';
       locs.forEach(function(loc) {
         if (!loc.lat || !loc.lng) return;
-        var color = loc.state==='in'?'#16a34a':loc.state==='break'?'#f59e0b':'#9ca3af';
-        var stateLabel = loc.state==='in'?'Clocked In':loc.state==='break'?'On Break':loc.state==='pending'?'Pending':'Clocked Out';
+        var color = empColor(loc.name); // distinct per-employee color
+        var stateColor = loc.state==='in'?'#16a34a':loc.state==='break'?'#f59e0b':'#6b7280';
+        var stateLabel = loc.state==='in'?'Clocked In':loc.state==='break'?'On Break':loc.state==='pending'?'Pending':'Last Known';
         var lastSeen = loc.timestamp ? new Date(loc.timestamp).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—';
-        // Custom marker
-        var markerHtml = '<div style="background:'+color+';width:36px;height:36px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;">'
-          +(loc.name||'?').charAt(0)+'</div>';
-        var icon = L.divIcon({html:markerHtml, className:'', iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-20]});
-        var popup = '<div style="font-family:-apple-system,sans-serif;min-width:160px;">'
-          +'<p style="margin:0 0 4px;font-weight:700;font-size:14px;color:#111827;">'+loc.name+'</p>'
-          +'<p style="margin:0 0 2px;font-size:12px;color:'+color+';font-weight:600;">'+stateLabel+'</p>'
-          +'<p style="margin:0;font-size:11px;color:#9ca3af;">Updated: '+lastSeen+'</p>'
-          +(loc.accuracy?'<p style="margin:4px 0 0;font-size:10px;color:#d1d5db;">Accuracy: ±'+loc.accuracy+'m</p>':'')
-          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;margin-top:8px;font-size:11px;color:#1a2b8c;font-weight:600;">View in Google Maps &#8599;</a>'
+        var initials2=(loc.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+        var markerHtml = '<div style="background:'+color+';width:40px;height:40px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;letter-spacing:-.5px;">'+initials2+'</div>';
+        var icon = L.divIcon({html:markerHtml, className:'', iconSize:[40,40], iconAnchor:[20,20], popupAnchor:[0,-22]});
+        var popup = '<div style="font-family:-apple-system,sans-serif;min-width:170px;">'
+          +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+          +'<div style="width:32px;height:32px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">'+initials2+'</div>'
+          +'<div><p style="margin:0;font-weight:700;font-size:14px;color:#111827;">'+loc.name+'</p>'
+          +'<p style="margin:0;font-size:11px;color:'+stateColor+';font-weight:600;">'+stateLabel+'</p></div></div>'
+          +'<p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">Updated: '+lastSeen+'</p>'
+          +(loc.accuracy?'<p style="margin:0 0 6px;font-size:10px;color:#d1d5db;">Accuracy: ±'+loc.accuracy+'m</p>':'')
+          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;margin-top:4px;font-size:11px;color:#1a2b8c;font-weight:600;">Open in Google Maps &#8599;</a>'
           +'</div>';
         var mk = L.marker([loc.lat,loc.lng],{icon:icon}).addTo(_liveMap).bindPopup(popup);
-        if (loc.name) _mapMarkers[loc.name] = mk; // store for fly-to
-        if(loc.accuracy) L.circle([loc.lat,loc.lng],{radius:loc.accuracy,color:color,fillColor:color,fillOpacity:.08,weight:1}).addTo(_liveMap);
+        if (loc.name) _mapMarkers[loc.name] = mk;
+        if(loc.accuracy) L.circle([loc.lat,loc.lng],{radius:loc.accuracy,color:color,fillColor:color,fillOpacity:.1,weight:1.5}).addTo(_liveMap);
         bounds.push([loc.lat,loc.lng]);
         var safeLocName = (loc.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        rowsHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f3f4f6;">'
-          +'<div style="width:32px;height:32px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:12px;flex-shrink:0;">'+(loc.name||'?').charAt(0)+'</div>'
+        rowsHtml += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f3f4f6;">'
+          +'<div style="width:34px;height:34px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:11px;flex-shrink:0;letter-spacing:-.5px;">'+initials2+'</div>'
           +'<div style="flex:1;min-width:0;">'
-          +'<p style="margin:0;font-size:13px;font-weight:600;color:#111827;">'+loc.name+'</p>'
-          +'<p style="margin:0;font-size:11px;color:'+color+';font-weight:600;">'+stateLabel+'</p>'
+          +'<p style="margin:0;font-size:13px;font-weight:700;color:#111827;">'+loc.name+'</p>'
+          +'<p style="margin:0;font-size:11px;color:'+stateColor+';font-weight:600;">'+stateLabel+' · '+lastSeen+'</p>'
           +'</div>'
-          +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">'
-          +'<p style="margin:0;font-size:11px;color:#9ca3af;">'+lastSeen+'</p>'
-          +'<div style="display:flex;gap:4px;">'
-          +'<button onclick="showEmployeeOnMap(\''+safeLocName+'\')" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">&#128205; Fly to</button>'
-          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="font-size:10px;padding:3px 8px;border-radius:6px;background:#f3f4f6;color:#1a2b8c;text-decoration:none;font-weight:600;">Maps &#8599;</a>'
-          +'</div></div></div>';
+          +'<div style="display:flex;gap:4px;flex-shrink:0;">'
+          +'<button onclick="showEmployeeOnMap(\''+safeLocName+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:'+color+';color:#fff;border:none;cursor:pointer;font-weight:700;">&#128205; Fly to</button>'
+          +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="font-size:10px;padding:4px 8px;border-radius:6px;background:#f3f4f6;color:#1a2b8c;text-decoration:none;font-weight:600;">Maps &#8599;</a>'
+          +'</div></div>';
       });
       if (bounds.length) {
         try { _liveMap.fitBounds(bounds, {padding:[32,32],maxZoom:15}); } catch(e){}
@@ -2950,12 +2961,12 @@ function getEmailTemplateHtml() {
     +'      <p style="margin:0;font-size:14px;font-weight:600;color:#111827;">{{facility}}</p>\n'
     +'    </td></tr>\n'
     +'    <tr><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;vertical-align:top;">\n'
-    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Note</p>\n'
+    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">{{note_label}}</p>\n'
     +'    </td><td style="padding:12px 0;border-bottom:1px solid #f3f4f6;">\n'
     +'      <p style="margin:0;font-size:14px;color:#374151;">{{note}}</p>\n'
     +'    </td></tr>\n'
     +'    <tr><td style="padding:12px 0;vertical-align:top;">\n'
-    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Photo</p>\n'
+    +'      <p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">{{photo_label}}</p>\n'
     +'    </td><td style="padding:12px 0;">\n'
     +'      <p style="margin:0;font-size:13px;color:#6b7280;">{{photo_note}}</p>\n'
     +'    </td></tr>\n'
@@ -3234,10 +3245,13 @@ function sendClockInEmail(entry, photoDataUrl){
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
   emailjs.send(serviceId, templateId, {
     to_email:      notifEmail,
+    subject:       'Clock-In Approval Required — '+entry.name,
     employee_name: entry.name,
     clock_time:    clockTime,
     facility:      facility,
     note:          entry.note||'None',
+    note_label:    'Note',
+    photo_label:   'Photo',
     kiosk_url:     kioskUrl,
     logo_url:      logoUrl,
     photo_note:    photoNote,
@@ -3280,13 +3294,16 @@ function sendClockOutEmail(entry, hoursWorked, miles) {
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
   emailjs.send(serviceId, templateId, {
     to_email:      notifEmail,
+    subject:       'Clock-Out Summary — '+entry.name,
     employee_name: entry.name,
     clock_time:    clockTime,
     facility:      (entry.facilities&&entry.facilities.length) ? entry.facilities.join(', ') : 'See Records',
     note:          shiftSummary,
+    note_label:    'Shift Summary',
+    photo_label:   'Photo',
     kiosk_url:     kioskUrl,
     logo_url:      logoUrl,
-    photo_note:    shiftSummary,
+    photo_note:    (entry.hasPhoto ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.'),
     header_text:   'WorkTrail — Clock-Out Summary',
     subtitle:      'has clocked out for the day.',
     action_text:   'View the full shift details in the Records tab.',
