@@ -306,8 +306,8 @@ video{object-fit:cover;transform:scaleX(-1);}
         </svg>
       </div>
       <div>
-        <p class="font-semibold" style="color:#111827;">Log Supply Request</p>
-        <p class="text-sm" style="color:#9ca3af;">Request office supplies</p>
+        <p class="font-semibold" style="color:#111827;">Supply Log — Received</p>
+        <p class="text-sm" style="color:#9ca3af;">Log supplies received today</p>
       </div>
       <svg xmlns="http://www.w3.org/2000/svg" class="ml-auto flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#d1d5db" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
@@ -396,7 +396,10 @@ video{object-fit:cover;transform:scaleX(-1);}
   <div class="m-bg" onclick="closeSupply()"></div>
   <div class="relative w-full z-10 glass rounded-t-3xl p-6 space-y-4" style="max-width:520px;max-height:90vh;overflow-y:auto;">
     <div class="flex items-center justify-between">
-      <h3 class="text-lg font-bold" style="color:#111827;">Supply Request</h3>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;">RECEIVED</span>
+        <h3 class="text-lg font-bold" style="color:#111827;">Supply Log</h3>
+      </div>
       <button onclick="closeSupply()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
     </div>
     <select id="supplyItem" class="inp sel">
@@ -428,6 +431,34 @@ video{object-fit:cover;transform:scaleX(-1);}
     </div>
     <button onclick="submitSupply()" class="tap w-full py-4 rounded-2xl font-semibold text-white"
       style="background:#1a2b8c;border:none;cursor:pointer;">Confirm &amp; Submit</button>
+  </div>
+</div>
+
+<!-- ── SUPPLY REQUEST MODAL (employee requests — orange) ── -->
+<div id="supplyRequestWrap" class="m-sheet">
+  <div class="m-bg" onclick="closeSupplyRequest()"></div>
+  <div class="relative w-full z-10 rounded-t-3xl p-6 space-y-4" style="background:#fff7ed;max-width:520px;max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="background:#fed7aa;color:#c2410c;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;">REQUEST</span>
+        <h3 class="text-lg font-bold" style="color:#111827;">Supply Request</h3>
+      </div>
+      <button onclick="closeSupplyRequest()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
+    </div>
+    <p style="font-size:12px;color:#9a3412;background:#ffedd5;border-radius:10px;padding:10px 12px;margin:0;">Select items you need restocked. This request will be sent to the admin.</p>
+    <select id="supplyReqItem" class="inp sel" style="border-color:#fdba74;">
+      <option value="">Select item needed…</option>
+      <option>Tiger Tubes</option><option>Alcohol Pads</option><option>RPP Swab</option>
+      <option>Sharps Container</option><option>Urine Container / Cups</option><option>Cotton Balls</option>
+      <option>Lab Coat</option><option>Hand Sanitizer</option><option>Lavender</option>
+      <option>Vacuette</option><option>Bandages</option><option>Label Roll</option>
+      <option>Exam Gloves</option><option>Butterfly 23G</option><option>Butterfly 21G</option>
+      <option>Centrifuge</option><option>Tourniquet</option>
+    </select>
+    <input id="supplyReqQty" type="text" inputmode="numeric" placeholder="Quantity needed…" class="inp" style="border-color:#fdba74;">
+    <input id="supplyReqNote" type="text" placeholder="Notes (optional)…" class="inp" style="border-color:#fdba74;">
+    <button onclick="submitSupplyRequest()" class="tap w-full py-4 rounded-2xl font-semibold text-white"
+      style="background:#f97316;border:none;cursor:pointer;">&#128230; Submit Request</button>
   </div>
 </div>
 
@@ -849,6 +880,7 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-xs mt-1" style="color:#c4b5fd;">Miles Tracked</p>
       </div>
     </div>
+    <button onclick="openSupplyRequest()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#f97316;color:#fff;border:none;cursor:pointer;">&#128230; Request Supplies</button>
     <button onclick="closeSummaryModal()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Done</button>
   </div>
 </div>
@@ -1652,16 +1684,45 @@ function openSupply()  { document.getElementById('supplyWrap').classList.add('op
 function closeSupply() { document.getElementById('supplyWrap').classList.remove('open'); }
 function submitSupply() {
   var item=document.getElementById('supplyItem').value;
-  var qty=parseInt(document.getElementById('supplyQty').value)||1;
+  var qty=document.getElementById('supplyQty').value||'1';
   var note=document.getElementById('supplyNote').value.trim();
   if (!item) { toast('Please select an item'); return; }
+  var entry={name:currentEmp?currentEmp.name:'Unknown',item:item,qty:qty,note:note,ts:new Date().toISOString(),reqType:'received'};
   var arr=store.getJ(K.supplies,[]);
-  arr.push({name:currentEmp?currentEmp.name:'Unknown',item:item,qty:qty,note:note,ts:new Date().toISOString()});
+  arr.push(entry);
   store.setJ(K.supplies,arr);
+  if(fbCfg.url) fbPut('supplies', entry.ts, entry);
   document.getElementById('supplyItem').value='';
-  document.getElementById('supplyQty').value='1';
+  document.getElementById('supplyQty').value='';
   document.getElementById('supplyNote').value='';
-  closeSupply(); toast('Supply request logged!');
+  closeSupply(); toast('Supply log submitted!');
+}
+
+/* ── supply request (employee requests restocking) ─────── */
+function openSupplyRequest() {
+  closeSummaryModal();
+  document.getElementById('supplyReqItem').value='';
+  document.getElementById('supplyReqQty').value='';
+  document.getElementById('supplyReqNote').value='';
+  document.getElementById('supplyRequestWrap').classList.add('open');
+}
+function closeSupplyRequest() { document.getElementById('supplyRequestWrap').classList.remove('open'); }
+function submitSupplyRequest() {
+  var item=document.getElementById('supplyReqItem').value;
+  var qty=document.getElementById('supplyReqQty').value||'1';
+  var note=document.getElementById('supplyReqNote').value.trim();
+  if (!item) { toast('Please select an item'); return; }
+  var entry={name:currentEmp?currentEmp.name:'Unknown',item:item,qty:qty,note:note,ts:new Date().toISOString(),reqType:'request'};
+  var arr=store.getJ(K.supplies,[]);
+  arr.push(entry);
+  store.setJ(K.supplies,arr);
+  if(fbCfg.url) fbPut('supplies', entry.ts, entry);
+  // include in clock-out email
+  sendSupplyRequestEmail(entry);
+  document.getElementById('supplyReqItem').value='';
+  document.getElementById('supplyReqQty').value='';
+  document.getElementById('supplyReqNote').value='';
+  closeSupplyRequest(); toast('Supply request sent to admin!');
 }
 
 /* ── admin login ─────────────────────────── */
@@ -2064,7 +2125,10 @@ function _renderTablesImpl() {
 
           // Arrow in center
           +'<div style="flex:1;display:flex;align-items:center;justify-content:center;">'
-          +'<span style="font-size:22px;color:#d1d5db;line-height:1;">&#8594;</span>'
+          +'<div style="display:flex;align-items:center;gap:0;">'
+          +'<div style="height:2px;width:28px;background:linear-gradient(90deg,#c7d2fe,#1a2b8c);border-radius:2px;"></div>'
+          +'<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 7h11M8 3l4 4-4 4" stroke="#1a2b8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+          +'</div>'
           +'</div>'
 
           // Right: OUT label/time + out-photo
@@ -2116,29 +2180,32 @@ function _renderTablesImpl() {
     });
   });
 
-  var supHtml='';
-  if (!sups.length) {
-    supHtml='<p style="color:#9ca3af;text-align:center;padding:24px 0;font-size:13px;">No supply requests yet.</p>';
-  } else {
-    sups.forEach(function(r){
-      var safeTs = String(r.ts).replace(/'/g,"\\'");
-      supHtml += '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:#f8fafc;border:1px solid rgba(0,0,0,.05);">'
-        +'<div style="flex:1;">'
-        +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
-        +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
-        +'<span style="color:#1d4ed8;font-size:12px;">'+r.item+'</span>'
-        +'<span style="color:#6b7280;font-size:11px;">x'+r.qty+'</span>'
-        +'</div>'
-        +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
-        +'</div>'
-        +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
-        +'<span style="color:#9ca3af;font-size:11px;white-space:nowrap;">'+new Date(r.ts).toLocaleString()+'</span>'
-        +'<button onclick="openEditSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
-        +'<button onclick="deleteSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
-        +'</div>'
-        +'</div>';
-    });
+  function buildSupplyRow(r) {
+    var safeTs = String(r.ts).replace(/'/g,"\\'");
+    var isReq = r.reqType === 'request';
+    return '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:'+(isReq?'#fff7ed':'#f8fafc')+';border:1px solid '+(isReq?'#fed7aa':'rgba(0,0,0,.05)')+';">'
+      +'<div style="flex:1;">'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+      +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
+      +'<span style="color:'+(isReq?'#c2410c':'#1d4ed8')+';font-size:12px;">'+r.item+'</span>'
+      +'<span style="color:#6b7280;font-size:11px;">x'+r.qty+'</span>'
+      +'</div>'
+      +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+      +'<span style="color:#9ca3af;font-size:11px;white-space:nowrap;">'+new Date(r.ts).toLocaleString()+'</span>'
+      +'<button onclick="openEditSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
+      +'<button onclick="deleteSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
+      +'</div>'
+      +'</div>';
   }
+  var received = sups.filter(function(r){ return r.reqType !== 'request'; });
+  var requests = sups.filter(function(r){ return r.reqType === 'request'; });
+  var supHtml = '';
+  supHtml += '<p style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">&#9989; Received</p>';
+  supHtml += received.length ? received.map(buildSupplyRow).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
+  supHtml += '<p style="font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.06em;margin-top:14px;margin-bottom:4px;">&#128230; Requests</p>';
+  supHtml += requests.length ? requests.map(buildSupplyRow).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
   document.getElementById('supplyList').innerHTML=supHtml;
 }
 
@@ -3544,6 +3611,44 @@ function sendClockOutEmail(entry, hoursWorked, miles) {
   }).catch(function(e){
     console.error('EmailJS error (clock-out):', JSON.stringify(e));
   });
+}
+
+function sendSupplyRequestEmail(entry) {
+  var EJS_KEY      = 'BaAmtd4je5XVstCvH';
+  var EJS_SERVICE  = 'service_t30r2d8';
+  var EJS_TEMPLATE = 'template_jtdfx1a';
+  var cfg = store.getJ(EJS_STORAGE, {});
+  var publicKey  = cfg.publicKey  || EJS_KEY;
+  var serviceId  = cfg.serviceId  || EJS_SERVICE;
+  var templateId = cfg.templateId || EJS_TEMPLATE;
+  var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
+  var kioskUrl   = window.location.origin + window.location.pathname + '?admin&records=1';
+  if (fbCfg.url) kioskUrl += '&fb=' + encodeURIComponent(fbCfg.url);
+  var reqTime = new Date(entry.ts).toLocaleString('en-US',{
+    weekday:'long', month:'long', day:'numeric', year:'numeric',
+    hour:'numeric', minute:'2-digit', hour12:true
+  });
+  try { emailjs.init({publicKey: publicKey}); } catch(e){}
+  var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
+  emailjs.send(serviceId, templateId, {
+    to_email:      notifEmail,
+    subject:       'Supply Request — '+entry.name,
+    employee_name: entry.name,
+    clock_time:    reqTime,
+    facility:      'Supply Request',
+    note:          entry.item + ' × ' + entry.qty + (entry.note ? ' — ' + entry.note : ''),
+    note_label:    'Item Requested',
+    photo_label:   '',
+    kiosk_url:     kioskUrl,
+    logo_url:      logoUrl,
+    photo_note:    'View full supply log in Admin → Records → Supply Requests.',
+    header_text:   'WorkTrail — Supply Request',
+    subtitle:      'has submitted a supply request.',
+    action_text:   'Review and action this request in the Records tab.',
+    approve_url:   kioskUrl,
+    deny_url:      kioskUrl,
+    photo_html:    entry.item + ' × ' + entry.qty
+  }).catch(function(e){ console.error('EmailJS supply request error:', JSON.stringify(e)); });
 }
 
 /* ── IndexedDB Photo Storage ─────────────── */
