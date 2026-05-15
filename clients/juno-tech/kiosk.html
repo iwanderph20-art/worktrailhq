@@ -2271,42 +2271,70 @@ function _renderTablesImpl() {
     });
   });
 
-  function buildSupplyRow(r) {
-    var safeTs = String(r.ts).replace(/'/g,"\\'");
-    var isReq = r.reqType === 'request';
-    var isCompleted = isReq && r.status === 'completed';
-    var completedBadge = isCompleted
-      ? '<span style="background:#e5e7eb;color:#6b7280;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">&#10003; Completed '
-        + new Date(r.completedAt).toLocaleString() + '</span>'
-      : '';
-    // Pending requests = light green; completed requests = gray; received = light blue-gray
-    var bg    = isCompleted ? '#f9fafb' : (isReq ? '#f0fdf4' : '#f8fafc');
-    var border= isCompleted ? '#e5e7eb' : (isReq ? '#bbf7d0' : 'rgba(0,0,0,.05)');
-    return '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:'+bg+';border:1px solid '+border+';">'
-      +'<div style="flex:1;">'
-      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
-      +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
-      +'<span style="color:'+(isCompleted?'#9ca3af':isReq?'#15803d':'#1d4ed8')+';font-size:12px;">'+r.item+'</span>'
-      +'<span style="color:#6b7280;font-size:11px;">x'+r.qty+'</span>'
-      +'</div>'
-      +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
-      +(completedBadge ? '<div style="margin-top:5px;">'+completedBadge+'</div>' : '')
-      +'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
-      +'<span style="color:#9ca3af;font-size:11px;white-space:nowrap;">'+new Date(r.ts).toLocaleString()+'</span>'
-      +(isReq && !isCompleted ? '<button onclick="completeSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;cursor:pointer;font-weight:700;">&#10003; Complete</button>' : '')
-      +'<button onclick="openEditSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
-      +'<button onclick="deleteSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
-      +'</div>'
-      +'</div>';
+  // Group supply entries by name + reqType + day, sorted newest first
+  function groupSupplies(list) {
+    var groups = {}, order = [];
+    list.forEach(function(r) {
+      var day = new Date(r.ts).toDateString();
+      var key = r.name + '||' + day;
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(r);
+    });
+    // sort groups newest first (by first entry's ts)
+    order.sort(function(a,b){ return new Date(groups[b][0].ts) - new Date(groups[a][0].ts); });
+    return order.map(function(k){ return groups[k]; });
   }
+
+  function buildSupplyGroup(entries) {
+    var first   = entries[0];
+    var isReq   = first.reqType === 'request';
+    var allDone = isReq && entries.every(function(e){ return e.status === 'completed'; });
+    var bg      = allDone ? '#f9fafb' : (isReq ? '#f0fdf4' : '#f8fafc');
+    var border  = allDone ? '#e5e7eb' : (isReq ? '#bbf7d0' : 'rgba(0,0,0,.05)');
+    var dateStr = new Date(first.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+    var html = '<div style="background:'+bg+';border:1px solid '+border+';border-radius:12px;margin:5px 0;overflow:hidden;">';
+    // Header row — name + date
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.07);">'
+      +'<span style="font-size:13px;font-weight:700;color:#111827;">'+first.name+'</span>'
+      +'<span style="font-size:11px;color:#9ca3af;">'+dateStr+'</span>'
+      +'</div>';
+
+    // One row per item
+    entries.forEach(function(r) {
+      var safeTs       = String(r.ts).replace(/'/g,"\\'");
+      var isItemDone   = isReq && r.status === 'completed';
+      var itemColor    = isItemDone ? '#9ca3af' : (isReq ? '#15803d' : '#1d4ed8');
+      var timeStr      = new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+      var doneBadge    = isItemDone
+        ? ' <span style="font-size:10px;color:#9ca3af;">&#10003; '+new Date(r.completedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})+'</span>'
+        : '';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid rgba(0,0,0,.04);">'
+        +'<div style="flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+        +'<span style="font-size:12px;font-weight:600;color:'+itemColor+';">'+r.item+'</span>'
+        +'<span style="font-size:11px;color:#6b7280;">x'+r.qty+'</span>'
+        +(r.note?'<span style="font-size:11px;color:#9ca3af;font-style:italic;">'+r.note+'</span>':'')
+        +'<span style="font-size:10px;color:#d1d5db;">'+timeStr+'</span>'
+        +doneBadge
+        +'</div>'
+        +'<div style="display:flex;gap:4px;flex-shrink:0;">'
+        +(isReq && !isItemDone ? '<button onclick="completeSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;cursor:pointer;font-weight:700;">&#10003;</button>' : '')
+        +'<button onclick="openEditSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
+        +'<button onclick="deleteSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
+        +'</div>'
+        +'</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
   var received = sups.filter(function(r){ return r.reqType !== 'request'; });
   var requests = sups.filter(function(r){ return r.reqType === 'request'; });
   var supHtml = '';
   supHtml += '<p style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">&#9989; Received</p>';
-  supHtml += received.length ? received.map(buildSupplyRow).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
+  supHtml += received.length ? groupSupplies(received).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
   supHtml += '<p style="font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.06em;margin-top:14px;margin-bottom:4px;">&#128230; Requests</p>';
-  supHtml += requests.length ? requests.map(buildSupplyRow).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
+  supHtml += requests.length ? groupSupplies(requests).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
   document.getElementById('supplyList').innerHTML=supHtml;
 }
 
