@@ -1459,11 +1459,17 @@ function submitClockOut() {
     mileCell.style.display='';
   } else { mileCell.style.display='none'; }
   document.getElementById('clockOutSummaryModal').classList.add('open');
-  // Send clock-out email notification to admin
-  sendClockOutEmail(entry, hrs, finalMiles);
+  // Hold email until we know if a supply request is coming
+  _pendingClockOut = {entry: entry, hrs: hrs, miles: finalMiles};
 }
+var _pendingClockOut = null;
 function closeSummaryModal() {
   document.getElementById('clockOutSummaryModal').classList.remove('open');
+  // Send clock-out email now (no supply request was made)
+  if (_pendingClockOut) {
+    sendClockOutEmail(_pendingClockOut.entry, _pendingClockOut.hrs, _pendingClockOut.miles, null);
+    _pendingClockOut = null;
+  }
 }
 // Collection snap file handler
 function handleSnapFile(input) {
@@ -1744,12 +1750,14 @@ function submitSupplyRequest() {
     if (fbCfg.url) fbPut('supplies', ts, entry);
   });
   store.setJ(K.supplies, arr);
-  sendSupplyRequestEmail({
-    name: currentEmp?currentEmp.name:'Unknown',
-    items: rows,
-    note: note,
-    ts: now.toISOString()
-  });
+  // Merge supply items into the pending clock-out email (1 email total)
+  if (_pendingClockOut) {
+    sendClockOutEmail(_pendingClockOut.entry, _pendingClockOut.hrs, _pendingClockOut.miles, rows, note);
+    _pendingClockOut = null;
+  } else {
+    // Supply request submitted outside of clock-out flow — send standalone
+    sendSupplyRequestEmail({name:currentEmp?currentEmp.name:'Unknown', items:rows, note:note, ts:now.toISOString()});
+  }
   closeSupplyRequest();
   toast(rows.length > 1 ? rows.length+' items requested!' : 'Supply request sent to admin!');
 }
@@ -3595,7 +3603,7 @@ function sendClockInEmail(entry, photoDataUrl){
   });
 }
 
-function sendClockOutEmail(entry, hoursWorked, miles) {
+function sendClockOutEmail(entry, hoursWorked, miles, supplyItems, supplyNote) {
   var EJS_KEY      = 'BaAmtd4je5XVstCvH';
   var EJS_SERVICE  = 'service_t30r2d8';
   var EJS_TEMPLATE = 'template_jtdfx1a';
@@ -3616,27 +3624,38 @@ function sendClockOutEmail(entry, hoursWorked, miles) {
   if (miles !== null && miles !== undefined) {
     shiftSummary += ' · ' + Number(miles).toFixed(2) + ' miles driven';
   }
+  // Append supply request if present
+  var hasSupply = supplyItems && supplyItems.length > 0;
+  var fullNote = shiftSummary;
+  if (hasSupply) {
+    fullNote += '\n\n⚠️ SUPPLY REQUEST:\n'
+      + supplyItems.map(function(r){ return '• '+r.item+' × '+r.qty; }).join('\n')
+      + (supplyNote ? '\nNote: '+supplyNote : '');
+  }
+  var subject = hasSupply
+    ? 'Clock-Out + Supply Request — '+entry.name
+    : 'Clock-Out Summary — '+entry.name;
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
   emailjs.send(serviceId, templateId, {
     to_email:      notifEmail,
-    subject:       'Clock-Out Summary — '+entry.name,
+    subject:       subject,
     employee_name: entry.name,
     clock_time:    clockTime,
     facility:      (entry.facilities&&entry.facilities.length) ? entry.facilities.join(', ') : 'See Records',
-    note:          shiftSummary,
-    note_label:    'Shift Summary',
+    note:          fullNote,
+    note_label:    hasSupply ? 'Shift Summary + Supply Request' : 'Shift Summary',
     photo_label:   'Photo',
     kiosk_url:     kioskUrl,
     logo_url:      logoUrl,
     photo_note:    (entry.hasPhoto ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.'),
-    header_text:   'WorkTrail — Clock-Out Summary',
-    subtitle:      'has clocked out for the day.',
-    action_text:   'View the full shift details in the Records tab.',
+    header_text:   hasSupply ? 'WorkTrail — Clock-Out + Supply Request' : 'WorkTrail — Clock-Out Summary',
+    subtitle:      hasSupply ? 'has clocked out and submitted a supply request.' : 'has clocked out for the day.',
+    action_text:   hasSupply ? 'Review shift and supply request in the Records tab.' : 'View the full shift details in the Records tab.',
     approve_url:   kioskUrl,
     deny_url:      kioskUrl,
-    photo_html:    shiftSummary
+    photo_html:    fullNote
   }).then(function(){
     console.log('Clock-out notification sent for '+entry.name);
   }).catch(function(e){
