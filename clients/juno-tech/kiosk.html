@@ -394,37 +394,20 @@ video{object-fit:cover;transform:scaleX(-1);}
 <!-- ── SUPPLY MODAL ───────────────────────────────────── -->
 <div id="supplyWrap" class="m-sheet">
   <div class="m-bg" onclick="closeSupply()"></div>
-  <div class="relative w-full z-10 glass rounded-t-3xl p-6 space-y-4" style="max-width:520px;max-height:90vh;overflow-y:auto;">
-    <div class="flex items-center justify-between">
+  <div class="relative w-full z-10 glass rounded-t-3xl p-6" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-4">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;">RECEIVED</span>
         <h3 class="text-lg font-bold" style="color:#111827;">Supply Log</h3>
       </div>
       <button onclick="closeSupply()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
     </div>
-    <select id="supplyItem" class="inp sel">
-      <option value="">Select item…</option>
-      <option>Tiger Tubes</option>
-      <option>Alcohol Pads</option>
-      <option>RPP Swab</option>
-      <option>Sharps Container</option>
-      <option>Urine Container / Cups</option>
-      <option>Cotton Balls</option>
-      <option>Lab Coat</option>
-      <option>Hand Sanitizer</option>
-      <option>Lavender</option>
-      <option>Vacuette</option>
-      <option>Bandages</option>
-      <option>Label Roll</option>
-      <option>Exam Gloves</option>
-      <option>Butterfly 23G</option>
-      <option>Butterfly 21G</option>
-      <option>Centrifuge</option>
-      <option>Tourniquet</option>
-    </select>
-    <input id="supplyQty" type="text" inputmode="numeric" placeholder="Enter quantity…" class="inp">
-    <input id="supplyNote" type="text" placeholder="Notes (optional)…" class="inp">
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;">
+    <p style="font-size:12px;color:#1d4ed8;background:#eff6ff;border-radius:10px;padding:10px 12px;margin:0 0 12px;">Log supplies you have <strong>received</strong>. Add as many items as needed.</p>
+    <div id="supplyRows" style="margin-bottom:8px;"></div>
+    <button onclick="addSupplyRow('supplyRows','#93c5fd')" class="tap w-full py-2 rounded-xl text-sm font-semibold mb-3"
+      style="background:#eff6ff;color:#1d4ed8;border:1px dashed #93c5fd;cursor:pointer;">＋ Add Another Item</button>
+    <input id="supplyNote" type="text" placeholder="Notes (optional)…" class="inp mb-3">
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
       <p style="font-size:12px;color:#92400e;line-height:1.6;margin:0;">
         By clicking <strong>Confirm &amp; Submit</strong>, you certify that the items listed above have been received in the quantities described and that this information is accurate to the best of your knowledge.
       </p>
@@ -437,26 +420,19 @@ video{object-fit:cover;transform:scaleX(-1);}
 <!-- ── SUPPLY REQUEST MODAL (employee requests — orange) ── -->
 <div id="supplyRequestWrap" class="m-sheet">
   <div class="m-bg" onclick="closeSupplyRequest()"></div>
-  <div class="relative w-full z-10 rounded-t-3xl p-6 space-y-4" style="background:#fff7ed;max-width:520px;max-height:90vh;overflow-y:auto;">
-    <div class="flex items-center justify-between">
+  <div class="relative w-full z-10 rounded-t-3xl p-6" style="background:#fff7ed;max-width:520px;max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-4">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="background:#fed7aa;color:#c2410c;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;">REQUEST</span>
         <h3 class="text-lg font-bold" style="color:#111827;">Supply Request</h3>
       </div>
       <button onclick="closeSupplyRequest()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
     </div>
-    <p style="font-size:12px;color:#9a3412;background:#ffedd5;border-radius:10px;padding:10px 12px;margin:0;">Select items you need restocked. This request will be sent to the admin.</p>
-    <select id="supplyReqItem" class="inp sel" style="border-color:#fdba74;">
-      <option value="">Select item needed…</option>
-      <option>Tiger Tubes</option><option>Alcohol Pads</option><option>RPP Swab</option>
-      <option>Sharps Container</option><option>Urine Container / Cups</option><option>Cotton Balls</option>
-      <option>Lab Coat</option><option>Hand Sanitizer</option><option>Lavender</option>
-      <option>Vacuette</option><option>Bandages</option><option>Label Roll</option>
-      <option>Exam Gloves</option><option>Butterfly 23G</option><option>Butterfly 21G</option>
-      <option>Centrifuge</option><option>Tourniquet</option>
-    </select>
-    <input id="supplyReqQty" type="text" inputmode="numeric" placeholder="Quantity needed…" class="inp" style="border-color:#fdba74;">
-    <input id="supplyReqNote" type="text" placeholder="Notes (optional)…" class="inp" style="border-color:#fdba74;">
+    <p style="font-size:12px;color:#9a3412;background:#ffedd5;border-radius:10px;padding:10px 12px;margin:0 0 12px;">Select items you need restocked. Add as many as needed — this will be sent to admin.</p>
+    <div id="supplyReqRows" style="margin-bottom:8px;"></div>
+    <button onclick="addSupplyRow('supplyReqRows','#fdba74')" class="tap w-full py-2 rounded-xl text-sm font-semibold mb-3"
+      style="background:#fff7ed;color:#c2410c;border:1px dashed #fdba74;cursor:pointer;">＋ Add Another Item</button>
+    <input id="supplyReqNote" type="text" placeholder="Notes (optional)…" class="inp mb-3" style="border-color:#fdba74;">
     <button onclick="submitSupplyRequest()" class="tap w-full py-4 rounded-2xl font-semibold text-white"
       style="background:#f97316;border:none;cursor:pointer;">&#128230; Submit Request</button>
   </div>
@@ -1681,49 +1657,101 @@ function startCamera() {
 }
 
 /* ── supply ─────────────────────────────── */
-function openSupply()  { document.getElementById('supplyWrap').classList.add('open'); }
+/* ── shared supply item row helpers ────────────────────── */
+var SUPPLY_ITEMS = ['Tiger Tubes','Alcohol Pads','RPP Swab','Sharps Container',
+  'Urine Container / Cups','Cotton Balls','Lab Coat','Hand Sanitizer','Lavender',
+  'Vacuette','Bandages','Label Roll','Exam Gloves','Butterfly 23G','Butterfly 21G',
+  'Centrifuge','Tourniquet'];
+var _supRowIdx = 0;
+function _supplyOpts(placeholder) {
+  return '<option value="">'+placeholder+'</option>'
+    + SUPPLY_ITEMS.map(function(s){ return '<option>'+s+'</option>'; }).join('');
+}
+function addSupplyRow(containerId, accent) {
+  var id = 'sr'+(++_supRowIdx);
+  var isReq = containerId === 'supplyReqRows';
+  var div = document.createElement('div');
+  div.id = id;
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px;';
+  div.innerHTML = '<select class="inp sel srow-item" style="flex:2;border-color:'+accent+';font-size:13px;">'
+    +_supplyOpts(isReq ? 'Select item needed…' : 'Select item…')+'</select>'
+    +'<input type="text" inputmode="numeric" class="inp srow-qty" placeholder="Qty" style="flex:0 0 64px;border-color:'+accent+';text-align:center;">'
+    +'<button onclick="removeSupplyRow(\''+id+'\')" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;padding:0 2px;line-height:1;">&#10005;</button>';
+  document.getElementById(containerId).appendChild(div);
+}
+function removeSupplyRow(id) {
+  var row = document.getElementById(id);
+  if (!row) return;
+  if (row.parentNode.children.length <= 1) { toast('At least one item is required'); return; }
+  row.parentNode.removeChild(row);
+}
+function getSupplyRows(containerId) {
+  var rows = [];
+  document.getElementById(containerId).querySelectorAll('[id^="sr"]').forEach(function(row) {
+    var item = row.querySelector('.srow-item').value;
+    var qty  = row.querySelector('.srow-qty').value || '1';
+    if (item) rows.push({item:item, qty:qty});
+  });
+  return rows;
+}
+function _initSupplyRows(containerId, accent) {
+  var c = document.getElementById(containerId);
+  c.innerHTML = '';
+  addSupplyRow(containerId, accent);
+}
+
+function openSupply() {
+  _initSupplyRows('supplyRows', '#93c5fd');
+  document.getElementById('supplyNote').value = '';
+  document.getElementById('supplyWrap').classList.add('open');
+}
 function closeSupply() { document.getElementById('supplyWrap').classList.remove('open'); }
 function submitSupply() {
-  var item=document.getElementById('supplyItem').value;
-  var qty=document.getElementById('supplyQty').value||'1';
-  var note=document.getElementById('supplyNote').value.trim();
-  if (!item) { toast('Please select an item'); return; }
-  var entry={name:currentEmp?currentEmp.name:'Unknown',item:item,qty:qty,note:note,ts:new Date().toISOString(),reqType:'received'};
-  var arr=store.getJ(K.supplies,[]);
-  arr.push(entry);
-  store.setJ(K.supplies,arr);
-  if(fbCfg.url) fbPut('supplies', entry.ts, entry);
-  document.getElementById('supplyItem').value='';
-  document.getElementById('supplyQty').value='';
-  document.getElementById('supplyNote').value='';
-  closeSupply(); toast('Supply log submitted!');
+  var rows = getSupplyRows('supplyRows');
+  if (!rows.length) { toast('Please select at least one item'); return; }
+  var note = document.getElementById('supplyNote').value.trim();
+  var arr = store.getJ(K.supplies, []);
+  var now = new Date();
+  rows.forEach(function(r, i) {
+    var ts = new Date(now.getTime() + i).toISOString();
+    var entry = {name:currentEmp?currentEmp.name:'Unknown', item:r.item, qty:r.qty, note:note, ts:ts, reqType:'received'};
+    arr.push(entry);
+    if (fbCfg.url) fbPut('supplies', ts, entry);
+  });
+  store.setJ(K.supplies, arr);
+  closeSupply();
+  toast(rows.length > 1 ? rows.length+' items logged!' : 'Supply log submitted!');
 }
 
 /* ── supply request (employee requests restocking) ─────── */
 function openSupplyRequest() {
   closeSummaryModal();
-  document.getElementById('supplyReqItem').value='';
-  document.getElementById('supplyReqQty').value='';
-  document.getElementById('supplyReqNote').value='';
+  _initSupplyRows('supplyReqRows', '#fdba74');
+  document.getElementById('supplyReqNote').value = '';
   document.getElementById('supplyRequestWrap').classList.add('open');
 }
 function closeSupplyRequest() { document.getElementById('supplyRequestWrap').classList.remove('open'); }
 function submitSupplyRequest() {
-  var item=document.getElementById('supplyReqItem').value;
-  var qty=document.getElementById('supplyReqQty').value||'1';
-  var note=document.getElementById('supplyReqNote').value.trim();
-  if (!item) { toast('Please select an item'); return; }
-  var entry={name:currentEmp?currentEmp.name:'Unknown',item:item,qty:qty,note:note,ts:new Date().toISOString(),reqType:'request'};
-  var arr=store.getJ(K.supplies,[]);
-  arr.push(entry);
-  store.setJ(K.supplies,arr);
-  if(fbCfg.url) fbPut('supplies', entry.ts, entry);
-  // include in clock-out email
-  sendSupplyRequestEmail(entry);
-  document.getElementById('supplyReqItem').value='';
-  document.getElementById('supplyReqQty').value='';
-  document.getElementById('supplyReqNote').value='';
-  closeSupplyRequest(); toast('Supply request sent to admin!');
+  var rows = getSupplyRows('supplyReqRows');
+  if (!rows.length) { toast('Please select at least one item'); return; }
+  var note = document.getElementById('supplyReqNote').value.trim();
+  var arr = store.getJ(K.supplies, []);
+  var now = new Date();
+  rows.forEach(function(r, i) {
+    var ts = new Date(now.getTime() + i).toISOString();
+    var entry = {name:currentEmp?currentEmp.name:'Unknown', item:r.item, qty:r.qty, note:note, ts:ts, reqType:'request'};
+    arr.push(entry);
+    if (fbCfg.url) fbPut('supplies', ts, entry);
+  });
+  store.setJ(K.supplies, arr);
+  sendSupplyRequestEmail({
+    name: currentEmp?currentEmp.name:'Unknown',
+    items: rows,
+    note: note,
+    ts: now.toISOString()
+  });
+  closeSupplyRequest();
+  toast(rows.length > 1 ? rows.length+' items requested!' : 'Supply request sent to admin!');
 }
 
 /* ── admin login ─────────────────────────── */
@@ -3639,8 +3667,8 @@ function sendSupplyRequestEmail(entry) {
     employee_name: entry.name,
     clock_time:    reqTime,
     facility:      'Supply Request',
-    note:          entry.item + ' × ' + entry.qty + (entry.note ? ' — ' + entry.note : ''),
-    note_label:    'Item Requested',
+    note:          (entry.items ? entry.items.map(function(r){ return r.item+' × '+r.qty; }).join('\n') : entry.item+' × '+entry.qty) + (entry.note ? '\nNote: '+entry.note : ''),
+    note_label:    entry.items && entry.items.length > 1 ? 'Items Requested ('+entry.items.length+')' : 'Item Requested',
     photo_label:   '',
     kiosk_url:     kioskUrl,
     logo_url:      logoUrl,
