@@ -2296,8 +2296,8 @@ function _renderTablesImpl() {
     var html = '<div style="background:'+bg+';border:1px solid '+border+';border-radius:12px;margin:5px 0;overflow:hidden;">';
     // Header row — name + date
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.07);">'
-      +'<span style="font-size:13px;font-weight:700;color:#111827;">'+first.name+'</span>'
-      +'<span style="font-size:11px;color:#9ca3af;">'+dateStr+'</span>'
+      +'<span style="font-size:14px;font-weight:800;color:#111827;">'+first.name+'</span>'
+      +'<span style="font-size:12px;font-weight:600;color:#6b7280;">'+dateStr+'</span>'
       +'</div>';
 
     // One row per item
@@ -2311,10 +2311,9 @@ function _renderTablesImpl() {
         : '';
       html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid rgba(0,0,0,.04);">'
         +'<div style="flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-        +'<span style="font-size:12px;font-weight:600;color:'+itemColor+';">'+r.item+'</span>'
-        +'<span style="font-size:11px;color:#6b7280;">x'+r.qty+'</span>'
-        +(r.note?'<span style="font-size:11px;color:#9ca3af;font-style:italic;">'+r.note+'</span>':'')
-        +'<span style="font-size:10px;color:#d1d5db;">'+timeStr+'</span>'
+        +'<span style="font-size:13px;font-weight:700;color:'+itemColor+';">'+r.item+'</span>'
+        +'<span style="font-size:12px;font-weight:600;color:#374151;">x'+r.qty+'</span>'
+        +'<span style="font-size:11px;color:#9ca3af;">'+timeStr+'</span>'
         +doneBadge
         +'</div>'
         +'<div style="display:flex;gap:4px;flex-shrink:0;">'
