@@ -2222,7 +2222,14 @@ function _renderTablesImpl() {
   function buildSupplyRow(r) {
     var safeTs = String(r.ts).replace(/'/g,"\\'");
     var isReq = r.reqType === 'request';
-    return '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:'+(isReq?'#fff7ed':'#f8fafc')+';border:1px solid '+(isReq?'#fed7aa':'rgba(0,0,0,.05)')+';">'
+    var isCompleted = isReq && r.status === 'completed';
+    var completedBadge = isCompleted
+      ? '<span style="background:#d1fae5;color:#065f46;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">&#10003; Completed '
+        + new Date(r.completedAt).toLocaleString() + '</span>'
+      : '';
+    var bg    = isCompleted ? '#f0fdf4' : (isReq ? '#fff7ed' : '#f8fafc');
+    var border= isCompleted ? '#bbf7d0' : (isReq ? '#fed7aa' : 'rgba(0,0,0,.05)');
+    return '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:'+bg+';border:1px solid '+border+';">'
       +'<div style="flex:1;">'
       +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
       +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
@@ -2230,9 +2237,11 @@ function _renderTablesImpl() {
       +'<span style="color:#6b7280;font-size:11px;">x'+r.qty+'</span>'
       +'</div>'
       +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
+      +(completedBadge ? '<div style="margin-top:5px;">'+completedBadge+'</div>' : '')
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
       +'<span style="color:#9ca3af;font-size:11px;white-space:nowrap;">'+new Date(r.ts).toLocaleString()+'</span>'
+      +(isReq && !isCompleted ? '<button onclick="completeSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;cursor:pointer;font-weight:700;">&#10003; Complete</button>' : '')
       +'<button onclick="openEditSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
       +'<button onclick="deleteSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
       +'</div>'
@@ -3439,7 +3448,11 @@ function setApprovalStatus(ts, status) {
 
 function startApprovalPoll(ts) {
   stopApprovalPoll();
-  var pendingStart = new Date();
+  // Use the actual clock-in timestamp so the timer reflects real hours worked
+  var clockInEntry = store.getJ(K.timesheet, []).filter(function(e){
+    return e.type === 'in' && (!currentEmp || e.name === currentEmp.name);
+  }).sort(function(a, b){ return new Date(b.ts) - new Date(a.ts); })[0];
+  var pendingStart = clockInEntry ? new Date(clockInEntry.ts) : new Date();
   // Elapsed timer
   elapsedTimerID = setInterval(function(){
     var el = document.getElementById('pendingElapsed');
@@ -4333,6 +4346,29 @@ function deleteSupply(ts) {
   renderTables();
   logAdminAction('supply_delete', String(ts));
   toast('Supply entry deleted');
+}
+
+function completeSupply(ts) {
+  if (!confirm('Mark this supply request as completed?')) return;
+  var sups = store.getJ(K.supplies, []);
+  var completedAt = new Date().toISOString();
+  sups.forEach(function(s) {
+    if (String(s.ts) === String(ts)) {
+      s.status = 'completed';
+      s.completedAt = completedAt;
+    }
+  });
+  store.setJ(K.supplies, sups);
+  if (fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/supplies/'+tsToKey(ts)+'.json', {
+      method:'PATCH',
+      body: JSON.stringify({ status:'completed', completedAt: completedAt }),
+      headers:{'Content-Type':'application/json'}
+    }).catch(function(){});
+  }
+  renderTables();
+  logAdminAction('supply_complete', String(ts));
+  toast('Supply request marked as completed ✓');
 }
 
 function printPayroll() {
