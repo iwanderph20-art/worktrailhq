@@ -1731,7 +1731,9 @@ function submitSupply() {
 
 /* ── supply request (employee requests restocking) ─────── */
 function openSupplyRequest() {
-  closeSummaryModal();
+  // Close the summary modal WITHOUT sending the clock-out email yet —
+  // the email will be sent after the supply request is submitted (combined into 1)
+  document.getElementById('clockOutSummaryModal').classList.remove('open');
   _initSupplyRows('supplyReqRows', '#fdba74');
   document.getElementById('supplyReqNote').value = '';
   document.getElementById('supplyRequestWrap').classList.add('open');
