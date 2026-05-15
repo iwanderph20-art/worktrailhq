@@ -2138,6 +2138,10 @@ function _renderTablesImpl() {
           editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:500;">Edit '+tl+'</button> ';
           editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
         });
+        // Delete-all-day button — deletes every entry for this employee on this day
+        var allTsJson=JSON.stringify(raw.map(function(e){return String(e.ts);})).replace(/"/g,'&quot;');
+        var deleteDayBtn='<button onclick="deleteAllDayEntries(JSON.parse(this.dataset.ts))" data-ts="'+allTsJson+'"'
+          +' style="font-size:9px;padding:2px 10px;border-radius:4px;background:#7f1d1d;color:#fef2f2;border:none;cursor:pointer;font-weight:700;letter-spacing:.02em;">&#128465; Delete Day Log</button>';
 
         // Break summary text
         var breakSummaryText = breakCount
@@ -2201,7 +2205,7 @@ function _renderTablesImpl() {
             :'')
 
           // ── Edit/Delete row (tertiary)
-          +(editBtns?'<div style="padding:4px 14px 8px;display:flex;gap:4px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'</div>':'')
+          +(editBtns?'<div style="padding:4px 14px 8px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'<span style="flex:1;"></span>'+deleteDayBtn+'</div>':'')
           +'</div>'; // end employee card
       });
 
@@ -2224,16 +2228,17 @@ function _renderTablesImpl() {
     var isReq = r.reqType === 'request';
     var isCompleted = isReq && r.status === 'completed';
     var completedBadge = isCompleted
-      ? '<span style="background:#d1fae5;color:#065f46;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">&#10003; Completed '
+      ? '<span style="background:#e5e7eb;color:#6b7280;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;">&#10003; Completed '
         + new Date(r.completedAt).toLocaleString() + '</span>'
       : '';
-    var bg    = isCompleted ? '#f0fdf4' : (isReq ? '#fff7ed' : '#f8fafc');
-    var border= isCompleted ? '#bbf7d0' : (isReq ? '#fed7aa' : 'rgba(0,0,0,.05)');
+    // Pending requests = light green; completed requests = gray; received = light blue-gray
+    var bg    = isCompleted ? '#f9fafb' : (isReq ? '#f0fdf4' : '#f8fafc');
+    var border= isCompleted ? '#e5e7eb' : (isReq ? '#bbf7d0' : 'rgba(0,0,0,.05)');
     return '<div style="display:flex;align-items:start;gap:10px;padding:10px 12px;border-radius:10px;margin:3px 0;background:'+bg+';border:1px solid '+border+';">'
       +'<div style="flex:1;">'
       +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
       +'<span style="color:#111827;font-size:12px;font-weight:600;">'+r.name+'</span>'
-      +'<span style="color:'+(isReq?'#c2410c':'#1d4ed8')+';font-size:12px;">'+r.item+'</span>'
+      +'<span style="color:'+(isCompleted?'#9ca3af':isReq?'#15803d':'#1d4ed8')+';font-size:12px;">'+r.item+'</span>'
       +'<span style="color:#6b7280;font-size:11px;">x'+r.qty+'</span>'
       +'</div>'
       +(r.note ? '<p style="color:#6b7280;font-size:11px;font-style:italic;margin-top:2px;">'+r.note+'</p>' : '')
@@ -2337,6 +2342,48 @@ function deleteEntry(ts) {
   logAdminAction('DELETE', target
     ? (target.name+' — '+(TYPE_LABEL[target.type]||target.type)+' at '+new Date(target.ts).toLocaleString())
     : 'Entry at '+ts);
+  renderTables();
+}
+
+function deleteAllDayEntries(tsList) {
+  if (!tsList || !tsList.length) return;
+  if (!confirm('Delete ALL ' + tsList.length + ' entries for this employee\'s day log? This cannot be undone.')) return;
+  var records = store.getJ(K.timesheet, []);
+  var deleted  = store.getJ(K.deletedTs, []);
+  var tsSet    = {};
+  tsList.forEach(function(ts){ tsSet[String(ts)] = true; });
+
+  // Find entries to be deleted (for side-effects like pending approval)
+  var targets = records.filter(function(r){ return tsSet[String(r.ts)]; });
+
+  // Remove from local store and track as deleted
+  store.setJ(K.timesheet, records.filter(function(r){ return !tsSet[String(r.ts)]; }));
+  tsList.forEach(function(ts) {
+    if (deleted.indexOf(String(ts)) < 0) deleted.push(String(ts));
+  });
+  store.setJ(K.deletedTs, deleted);
+
+  // Push to Firebase
+  tsList.forEach(function(ts) {
+    if (fbCfg.url) {
+      fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(ts)+'.json',
+        {method:'PUT', body:JSON.stringify({ts:String(ts), deletedAt:new Date().toISOString()}),
+         headers:{'Content-Type':'application/json'}}).catch(function(){});
+    }
+    fbDeleteEntry('timesheet', ts);
+    deletePhoto(ts);
+  });
+
+  // Resolve any pending clock-in so the employee can clock in again
+  targets.forEach(function(t) {
+    if (t.type==='in' && t.approval==='pending') {
+      setApprovalStatus(t.ts, 'denied');
+      fbPutState(t.name, 'out', t.ts);
+    }
+  });
+
+  logAdminAction('DELETE_DAY', tsList.length + ' entries removed for ' + (targets[0] ? targets[0].name : 'employee'));
+  toast('Day log deleted (' + tsList.length + ' entries removed)');
   renderTables();
 }
 
