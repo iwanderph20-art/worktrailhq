@@ -540,6 +540,7 @@ video{object-fit:cover;transform:scaleX(-1);}
           <div class="flex items-center gap-3">
             <button onclick="refreshFromCloud()" class="text-xs font-semibold" style="color:#059669;background:none;border:none;cursor:pointer;">&#8635; Sync</button>
             <button onclick="expandAllDays()" class="text-xs" style="color:#1d4ed8;background:none;border:none;cursor:pointer;">Expand all</button>
+            <button onclick="openManualEntry()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#43; Add Entry</button>
           </div>
         </div>
         <div id="tsAccordion"></div>
@@ -804,6 +805,49 @@ video{object-fit:cover;transform:scaleX(-1);}
       <input type="hidden" id="editOrigTs">
       <button onclick="saveEditEntry()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-2"
         style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Log Entry Modal -->
+<div id="manualEntryWrap" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <p class="font-bold text-base" style="color:#111827;">&#43; Add Manual Log Entry</p>
+        <p style="font-size:11px;color:#9ca3af;margin-top:2px;">For employees who forgot or were unable to clock in/out</p>
+      </div>
+      <button onclick="closeManualEntry()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Employee</label>
+        <select id="manualEmpName" class="inp w-full mt-1" style="color:#111827;">
+          <option value="">— Select employee —</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Entry Type</label>
+        <select id="manualType" class="inp w-full mt-1" style="color:#111827;">
+          <option value="in">Clock In</option>
+          <option value="out">Clock Out</option>
+          <option value="break_start">Break Start</option>
+          <option value="break_end">Break End</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Date &amp; Time</label>
+        <input id="manualDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Reason / Note <span style="font-weight:400;color:#9ca3af;">(required)</span></label>
+        <input id="manualNote" type="text" placeholder="e.g. Employee forgot to clock in" class="inp w-full mt-1" style="color:#111827;">
+      </div>
+      <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;font-size:11px;color:#92400e;">
+        &#9888; Manual entries are flagged as admin-added and will appear with a &#128221; badge in the timesheet.
+      </div>
+      <button onclick="saveManualEntry()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-1"
+        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Add Entry</button>
     </div>
   </div>
 </div>
@@ -2137,6 +2181,8 @@ function _renderTablesImpl() {
         raw.forEach(function(e){
           var safeTs=String(e.ts).replace(/'/g,'');
           var tl=TYPE_LABEL[e.type]||e.type;
+          var manualBadge=e.manualEntry?'<span title="Manually added by admin" style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span> ':'';
+          editBtns+=manualBadge;
           editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:500;">Edit '+tl+'</button> ';
           editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
         });
@@ -2311,6 +2357,71 @@ function saveEditEntry() {
   closeEditEntry(); renderTables(); toast('Entry updated');
   updateStorageUsage();
 }
+/* ── Manual Log Entry ────────────────────── */
+function openManualEntry() {
+  // Populate employee dropdown
+  var emps = store.getJ(K.employees, []);
+  var sel  = document.getElementById('manualEmpName');
+  sel.innerHTML = '<option value="">— Select employee —</option>';
+  emps.forEach(function(e){
+    var opt = document.createElement('option');
+    opt.value = e.name;
+    opt.textContent = e.name;
+    sel.appendChild(opt);
+  });
+  // Default datetime to now
+  var now = new Date();
+  now.setSeconds(0,0);
+  var pad = function(n){ return String(n).padStart(2,'0'); };
+  var local = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())
+    +'T'+pad(now.getHours())+':'+pad(now.getMinutes());
+  document.getElementById('manualDatetime').value = local;
+  document.getElementById('manualNote').value = '';
+  document.getElementById('manualType').value = 'in';
+  document.getElementById('manualEntryWrap').style.display = 'flex';
+}
+function closeManualEntry() {
+  document.getElementById('manualEntryWrap').style.display = 'none';
+}
+function saveManualEntry() {
+  var empName = document.getElementById('manualEmpName').value.trim();
+  var type    = document.getElementById('manualType').value;
+  var rawDt   = document.getElementById('manualDatetime').value;
+  var note    = document.getElementById('manualNote').value.trim();
+  if (!empName) { toast('Select an employee'); return; }
+  if (!rawDt)   { toast('Select a date and time'); return; }
+  if (!note)    { toast('A reason is required for manual entries'); return; }
+
+  var emps = store.getJ(K.employees, []);
+  var emp  = emps.filter(function(e){ return e.name === empName; })[0] || {};
+
+  var entry = {
+    ts:          new Date(rawDt).toISOString(),
+    name:        empName,
+    type:        type,
+    note:        note,
+    approval:    type === 'in' ? 'approved' : undefined,
+    manualEntry: true,
+    addedBy:     'admin',
+    addedAt:     new Date().toISOString(),
+    facilities:  emp.facilities || [],
+    hasPhoto:    false
+  };
+  // Remove undefined keys
+  Object.keys(entry).forEach(function(k){ if(entry[k]===undefined) delete entry[k]; });
+
+  var arr = store.getJ(K.timesheet, []);
+  arr.push(entry);
+  store.setJ(K.timesheet, arr);
+  fbPut('timesheet', entry.ts, entry);
+
+  logAdminAction('MANUAL_ENTRY', empName+' — '+(TYPE_LABEL[type]||type)+' at '+new Date(rawDt).toLocaleString()+' | Reason: '+note);
+  closeManualEntry();
+  renderTables();
+  toast('Manual entry added for '+empName);
+  updateStorageUsage();
+}
+
 function deleteEntry(ts) {
   if (!confirm('Delete this log entry? This cannot be undone.')) return;
   var records = store.getJ(K.timesheet,[]);
