@@ -2054,7 +2054,11 @@ function _renderTablesImpl() {
       var dayEntries=byDate[d].sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
       var dateLabel=new Date(d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
       var isToday=(new Date(d).toDateString()===new Date().toDateString());
-      var hasPending=dayEntries.some(function(e){return e.type==='in'&&e.approval==='pending';});
+      // Only flag as pending if there is no clock-out AFTER the pending clock-in
+      var hasPending=dayEntries.some(function(e){
+        if(e.type!=='in'||e.approval!=='pending') return false;
+        return !dayEntries.some(function(o){ return o.type==='out' && new Date(o.ts)>new Date(e.ts); });
+      });
 
       // Group raw entries by employee name
       var empGroups={};
@@ -2092,9 +2096,24 @@ function _renderTablesImpl() {
           if(e.type==='out' && clockInE && e._d > clockInE._d) clockOutE = e;
         });
 
-        // ── Find any pending entry — needed even when it isn't the last in
+        // ── Find any truly-pending entry: pending clock-in with NO clock-out after it
         var pendingEntry = null;
-        allIns.forEach(function(e){ if(e.approval==='pending') pendingEntry = e; });
+        allIns.forEach(function(e){
+          if(e.approval!=='pending') return;
+          var hasClockOutAfter = emp.some(function(o){ return o.type==='out' && o._d > new Date(e.ts); });
+          if(!hasClockOutAfter) pendingEntry = e;
+          else {
+            // Auto-approve stale pending clock-in that already has a clock-out
+            e.approval = 'approved';
+            var ts2 = store.getJ(K.timesheet,[]);
+            ts2.forEach(function(r){ if(String(r.ts)===String(e.ts)) r.approval='approved'; });
+            store.setJ(K.timesheet, ts2);
+            if(fbCfg.url) fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(e.ts)+'.json',{
+              method:'PATCH', body:JSON.stringify({approval:'approved'}),
+              headers:{'Content-Type':'application/json'}
+            }).catch(function(){});
+          }
+        });
 
         var sessions=buildSessions(emp);
         // Use the last complete session for stats; running clock if still in
