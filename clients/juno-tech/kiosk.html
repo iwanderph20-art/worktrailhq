@@ -1344,7 +1344,8 @@ function renderQFacGrid() {
     var bg  = isSel ? '#1a2b8c' : '#f9fafb';
     var col = isSel ? '#fff' : '#374151';
     var brd = isSel ? '#1a2b8c' : '#e5e7eb';
-    var icon = isJuno ? '&#127970;' : (f.indexOf('ALF')>=0 ? '&#127968;' : f==='Others' ? '&#128205;' : '&#128300;');
+    var isLab = (f==='Juno Tech Lab' || f==='SDI Lab');
+    var icon = isLab ? '&#128300;' : (f==='Others' ? '&#128205;' : '&#127968;');
     html += '<button onclick="selectQFac(\''+f.replace(/\'/g,"\\'")+'\',this)" class="tap" style="'
       +'padding:14px 6px;border-radius:16px;text-align:center;border:2px solid '+brd+';'
       +'background:'+bg+';color:'+col+';cursor:pointer;transition:all .15s;'
@@ -2840,7 +2841,8 @@ function repairPhotoSync() {
 var FACILITIES = [
   'Leisure Garden ALF','Springfield Manor ALF','FairOaks Manor ALF',
   'Rosewood ALF','SDI Lab','Sunshine ALF','Juno Tech Lab',
-  'Amberkare Home Health','Golden ALF','Others'
+  'Amberkare Home Health','Golden ALF',
+  'Anew Direction Adult Living','Westside Manor','Parview Manor','Gilmar Manor','Others'
 ];
 var selectedFacilities = [];
 function renderFacilityPills() {
