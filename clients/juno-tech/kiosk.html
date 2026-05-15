@@ -1779,6 +1779,8 @@ document.getElementById('adminLoginBtn').addEventListener('click', function() {
   var stored = store.get(K.adminHash) || DEFAULT_HASH;
   if (hashPwd(input)===stored) {
     closeAdminLogin(); show('adminView');
+    purgeOldRecords();    // silently remove records >90 days old
+    checkPurgeWarning();  // email admin if any records expire within 7 days
     renderTables(); // immediate render from localStorage so screen isn't blank
     renderKioskUrl(); updateStorageUsage();
     if (fbCfg.url) {
@@ -3818,6 +3820,117 @@ function deletePhoto(ts) {
       var tx=photoDB.transaction('photos','readwrite');
       tx.objectStore('photos').delete(String(ts));
     } catch(e){}
+  });
+}
+
+/* ── 90-Day Compliance Auto-Purge ─────────── */
+function purgeOldRecords() {
+  var NINETY = 90 * 24 * 60 * 60 * 1000;
+  var cutoff = new Date(Date.now() - NINETY);
+
+  // ── Timesheet ──
+  var ts    = store.getJ(K.timesheet, []);
+  var old   = ts.filter(function(r){ return new Date(r.ts) < cutoff; });
+  var kept  = ts.filter(function(r){ return new Date(r.ts) >= cutoff; });
+  if (old.length) {
+    store.setJ(K.timesheet, kept);
+    var deleted = store.getJ(K.deletedTs, []);
+    old.forEach(function(r){
+      var key = String(r.ts);
+      if (deleted.indexOf(key) < 0) deleted.push(key);
+      fbDeleteEntry('timesheet', r.ts);
+      deletePhoto(r.ts);
+      if (fbCfg.url) {
+        fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(r.ts)+'.json',{
+          method:'PUT',
+          body:JSON.stringify({ts:key, deletedAt:new Date().toISOString()}),
+          headers:{'Content-Type':'application/json'}
+        }).catch(function(){});
+      }
+    });
+    store.setJ(K.deletedTs, deleted);
+  }
+
+  // ── Supplies ──
+  var sups    = store.getJ(K.supplies, []);
+  var oldSups = sups.filter(function(r){ return new Date(r.ts) < cutoff; });
+  var keptSups= sups.filter(function(r){ return new Date(r.ts) >= cutoff; });
+  if (oldSups.length) {
+    store.setJ(K.supplies, keptSups);
+    oldSups.forEach(function(r){ fbDeleteEntry('supplies', r.ts); });
+  }
+
+  var total = old.length + oldSups.length;
+  if (total > 0) {
+    logAdminAction('AUTO_PURGE', total + ' records older than 90 days purged (compliance)');
+    toast('🗑 Auto-purge: ' + total + ' old records removed (90-day compliance)');
+  }
+}
+
+/* Sends a warning email once per week when records are 7 days away from purge */
+function checkPurgeWarning() {
+  var WARN_MS   = 83 * 24 * 60 * 60 * 1000; // 83 days → 7 days left
+  var NINETY_MS = 90 * 24 * 60 * 60 * 1000;
+  var now       = Date.now();
+  var warnCutoff  = new Date(now - WARN_MS);
+  var purgeCutoff = new Date(now - NINETY_MS);
+
+  var ts   = store.getJ(K.timesheet, []);
+  var sups = store.getJ(K.supplies, []);
+
+  var expTs   = ts.filter(function(r){ var d=new Date(r.ts); return d<warnCutoff && d>=purgeCutoff; });
+  var expSups = sups.filter(function(r){ var d=new Date(r.ts); return d<warnCutoff && d>=purgeCutoff; });
+  var total   = expTs.length + expSups.length;
+  if (!total) return;
+
+  // Only send once per 7-day window
+  var lastWarn = store.get('jtl_purge_warn_sent');
+  if (lastWarn && (now - new Date(lastWarn)) < 7*24*60*60*1000) return;
+
+  // Build details
+  var purgeOn = new Date(now + 7*24*60*60*1000).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  var empMap  = {};
+  expTs.forEach(function(r){ if(r.name) empMap[r.name]=true; });
+  var empList = Object.keys(empMap).join(', ') || 'N/A';
+  var allDates= expTs.concat(expSups).map(function(r){ return new Date(r.ts); }).sort(function(a,b){return a-b;});
+  var earliest= allDates.length ? allDates[0].toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '';
+  var kioskUrl= window.location.origin+window.location.pathname+'?admin&records=1';
+  if(fbCfg.url) kioskUrl+='&fb='+encodeURIComponent(fbCfg.url);
+
+  var EJS_KEY      = 'BaAmtd4je5XVstCvH';
+  var EJS_SERVICE  = 'service_t30r2d8';
+  var EJS_TEMPLATE = 'template_jtdfx1a';
+  var cfg = store.getJ(EJS_STORAGE,{});
+  var publicKey  = cfg.publicKey  || EJS_KEY;
+  var serviceId  = cfg.serviceId  || EJS_SERVICE;
+  var templateId = cfg.templateId || EJS_TEMPLATE;
+  var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
+  var logoUrl    = window.location.origin+window.location.pathname.replace(/\/[^/]*$/,'/logo.png');
+
+  try{ emailjs.init({publicKey:publicKey}); }catch(e){}
+  emailjs.send(serviceId, templateId, {
+    to_email:      notifEmail,
+    subject:       '⚠️ Data Purge Warning — '+total+' Records Expire in 7 Days',
+    employee_name: 'Admin',
+    clock_time:    new Date().toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}),
+    facility:      'Juno Tech Laboratory Kiosk',
+    note:          total+' records ('+expTs.length+' timesheet, '+expSups.length+' supply logs) dated '+earliest+' will be permanently deleted on '+purgeOn+' under the 90-day compliance policy. Employees: '+empList+'. Log in to Admin › Payroll to download reports before they are gone.',
+    note_label:    'Records Expiring Soon',
+    photo_label:   'Action Required',
+    kiosk_url:     kioskUrl,
+    logo_url:      logoUrl,
+    photo_note:    'Download payroll/timesheet reports before '+purgeOn,
+    header_text:   'WorkTrail — Data Purge Warning',
+    subtitle:      'has records expiring in 7 days.',
+    action_text:   'Log in to Admin › Payroll to generate and download reports for records from '+earliest+' before they are permanently deleted on '+purgeOn+'.',
+    approve_url:   kioskUrl,
+    deny_url:      kioskUrl,
+    photo_html:    '<strong>Expiring records:</strong> '+total+' total ('+expTs.length+' timesheet entries, '+expSups.length+' supply logs)'
+  }).then(function(){
+    store.set('jtl_purge_warn_sent', new Date().toISOString());
+    console.log('Purge warning email sent — '+total+' records expiring soon');
+  }).catch(function(e){
+    console.error('Purge warning email error:', JSON.stringify(e));
   });
 }
 
