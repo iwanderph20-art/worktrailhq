@@ -2087,8 +2087,12 @@ function _renderTablesImpl() {
           +(isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:6px;">Today</span>':'')+'</p>'
         +'<p class="text-xs mt-0.5" style="color:#6b7280;">'+empNames.length+' employee'+(empNames.length!==1?'s':'')+' &middot; '+dayEntries.length+' entries'
           +(hasPending?' &middot; <span style="color:#d97706;font-weight:600;">&#9679; Pending Approval</span>':'')+'</p>'
-        +(empNames.length?'<p class="text-xs mt-1" style="color:#374151;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">&#128100; '+empNames.join(' &middot; ')+'</p>':'')
-        +(dayFacs.length?'<p class="text-xs mt-0.5" style="color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">&#128205; '+dayFacs.join(' &middot; ')+'</p>':'')
+        +(empNames.length||dayFacs.length
+          ? '<div id="qv-'+bodyId+'" style="'+(autoOpen?'display:none;':'')+'">'
+            +(empNames.length?'<p class="text-xs mt-1" style="color:#374151;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">&#128100; '+empNames.join(' &middot; ')+'</p>':'')
+            +(dayFacs.length?'<p class="text-xs mt-0.5" style="color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">&#128205; '+dayFacs.join(' &middot; ')+'</p>':'')
+            +'</div>'
+          : '')
         +'</div>'
         +'<span id="'+arrowId+'" class="acc-arrow'+(autoOpen?' open':'')+'">&#9660;</span>'
         +'</div>'
@@ -2400,14 +2404,10 @@ function _renderTablesImpl() {
         +'</div>'
         +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'')+'" style="padding:4px 0 10px;">';
 
-      if (received.length) {
-        html+='<p style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px;">&#9989; Received</p>';
-        html+=groupSupplies(received).map(buildSupplyGroup).join('');
-      }
-      if (requests.length) {
-        html+='<p style="font-size:10px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.06em;margin:'+(received.length?'12px':'8px')+' 0 4px;">&#128230; Requests</p>';
-        html+=groupSupplies(requests).map(buildSupplyGroup).join('');
-      }
+      html+='<p style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px;">&#9989; Received</p>';
+      html+=received.length ? groupSupplies(received).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:4px 0;">None.</p>';
+      html+='<p style="font-size:10px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px;">&#128230; Requests</p>';
+      html+=requests.length ? groupSupplies(requests).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:4px 0;">None.</p>';
       html+='</div></div>';
     });
     return html;
@@ -2611,6 +2611,9 @@ function toggleAcc(bodyId, arrowId) {
   if (!body) return;
   body.classList.toggle('open');
   if(arrow) arrow.classList.toggle('open');
+  // Hide quick-view summary when expanded, show when collapsed
+  var qv=document.getElementById('qv-'+bodyId);
+  if(qv) qv.style.display = body.classList.contains('open') ? 'none' : '';
 }
 function expandAllDays() {
   document.querySelectorAll('.acc-body').forEach(function(b){ b.classList.add('open'); });
