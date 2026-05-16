@@ -546,7 +546,10 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div id="tsAccordion"></div>
       </div>
       <div class="rcard">
-        <p class="text-sm font-semibold mb-3" style="color:#374151;">Supply Log</p>
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-sm font-semibold" style="color:#374151;">Supply Log</p>
+          <button onclick="expandAllSupply()" class="text-xs" style="color:#1d4ed8;background:none;border:none;cursor:pointer;">Expand all</button>
+        </div>
         <div id="supplyList"></div>
       </div>
       <div class="rcard">
@@ -2065,17 +2068,27 @@ function _renderTablesImpl() {
       dayEntries.forEach(function(e){ if(!empGroups[e.name]) empGroups[e.name]=[]; empGroups[e.name].push(e); });
       var empNames=Object.keys(empGroups);
 
+      // Collect unique facilities across all employees for that day
+      var facSet={};
+      dayEntries.forEach(function(e){
+        if(e.type==='in' && e.facilities && e.facilities.length)
+          e.facilities.forEach(function(f){ if(f) facSet[f]=true; });
+      });
+      var dayFacs=Object.keys(facSet);
+
       var bodyId='acc-body-'+idx;
       var arrowId='acc-arrow-'+idx;
       var autoOpen=(idx===0||isToday||hasPending);
 
       accHtml += '<div style="border-bottom:1px solid rgba(0,0,0,.06);">'
         +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')">'
-        +'<div>'
+        +'<div style="flex:1;min-width:0;">'
         +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel
           +(isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:6px;">Today</span>':'')+'</p>'
         +'<p class="text-xs mt-0.5" style="color:#6b7280;">'+empNames.length+' employee'+(empNames.length!==1?'s':'')+' &middot; '+dayEntries.length+' entries'
           +(hasPending?' &middot; <span style="color:#d97706;font-weight:600;">&#9679; Pending Approval</span>':'')+'</p>'
+        +(empNames.length?'<p class="text-xs mt-1" style="color:#374151;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">&#128100; '+empNames.join(' &middot; ')+'</p>':'')
+        +(dayFacs.length?'<p class="text-xs mt-0.5" style="color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">&#128205; '+dayFacs.join(' &middot; ')+'</p>':'')
         +'</div>'
         +'<span id="'+arrowId+'" class="acc-arrow'+(autoOpen?' open':'')+'">&#9660;</span>'
         +'</div>'
@@ -2346,14 +2359,61 @@ function _renderTablesImpl() {
     return html;
   }
 
-  var received = sups.filter(function(r){ return r.reqType !== 'request'; });
-  var requests = sups.filter(function(r){ return r.reqType === 'request'; });
-  var supHtml = '';
-  supHtml += '<p style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">&#9989; Received</p>';
-  supHtml += received.length ? groupSupplies(received).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
-  supHtml += '<p style="font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.06em;margin-top:14px;margin-bottom:4px;">&#128230; Requests</p>';
-  supHtml += requests.length ? groupSupplies(requests).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:8px 0;">None yet.</p>';
-  document.getElementById('supplyList').innerHTML=supHtml;
+  // Build supply accordion grouped by date, each date contains RECEIVED + REQUESTS
+  function buildSupplyDateAccordion(allSups, dateIdx) {
+    if (!allSups.length) return '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:24px 0;">No supply records yet.</p>';
+
+    // Group all entries by day, newest first
+    var byDay={}, dayOrder=[];
+    allSups.forEach(function(r){
+      var day=new Date(r.ts).toDateString();
+      if(!byDay[day]){ byDay[day]=[]; dayOrder.push(day); }
+      byDay[day].push(r);
+    });
+    dayOrder.sort(function(a,b){ return new Date(b)-new Date(a); });
+
+    var html='';
+    dayOrder.forEach(function(day, i){
+      var dayEntries=byDay[day];
+      var dateLabel=new Date(day).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      var isToday=(new Date(day).toDateString()===new Date().toDateString());
+      var received=dayEntries.filter(function(r){ return r.reqType!=='request'; });
+      var requests=dayEntries.filter(function(r){ return r.reqType==='request'; });
+      var hasPendingReq=requests.some(function(r){ return r.status!=='completed'; });
+      var bodyId='sup-acc-body-'+dateIdx+'-'+i;
+      var arrowId='sup-acc-arrow-'+dateIdx+'-'+i;
+      var autoOpen=(i===0||isToday);
+
+      html += '<div style="border-bottom:1px solid rgba(0,0,0,.06);">'
+        +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')" style="padding:10px 4px;">'
+        +'<div>'
+        +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel
+          +(isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:6px;">Today</span>':'')+'</p>'
+        +'<p class="text-xs mt-0.5" style="color:#6b7280;">'
+          +(received.length?received.length+' received':'')
+          +(received.length&&requests.length?' &middot; ':'')
+          +(requests.length?requests.length+' request'+(requests.length!==1?'s':''):'')
+          +(hasPendingReq?' &middot; <span style="color:#d97706;font-weight:600;">&#9679; Pending</span>':'')
+        +'</p>'
+        +'</div>'
+        +'<span id="'+arrowId+'" class="acc-arrow'+(autoOpen?' open':'')+'">&#9660;</span>'
+        +'</div>'
+        +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'')+'" style="padding:4px 0 10px;">';
+
+      if (received.length) {
+        html+='<p style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px;">&#9989; Received</p>';
+        html+=groupSupplies(received).map(buildSupplyGroup).join('');
+      }
+      if (requests.length) {
+        html+='<p style="font-size:10px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.06em;margin:'+(received.length?'12px':'8px')+' 0 4px;">&#128230; Requests</p>';
+        html+=groupSupplies(requests).map(buildSupplyGroup).join('');
+      }
+      html+='</div></div>';
+    });
+    return html;
+  }
+
+  document.getElementById('supplyList').innerHTML = buildSupplyDateAccordion(sups, 0);
 }
 
 /* ── edit/delete entries ─────────────────── */
@@ -2555,6 +2615,10 @@ function toggleAcc(bodyId, arrowId) {
 function expandAllDays() {
   document.querySelectorAll('.acc-body').forEach(function(b){ b.classList.add('open'); });
   document.querySelectorAll('.acc-arrow').forEach(function(a){ a.classList.add('open'); });
+}
+function expandAllSupply() {
+  document.querySelectorAll('[id^="sup-acc-body-"]').forEach(function(b){ b.classList.add('open'); });
+  document.querySelectorAll('[id^="sup-acc-arrow-"]').forEach(function(a){ a.classList.add('open'); });
 }
 function openPhoto(src, caption) {
   document.getElementById('photoLightboxImg').src=src;
