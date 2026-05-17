@@ -313,6 +313,21 @@ video{object-fit:cover;transform:scaleX(-1);}
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
       </svg>
     </button>
+    <button onclick="openEmpLogs()" class="tap w-full glass rounded-3xl px-6 py-5 flex items-center gap-4"
+      style="border:none;cursor:pointer;text-align:left;">
+      <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#f0fdf4;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#15803d" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+        </svg>
+      </div>
+      <div>
+        <p class="font-semibold" style="color:#111827;">My Logs</p>
+        <p class="text-sm" style="color:#9ca3af;">View your previous shift history</p>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" class="ml-auto flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#d1d5db" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+      </svg>
+    </button>
     <!-- Camera capture panel (camera-only, no facility/note here) -->
     <div id="camWrap" class="glass rounded-3xl px-6 py-5 flex-col items-center gap-3" style="display:none;">
       <p id="camTitle" class="text-base font-semibold text-center" style="color:#111827;">Show your work area</p>
@@ -933,9 +948,28 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-xs mt-1" style="color:#c4b5fd;">Miles Tracked</p>
       </div>
     </div>
+    <p class="text-xs mb-4" style="color:#9ca3af;line-height:1.5;">Your shift summary has been submitted and will be reviewed by admin.</p>
     <button onclick="openSupplyRequest()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#f97316;color:#fff;border:none;cursor:pointer;">&#128230; Request Supplies</button>
     <button onclick="closeSummaryModal()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Done</button>
   </div>
+</div>
+
+<!-- ── EMPLOYEE LOGS MODAL ────────────────────────── -->
+<div id="empLogsModal" style="position:fixed;inset:0;z-index:200;display:none;flex-direction:column;background:#f9fafb;">
+  <header style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);flex-shrink:0;">
+    <div class="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+      <button onclick="closeEmpLogs()" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:10px;color:#6b7280;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div style="flex:1;">
+        <p id="empLogsTitle" class="font-bold text-base" style="color:#111827;">My Logs</p>
+        <p id="empLogsSubtitle" class="text-xs" style="color:#9ca3af;">Your shift history</p>
+      </div>
+    </div>
+  </header>
+  <div id="empLogsBody" class="max-w-lg mx-auto w-full px-4 py-4 overflow-y-auto" style="flex:1;"></div>
 </div>
 
 <!-- ── LOCATION REQUIRED MODAL ────────────────────────── -->
@@ -1283,11 +1317,6 @@ function renderEmpState() {
 /* ── clock in/out ───────────────────────── */
 function handleClock() {
   pendingAction = (clockState==='out') ? 'in' : 'out';
-  // Block clock-out if clock-in is still pending admin approval
-  if (pendingAction === 'out' && clockState === 'pending') {
-    toast('You cannot clock out until your clock-in is approved by admin.', 4000);
-    return;
-  }
   // Location is required — show blocking modal if not yet granted
   if (!currentLocation) {
     openLocationModal();
@@ -1848,6 +1877,102 @@ function _initSupplyRows(containerId, accent) {
   var c = document.getElementById(containerId);
   c.innerHTML = '';
   addSupplyRow(containerId, accent);
+}
+
+function openEmpLogs() {
+  if (!currentEmp) return;
+  var modal = document.getElementById('empLogsModal');
+  document.getElementById('empLogsTitle').textContent = 'My Logs';
+  document.getElementById('empLogsSubtitle').textContent = currentEmp.name + ' — Shift History';
+  modal.style.display = 'flex';
+  renderEmpLogs();
+}
+function closeEmpLogs() {
+  document.getElementById('empLogsModal').style.display = 'none';
+}
+function renderEmpLogs() {
+  if (!currentEmp) return;
+  var body = document.getElementById('empLogsBody');
+  var allEntries = store.getJ(K.timesheet, [])
+    .filter(function(e) { return e.name === currentEmp.name; })
+    .map(function(e) { return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],mileage:e.mileage!=null?e.mileage:null}; })
+    .sort(function(a,b) { return a._d - b._d; });
+  var sessions = buildSessions(allEntries);
+  if (!sessions.length) {
+    body.innerHTML = '<div style="text-align:center;padding:48px 16px;">'
+      +'<div style="width:56px;height:56px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">'
+      +'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
+      +'</div>'
+      +'<p class="font-semibold text-sm" style="color:#374151;">No completed shifts yet</p>'
+      +'<p class="text-xs mt-1" style="color:#9ca3af;">Your shift history will appear here after your first clock-out.</p>'
+      +'</div>';
+    return;
+  }
+  // Summary banner
+  var totalNetMs = 0, totalMi = 0, totalDays = {};
+  sessions.forEach(function(s) {
+    totalNetMs += s.netMs;
+    if (s.mileage != null) totalMi += s.mileage;
+    totalDays[s.inTime.toDateString()] = 1;
+  });
+  var totalNetHrs = (totalNetMs / 3600000).toFixed(2);
+  var daysCount = Object.keys(totalDays).length;
+  var html = '<div style="background:linear-gradient(135deg,#1a2b8c 0%,#3b52d4 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
+    +'<p style="color:rgba(255,255,255,.75);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">All Time</p>'
+    +'<p style="color:#fff;font-size:42px;font-weight:800;line-height:1;margin-bottom:4px;">'+totalNetHrs+'</p>'
+    +'<p style="color:rgba(255,255,255,.75);font-size:13px;font-weight:600;margin-bottom:16px;">cumulative net hours</p>'
+    +'<div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">'
+    +'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+daysCount+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">day'+(daysCount===1?'':'s')+' worked</p></div>'
+    +'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+sessions.length+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">session'+(sessions.length===1?'':'s')+'</p></div>'
+    +(totalMi>0?'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+totalMi.toFixed(1)+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">mi driven</p></div>':'')
+    +'</div>'
+    +'</div>';
+  // Group sessions by date
+  var byDate = {};
+  sessions.forEach(function(s) {
+    var dk = s.inTime.toDateString();
+    if (!byDate[dk]) byDate[dk] = [];
+    byDate[dk].push(s);
+  });
+  var dateKeys = Object.keys(byDate).sort(function(a,b){ return new Date(b)-new Date(a); });
+  var fmtT = function(d) { return d ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—'; };
+  var fmtDate = function(d) { return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
+  dateKeys.forEach(function(dk) {
+    var daySessions = byDate[dk];
+    var dayNetMs = 0, dayMi = 0;
+    daySessions.forEach(function(s){ dayNetMs += s.netMs; if(s.mileage!=null) dayMi += s.mileage; });
+    html += '<div style="background:#fff;border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+      +'<p class="text-xs font-bold" style="color:#374151;">'+fmtDate(daySessions[0].inTime)+'</p>'
+      +'<div style="display:flex;gap:8px;align-items:center;">'
+      +'<span style="font-size:11px;font-weight:700;color:#15803d;background:#f0fdf4;padding:2px 8px;border-radius:99px;">'+(dayNetMs/3600000).toFixed(2)+' hrs</span>'
+      +(dayMi>0?'<span style="font-size:11px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 8px;border-radius:99px;">'+dayMi.toFixed(1)+' mi</span>':'')
+      +'</div>'
+      +'</div>';
+    daySessions.forEach(function(sess, si) {
+      var netH = (sess.netMs/3600000).toFixed(2);
+      var mealMin = Math.round((sess.mealMs||0)/60000);
+      var fac = (sess.facilities&&sess.facilities.length) ? sess.facilities.join(', ') : 'Not specified';
+      var breakSummary = '';
+      if (sess.breaks&&sess.breaks.length) {
+        breakSummary = sess.breaks.map(function(b){ return (b.btype==='meal'?'&#127859;':'&#9749;')+' '+Math.round(b.durationMs/60000)+'min '+(b.btype==='meal'?'meal':'rest'); }).join(' &nbsp; ');
+      }
+      if (sess.waivers&&sess.waivers.length) breakSummary += (breakSummary?' &nbsp; ':'')+'&#9989; meal waived';
+      if (!breakSummary) breakSummary = '<span style="color:#9ca3af;">No breaks</span>';
+      if (si > 0) html += '<div style="border-top:1px solid #f3f4f6;margin:8px 0;"></div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;">'
+        +'<div><p class="text-xs" style="color:#9ca3af;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtT(sess.inTime)+'</p></div>'
+        +'<div><p class="text-xs" style="color:#9ca3af;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+(sess.outTime?fmtT(sess.outTime):'Not recorded')+'</p></div>'
+        +'<div><p class="text-xs" style="color:#9ca3af;">Facility</p><p class="text-xs font-semibold" style="color:#374151;">'+fac+'</p></div>'
+        +'<div><p class="text-xs" style="color:#9ca3af;">Net Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+' hrs</p></div>'
+        +(sess.mileage!=null?'<div><p class="text-xs" style="color:#9ca3af;">Mileage</p><p class="text-xs font-bold" style="color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
+        +(mealMin>0?'<div><p class="text-xs" style="color:#9ca3af;">Meal Break (unpaid)</p><p class="text-xs font-semibold" style="color:#c2410c;">'+mealMin+' min</p></div>':'')
+        +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#9ca3af;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
+        +'</div>';
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html;
 }
 
 function openSupply() {
