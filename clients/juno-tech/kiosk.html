@@ -368,8 +368,24 @@ video{object-fit:cover;transform:scaleX(-1);}
           </button>
         </div>
         <div id="qMileageWrap" style="display:none;">
-          <div class="mt-3 rounded-2xl px-4 py-3" style="background:#f5f3ff;border:1px solid #ddd6fe;">
-            <p class="text-xs font-semibold" style="color:#7c3aed;">&#128205; GPS mileage tracking will start when you clock in and automatically stop when you clock out.</p>
+          <p class="text-sm font-semibold mt-4 mb-2" style="color:#111827;">Trip Type</p>
+          <p class="text-xs mb-3" style="color:#9ca3af;">Will you return to Juno Tech Lab after your visit?</p>
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <button onclick="setTripType('ONE_WAY')" id="qTripOneWay" class="tap py-4 rounded-2xl font-semibold text-sm"
+              style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">
+              <div style="font-size:20px;margin-bottom:4px;">&#10145;</div>
+              <div>One-Way</div>
+              <div style="font-size:10px;font-weight:400;margin-top:2px;color:#9ca3af;">Ends at patient site</div>
+            </button>
+            <button onclick="setTripType('ROUND_TRIP')" id="qTripRoundTrip" class="tap py-4 rounded-2xl font-semibold text-sm"
+              style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">
+              <div style="font-size:20px;margin-bottom:4px;">&#8634;</div>
+              <div>Round Trip</div>
+              <div style="font-size:10px;font-weight:400;margin-top:2px;color:#9ca3af;">Returns to lab</div>
+            </button>
+          </div>
+          <div id="qTripNote" style="display:none;" class="rounded-2xl px-4 py-3" style="background:#f5f3ff;border:1px solid #ddd6fe;">
+            <p id="qTripNoteText" class="text-xs font-semibold" style="color:#7c3aed;"></p>
           </div>
         </div>
       </div>
@@ -685,7 +701,7 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="runPayroll()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
             style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Calculate Payroll</button>
         </div>
-        <p class="text-xs" style="color:#9ca3af;">Mileage reimbursement uses IRS 2026 rate: $0.70/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
+        <p class="text-xs" style="color:#9ca3af;">Mileage reimbursement uses IRS 2026 rate: $0.725/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
       </div>
 
       <div id="payrollOut"></div>
@@ -768,7 +784,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
       <div>
         <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Mileage Rate ($/mile) — leave blank for IRS default $0.70</p>
-        <input id="ppMileage" type="number" min="0" step="0.001" placeholder="0.70" class="inp inp-dk w-full">
+        <input id="ppMileage" type="number" min="0" step="0.001" placeholder="0.725" class="inp inp-dk w-full">
       </div>
     </div>
     <div class="flex gap-2 mt-4">
@@ -1027,6 +1043,7 @@ var camStream = null;
 var pendingPhoto  = null;   // DataURL captured in camWrap, held until submission
 var qSelectedFacs = [];     // multi-select facility array (step 1)
 var qDroveMode    = null;   // true/false — GPS mileage tracking opted-in
+var qTripType     = null;   // 'ONE_WAY' or 'ROUND_TRIP'
 // Mileage GPS tracking
 var mileageTracking   = false;
 var mileageLastPos    = null; // {lat, lng}
@@ -1429,6 +1446,7 @@ function qBackStep1() {
 }
 function setDroveMode(drove) {
   qDroveMode = drove;
+  qTripType = null;
   var yes=document.getElementById('qDroveYes'), no=document.getElementById('qDroveNo');
   if(drove){
     if(yes){yes.style.background='#7c3aed';yes.style.color='#fff';yes.style.border='1.5px solid #7c3aed';}
@@ -1438,6 +1456,35 @@ function setDroveMode(drove) {
     if(no) {no.style.background='#1a2b8c'; no.style.color='#fff'; no.style.border='1.5px solid #1a2b8c';}
   }
   document.getElementById('qMileageWrap').style.display = drove ? '' : 'none';
+  // Reset trip type buttons
+  var ow=document.getElementById('qTripOneWay'), rt=document.getElementById('qTripRoundTrip');
+  if(ow){ow.style.background='#f9fafb';ow.style.color='#374151';ow.style.border='1.5px solid #e5e7eb';}
+  if(rt){rt.style.background='#f9fafb';rt.style.color='#374151';rt.style.border='1.5px solid #e5e7eb';}
+  var tn=document.getElementById('qTripNote'); if(tn) tn.style.display='none';
+  // Only show submit once trip type is selected (if drove=true), or immediately if no mileage
+  document.getElementById('qSubmitBtn').style.display = drove ? 'none' : '';
+}
+function setTripType(type) {
+  qTripType = type;
+  var ow=document.getElementById('qTripOneWay'), rt=document.getElementById('qTripRoundTrip');
+  var activeStyle = {background:'#7c3aed', color:'#fff', border:'1.5px solid #7c3aed'};
+  var inactiveStyle = {background:'#f9fafb', color:'#374151', border:'1.5px solid #e5e7eb'};
+  if(type === 'ONE_WAY') {
+    if(ow){ow.style.background=activeStyle.background;ow.style.color=activeStyle.color;ow.style.border=activeStyle.border;}
+    if(rt){rt.style.background=inactiveStyle.background;rt.style.color=inactiveStyle.color;rt.style.border=inactiveStyle.border;}
+  } else {
+    if(rt){rt.style.background=activeStyle.background;rt.style.color=activeStyle.color;rt.style.border=activeStyle.border;}
+    if(ow){ow.style.background=inactiveStyle.background;ow.style.color=inactiveStyle.color;ow.style.border=inactiveStyle.border;}
+  }
+  var tn=document.getElementById('qTripNote'), tt=document.getElementById('qTripNoteText');
+  if(tn && tt) {
+    tn.style.display='';
+    tn.style.background='#f5f3ff'; tn.style.border='1px solid #ddd6fe';
+    tt.style.color='#7c3aed';
+    tt.textContent = type === 'ONE_WAY'
+      ? '📍 One-Way: GPS tracks distance to site. Miles × $0.725/mi reimbursed.'
+      : '🔄 Round Trip: Distance × 2. GPS tracks outbound; return leg auto-calculated.';
+  }
   document.getElementById('qSubmitBtn').style.display = '';
 }
 function submitClockInQuestions() {
@@ -1460,7 +1507,8 @@ function submitClockInQuestions() {
     note:note, facilities:facList,
     location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null,
     approval:'pending', approvalToken:token,
-    trackMileage: trackMileage
+    trackMileage: trackMileage,
+    tripType: trackMileage ? (qTripType || 'ONE_WAY') : null
   };
   if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
@@ -1473,7 +1521,7 @@ function submitClockInQuestions() {
     if (currentLocation) mileageLastPos={lat:currentLocation.lat,lng:currentLocation.lng};
   }
   document.getElementById('clockInQuestionsCard').style.display='none';
-  pendingAction=null; pendingPhoto=null; qSelectedFacs=[]; qDroveMode=null;
+  pendingAction=null; pendingPhoto=null; qSelectedFacs=[]; qDroveMode=null; qTripType=null;
   renderEmpState(); updateTodaySummary();
   toast('Sent for approval — your time is being recorded');
   sendClockInEmail(entry, null);
@@ -1481,12 +1529,35 @@ function submitClockInQuestions() {
 }
 function submitClockOut() {
   var entryTs    = new Date().toISOString();
-  var finalMiles = mileageTracking ? Math.round(mileageTotalMiles*100)/100 : null;
+  // Retrieve tripType from the clock-in entry
+  var tsArr = store.getJ(K.timesheet, []);
+  var clockInEntry = null;
+  for (var i = tsArr.length - 1; i >= 0; i--) {
+    if (tsArr[i].name === currentEmp.name && tsArr[i].type === 'in') { clockInEntry = tsArr[i]; break; }
+  }
+  var tripType   = clockInEntry ? (clockInEntry.tripType || 'ONE_WAY') : 'ONE_WAY';
+  var rawMiles   = mileageTracking ? Math.round(mileageTotalMiles * 100) / 100 : null;
+  // Round trip: GPS tracks one leg, double it for full reimbursement distance
+  var finalMiles = rawMiles !== null ? (tripType === 'ROUND_TRIP' ? Math.round(rawMiles * 2 * 100) / 100 : rawMiles) : null;
+  // Trip slip (audit trail)
+  var tripSlip = finalMiles !== null ? {
+    dateTime:      entryTs,
+    startingPoint: 'Juno Tech Lab (Office)',
+    destination:   clockInEntry && clockInEntry.facilities ? clockInEntry.facilities.join(', ') : 'Patient Site',
+    rawMiles:      rawMiles,
+    totalMiles:    finalMiles,
+    tripType:      tripType,
+    rateApplied:   IRS_MILEAGE_2026,
+    totalReimbursement: Math.round(finalMiles * IRS_MILEAGE_2026 * 100) / 100,
+    nonTaxable:    true
+  } : null;
   var entry = {
     name: currentEmp.name, type:'out', ts: entryTs,
     hasPhoto: !!pendingPhoto, photo: pendingPhoto||null,
     location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null,
-    mileage: finalMiles
+    mileage: finalMiles,
+    tripType: tripType,
+    tripSlip: tripSlip
   };
   if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
@@ -4454,7 +4525,7 @@ var TAX_CA = {
   }
 };
 
-var IRS_MILEAGE_2026 = 0.70; // IRS standard mileage rate 2026
+var IRS_MILEAGE_2026 = 0.725; // IRS standard mileage rate 2026
 var SS_WAGE_BASE_2026 = 176100; // OASDI wage base 2026 (est.)
 var FED_ALLOWANCE_2026 = 4300; // federal withholding allowance value 2026
 var CA_ALLOWANCE_2026  = 144;  // CA DE-4 allowance credit per allowance
