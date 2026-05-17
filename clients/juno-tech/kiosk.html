@@ -2079,19 +2079,46 @@ function renderEmployeeList() {
     return;
   }
   var html='';
-  emps.forEach(function(emp) {
+  emps.forEach(function(emp, idx) {
     var safeName = emp.name.replace(/"/g,'&quot;');
     var safeCode = emp.code.replace(/"/g,'&quot;');
-    html += '<div class="rcard flex items-center gap-3 flex-wrap">'
+    var p = emp.payProfile || {};
+    var rate    = parseFloat(p.hourlyRate) || null;
+    var filing  = p.filingStatus || null;
+    var fedEx   = parseInt(p.fedAllowances) || 0;
+    var caEx    = parseInt(p.caAllowances)  || 0;
+    var mileR   = parseFloat(p.mileageRate) || IRS_MILEAGE_2026;
+    var filingLabel = filing === 'mfj' ? 'Married Filing Jointly' : filing === 'hoh' ? 'Head of Household' : filing === 'single' ? 'Single' : null;
+    var qvId = 'qv_'+idx;
+    var hasProfile = !!rate;
+    var quickViewBtn = '<button onclick="document.getElementById(\''+qvId+'\').style.display=document.getElementById(\''+qvId+'\').style.display===\'none\'?\'\':(document.getElementById(\''+qvId+'\').style.display=\'none\',\'\')"'
+      + ' class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f8faff;color:#6b7280;border:1px solid #e5e7eb;cursor:pointer;">Quick View</button>';
+    var qvContent = '<div id="'+qvId+'" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:#f8faff;border:1px solid #e5e7eb;">';
+    if (!hasProfile) {
+      qvContent += '<p style="font-size:11px;color:#9ca3af;margin:0;">No pay profile set yet.</p>';
+    } else {
+      qvContent += '<div style="display:flex;flex-wrap:wrap;gap:10px 20px;">';
+      qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Hourly Rate</p><p style="font-size:13px;font-weight:700;color:#111827;margin:0;">$'+rate.toFixed(2)+'/hr</p></div>';
+      if (filingLabel) qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Filing Status</p><p style="font-size:13px;font-weight:600;color:#374151;margin:0;">'+filingLabel+'</p></div>';
+      qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Fed / CA Allowances</p><p style="font-size:13px;font-weight:600;color:#374151;margin:0;">'+fedEx+' / '+caEx+'</p></div>';
+      qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Mileage Rate</p><p style="font-size:13px;font-weight:600;color:#7c3aed;margin:0;">$'+mileR.toFixed(3)+'/mi</p></div>';
+      qvContent += '</div>';
+    }
+    qvContent += '</div>';
+    html += '<div class="rcard">'
+      + '<div class="flex items-center gap-3 flex-wrap">'
       + '<div class="flex-1 min-w-0">'
       + '<p class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</p>'
       + '<p class="text-xs mt-0.5 font-mono tracking-widest" style="color:#1d4ed8;">'+emp.code+'</p>'
       + '</div>'
       + '<div class="flex gap-2 flex-wrap">'
+      + quickViewBtn
       + '<button onclick="openPayProfile(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;cursor:pointer;">Pay Profile</button>'
       + '<button onclick="regenCode(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
       + '<button onclick="removeEmployee(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
-      + '</div></div>';
+      + '</div></div>'
+      + qvContent
+      + '</div>';
   });
   c.innerHTML=html;
 }
