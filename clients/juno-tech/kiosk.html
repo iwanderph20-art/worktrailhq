@@ -2378,23 +2378,11 @@ function _renderTablesImpl() {
           if(e.type==='out' && clockInE && e._d > clockInE._d) clockOutE = e;
         });
 
-        // ── Find any truly-pending entry: pending clock-in with NO clock-out after it
+        // ── Find any truly-pending entry (pending clock-in not yet approved, with or without clock-out)
         var pendingEntry = null;
         allIns.forEach(function(e){
           if(e.approval!=='pending') return;
-          var hasClockOutAfter = emp.some(function(o){ return o.type==='out' && o._d > new Date(e.ts); });
-          if(!hasClockOutAfter) pendingEntry = e;
-          else {
-            // Auto-approve stale pending clock-in that already has a clock-out
-            e.approval = 'approved';
-            var ts2 = store.getJ(K.timesheet,[]);
-            ts2.forEach(function(r){ if(String(r.ts)===String(e.ts)) r.approval='approved'; });
-            store.setJ(K.timesheet, ts2);
-            if(fbCfg.url) fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(e.ts)+'.json',{
-              method:'PATCH', body:JSON.stringify({approval:'approved'}),
-              headers:{'Content-Type':'application/json'}
-            }).catch(function(){});
-          }
+          pendingEntry = e;
         });
 
         var sessions=buildSessions(emp);
@@ -2560,9 +2548,16 @@ function _renderTablesImpl() {
             var dOut = clockOutE && clockOutE.device;
             if (!dIn && !dOut) return '';
             var firstName = name.split(' ')[0];
+            // Count uses of a device signature across ALL entries for this employee
+            var allEmpEntries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===name && e.device; });
+            var deviceUseCount = function(d) {
+              var sig = d.type+'|'+d.os+'|'+d.browser;
+              return allEmpEntries.filter(function(e){ return e.device && (e.device.type+'|'+e.device.os+'|'+e.device.browser)===sig; }).length;
+            };
             var deviceLabel = function(d) {
               var hw = d.type === 'Mobile' ? 'Phone' : d.type === 'Tablet' ? 'Tablet' : 'Laptop';
-              return firstName + '\'s ' + hw + ' · ' + d.os + ' · ' + d.browser;
+              if (deviceUseCount(d) >= 3) return firstName + '\'s ' + hw + ' · ' + d.os + ' · ' + d.browser;
+              return hw + ' · ' + d.os + ' · ' + d.browser;
             };
             var icon = function(d){ return d.type==='Mobile'?'📱':d.type==='Tablet'?'⬜':'💻'; };
             var fmt  = function(d){ return icon(d)+' '+deviceLabel(d); };
