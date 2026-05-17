@@ -266,7 +266,7 @@ video{object-fit:cover;transform:scaleX(-1);}
         </div>
         <div>
           <p class="text-lg font-bold" style="color:#92400e;">Sent for Approval</p>
-          <p class="text-sm mt-1 leading-relaxed" style="color:#6b7280;">Your clock-in photo has been sent to admin. Your time is being recorded while you wait.</p>
+          <p class="text-sm mt-1 leading-relaxed" style="color:#6b7280;">Your clock-in photo has been sent to admin for approval. Your time is being recorded — you can still clock out when your shift ends.</p>
         </div>
         <div class="w-full rounded-2xl px-4 py-4" style="background:rgba(26,43,140,0.06);">
           <p class="text-xs font-semibold uppercase tracking-wide mb-1" style="color:#9ca3af;">Time Recorded</p>
@@ -1295,6 +1295,11 @@ function renderEmpState() {
   } else if (clockState==='pending') {
     badge.textContent='Pending Approval'; badge.className='b-pending text-xs font-semibold px-3 py-1 rounded-full';
     pendingCard.style.display='';
+    clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
+    mainCard.style.display='';
+    startBreakCheck();
+    var mp3=document.getElementById('mileagePill'); if(mp3) mp3.style.display = mileageTracking ? '' : 'none';
+    if(mileageTracking) updateMileagePill();
   } else if (clockState==='in') {
     badge.textContent='Clocked In ✓'; badge.className='b-in text-xs font-semibold px-3 py-1 rounded-full';
     var entries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; });
