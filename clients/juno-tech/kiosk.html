@@ -1283,6 +1283,11 @@ function renderEmpState() {
 /* ── clock in/out ───────────────────────── */
 function handleClock() {
   pendingAction = (clockState==='out') ? 'in' : 'out';
+  // Block clock-out if clock-in is still pending admin approval
+  if (pendingAction === 'out' && clockState === 'pending') {
+    toast('You cannot clock out until your clock-in is approved by admin.', 4000);
+    return;
+  }
   // Location is required — show blocking modal if not yet granted
   if (!currentLocation) {
     openLocationModal();
@@ -2396,10 +2401,11 @@ function _renderTablesImpl() {
           +outPhotoBlock
           +'</div>'
 
-          // ── Row 3: Location
-          +(facStr
-            ?'<div style="padding:6px 14px;border-bottom:1px solid rgba(0,0,0,.05);">'
-              +'<span style="font-size:12px;color:#6b7280;">&#128205; <strong style="color:#374151;">Location:</strong> '+facStr+'</span>'
+          // ── Row 3: Location + approval timestamp
+          +(facStr||clockInE&&clockInE.approvedAt
+            ?'<div style="padding:6px 14px;border-bottom:1px solid rgba(0,0,0,.05);display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;">'
+              +(facStr?'<span style="font-size:12px;color:#6b7280;">&#128205; <strong style="color:#374151;">Location:</strong> '+facStr+'</span>':'')
+              +(clockInE&&clockInE.approvedAt?'<span style="font-size:11px;color:#15803d;">&#10003; Approved '+new Date(clockInE.approvedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true})+'</span>':'')
               +'</div>'
             :'')
 
@@ -3912,7 +3918,8 @@ function handleApprovalResult(ts, status) {
   stopApprovalPoll();
   if(status==='approved'){
     var arr=store.getJ(K.timesheet,[]);
-    arr.forEach(function(e){if(e.ts===ts)e.approval='approved';});
+    var _aat=new Date().toISOString();
+    arr.forEach(function(e){if(e.ts===ts){e.approval='approved'; e.approvedAt=_aat;}});
     store.setJ(K.timesheet,arr);
     clockState='in'; pendingEntryTs=null;
     if(currentEmp) fbPutState(currentEmp.name,'in',ts); // cross-device state
@@ -3940,10 +3947,11 @@ function adminApproveEntry(ts) {
   setApprovalStatus(ts,'approved');
   var arr=store.getJ(K.timesheet,[]);
   var approvedEntry=null;
-  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='approved'; approvedEntry=e;}});
+  var approvedAt=new Date().toISOString();
+  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='approved'; e.approvedAt=approvedAt; approvedEntry=e;}});
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',ts,approvedEntry||{});
-  if(approvedEntry) fbPutState(approvedEntry.name,'in',ts); // update cross-device state for staff
+  if(approvedEntry) fbPutState(approvedEntry.name,'in',ts);
   logAdminAction('APPROVE','Clock-in approved for entry at '+new Date(ts).toLocaleString());
   renderTables(); toast('Clock-in approved');
 }
@@ -4440,7 +4448,8 @@ function clearOldRecords() {
         // Update local timesheet if we have it
         var arr2=store.getJ(K.timesheet,[]);
         var _approvedEntry2=null;
-        arr2.forEach(function(e){if(e.ts===entryTs2){e.approval=finalStatus;_approvedEntry2=e;}});
+        var _approvedAt2 = finalStatus==='approved' ? new Date().toISOString() : null;
+        arr2.forEach(function(e){if(e.ts===entryTs2){e.approval=finalStatus; if(_approvedAt2) e.approvedAt=_approvedAt2; _approvedEntry2=e;}});
         store.setJ(K.timesheet,arr2);
         // Update Firebase timesheet entry: fetch from Firebase first (entry may only exist there)
         if(fbCfg.url){
@@ -4452,6 +4461,7 @@ function clearOldRecords() {
                 if(!entryToWrite) return;
                 delete entryToWrite.photo;
                 entryToWrite.approval = _status;
+                if (_status === 'approved') entryToWrite.approvedAt = new Date().toISOString();
                 // Write updated entry back to Firebase
                 fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(_ts)+'.json',{
                   method:'PUT', body:JSON.stringify(entryToWrite),
