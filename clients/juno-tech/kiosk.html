@@ -2007,7 +2007,13 @@ function syncEmployeesFromCloud(cb) {
           var merged = {};
           localEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
           cloudEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
-          store.setJ(K.employees, Object.values(merged));
+          // Deduplicate by name — keep only the first entry per name (case-insensitive)
+          var seen = {}, deduped = [];
+          Object.values(merged).forEach(function(e) {
+            var key = e.name.trim().toLowerCase();
+            if (!seen[key]) { seen[key]=true; deduped.push(e); }
+          });
+          store.setJ(K.employees, deduped);
         }
       }
       if(cb) cb();
@@ -2043,25 +2049,27 @@ function addEmployee() {
   renderEmployeeList();
   toast(name+' added — code: '+code);
 }
-function removeEmployee(name) {
-  if (!confirm('Remove '+name+' and all their data?')) return;
+function removeEmployee(code) {
   var allEmps=store.getJ(K.employees,[]);
   var target=null;
-  for(var i=0;i<allEmps.length;i++) if(allEmps[i].name===name){ target=allEmps[i]; break; }
-  store.setJ(K.employees, allEmps.filter(function(e){ return e.name!==name; }));
-  if(target) deleteEmployeeFromFirebase(target.code); // sync deletion to Firebase
-  renderEmployeeList(); toast(name+' removed');
+  for(var i=0;i<allEmps.length;i++) if(allEmps[i].code===code){ target=allEmps[i]; break; }
+  if (!target) return;
+  if (!confirm('Remove "'+target.name+'"?\n\nThis will permanently delete their record and cannot be undone.')) return;
+  store.setJ(K.employees, allEmps.filter(function(e){ return e.code!==code; }));
+  deleteEmployeeFromFirebase(code);
+  renderEmployeeList(); toast(target.name+' removed');
 }
-function regenCode(name) {
+function regenCode(code) {
   var emps=store.getJ(K.employees,[]);
-  var emp=null; for(var i=0;i<emps.length;i++) if(emps[i].name===name){ emp=emps[i]; break; }
+  var emp=null; for(var i=0;i<emps.length;i++) if(emps[i].code===code){ emp=emps[i]; break; }
   if (!emp) return;
+  if (!confirm('Generate a new PIN code for "'+emp.name+'"?\n\nTheir current code ('+emp.code+') will stop working immediately.')) return;
   var oldCode=emp.code;
-  emp.code=genCode(emps.filter(function(e){ return e.name!==name; }));
+  emp.code=genCode(emps.filter(function(e){ return e.code!==code; }));
   store.setJ(K.employees,emps);
-  deleteEmployeeFromFirebase(oldCode); // remove old code from Firebase
-  pushEmployeeToFirebase(emp);         // add new code to Firebase
-  renderEmployeeList(); toast('New code for '+name+': '+emp.code);
+  deleteEmployeeFromFirebase(oldCode);
+  pushEmployeeToFirebase(emp);
+  renderEmployeeList(); toast('New code for '+emp.name+': '+emp.code);
 }
 function renderEmployeeList() {
   var emps=store.getJ(K.employees,[]);
@@ -2073,6 +2081,7 @@ function renderEmployeeList() {
   var html='';
   emps.forEach(function(emp) {
     var safeName = emp.name.replace(/"/g,'&quot;');
+    var safeCode = emp.code.replace(/"/g,'&quot;');
     html += '<div class="rcard flex items-center gap-3 flex-wrap">'
       + '<div class="flex-1 min-w-0">'
       + '<p class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</p>'
@@ -2080,8 +2089,8 @@ function renderEmployeeList() {
       + '</div>'
       + '<div class="flex gap-2 flex-wrap">'
       + '<button onclick="openPayProfile(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;cursor:pointer;">Pay Profile</button>'
-      + '<button onclick="regenCode(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
-      + '<button onclick="removeEmployee(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
+      + '<button onclick="regenCode(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
+      + '<button onclick="removeEmployee(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
       + '</div></div>';
   });
   c.innerHTML=html;
