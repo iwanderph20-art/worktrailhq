@@ -968,6 +968,24 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p id="empLogsSubtitle" class="text-xs" style="color:#9ca3af;">Your shift history</p>
       </div>
     </div>
+    <!-- Period filter pills -->
+    <div class="max-w-lg mx-auto px-4 pb-3" style="overflow-x:auto;white-space:nowrap;">
+      <div style="display:inline-flex;gap:6px;">
+        <button id="elp-week"  onclick="setEmpLogsPeriod('week')"  class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #1a2b8c;background:#1a2b8c;color:#fff;cursor:pointer;transition:all .15s;">This Week</button>
+        <button id="elp-month" onclick="setEmpLogsPeriod('month')" class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">This Month</button>
+        <button id="elp-last"  onclick="setEmpLogsPeriod('last')"  class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">Last Month</button>
+        <button id="elp-all"   onclick="setEmpLogsPeriod('all')"   class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">All Time</button>
+        <button id="elp-custom" onclick="setEmpLogsPeriod('custom')" class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">&#128197; Custom</button>
+      </div>
+    </div>
+    <!-- Custom date range (hidden by default) -->
+    <div id="empLogsCustomRange" style="display:none;padding:0 16px 10px;max-width:512px;margin:0 auto;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="elcFrom" onchange="renderEmpLogs()" style="flex:1;font-size:13px;padding:7px 10px;border-radius:10px;border:1.5px solid #e5e7eb;background:#fff;color:#111827;outline:none;">
+        <span style="color:#9ca3af;font-size:13px;">→</span>
+        <input type="date" id="elcTo" onchange="renderEmpLogs()" style="flex:1;font-size:13px;padding:7px 10px;border-radius:10px;border:1.5px solid #e5e7eb;background:#fff;color:#111827;outline:none;">
+      </div>
+    </div>
   </header>
   <div id="empLogsBody" class="max-w-lg mx-auto w-full px-4 py-4 overflow-y-auto" style="flex:1;"></div>
 </div>
@@ -1884,84 +1902,144 @@ function _initSupplyRows(containerId, accent) {
   addSupplyRow(containerId, accent);
 }
 
+var empLogsPeriod = 'week';
+
 function openEmpLogs() {
   if (!currentEmp) return;
-  var modal = document.getElementById('empLogsModal');
-  document.getElementById('empLogsTitle').textContent = 'My Logs';
-  document.getElementById('empLogsSubtitle').textContent = currentEmp.name + ' — Shift History';
-  modal.style.display = 'flex';
-  renderEmpLogs();
+  document.getElementById('empLogsModal').style.display = 'flex';
+  setEmpLogsPeriod('week');
 }
 function closeEmpLogs() {
   document.getElementById('empLogsModal').style.display = 'none';
 }
+function setEmpLogsPeriod(p) {
+  empLogsPeriod = p;
+  ['week','month','last','all','custom'].forEach(function(k) {
+    var btn = document.getElementById('elp-'+k);
+    if (!btn) return;
+    var active = k === p;
+    btn.style.background = active ? '#1a2b8c' : '#fff';
+    btn.style.color = active ? '#fff' : '#6b7280';
+    btn.style.borderColor = active ? '#1a2b8c' : '#e5e7eb';
+  });
+  var customRange = document.getElementById('empLogsCustomRange');
+  if (p === 'custom') {
+    customRange.style.display = '';
+    // Default custom range to current month if fields are empty
+    var now = new Date();
+    var fromEl = document.getElementById('elcFrom');
+    var toEl   = document.getElementById('elcTo');
+    if (!fromEl.value) fromEl.value = now.getFullYear()+'-'+(String(now.getMonth()+1).padStart(2,'0'))+'-01';
+    if (!toEl.value)   toEl.value   = now.toISOString().slice(0,10);
+  } else {
+    customRange.style.display = 'none';
+  }
+  renderEmpLogs();
+}
+function _empLogDateRange() {
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  if (empLogsPeriod === 'week') {
+    var dow = now.getDay(); // 0=Sun
+    var start = new Date(y, m, d - dow); start.setHours(0,0,0,0);
+    var end   = new Date(y, m, d - dow + 6); end.setHours(23,59,59,999);
+    return {from:start, to:end, label:'This Week'};
+  }
+  if (empLogsPeriod === 'month') {
+    return {from:new Date(y,m,1,0,0,0,0), to:new Date(y,m+1,0,23,59,59,999), label:now.toLocaleDateString('en-US',{month:'long',year:'numeric'})};
+  }
+  if (empLogsPeriod === 'last') {
+    var lm = m === 0 ? 11 : m-1, ly = m === 0 ? y-1 : y;
+    var lLabel = new Date(ly,lm,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    return {from:new Date(ly,lm,1,0,0,0,0), to:new Date(ly,lm+1,0,23,59,59,999), label:lLabel};
+  }
+  if (empLogsPeriod === 'custom') {
+    var fv = document.getElementById('elcFrom').value;
+    var tv = document.getElementById('elcTo').value;
+    if (!fv || !tv) return null;
+    var from = new Date(fv+'T00:00:00'); var to = new Date(tv+'T23:59:59');
+    if (isNaN(from)||isNaN(to)) return null;
+    return {from:from, to:to, label:fv+' → '+tv};
+  }
+  return null; // 'all'
+}
 function renderEmpLogs() {
   if (!currentEmp) return;
   var body = document.getElementById('empLogsBody');
+  var range = _empLogDateRange();
   var allEntries = store.getJ(K.timesheet, [])
-    .filter(function(e) { return e.name === currentEmp.name; })
+    .filter(function(e) {
+      if (e.name !== currentEmp.name) return false;
+      if (range) { var d = new Date(e.ts); return d >= range.from && d <= range.to; }
+      return true;
+    })
     .map(function(e) { return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],mileage:e.mileage!=null?e.mileage:null}; })
     .sort(function(a,b) { return a._d - b._d; });
   var sessions = buildSessions(allEntries);
+
+  var periodLabel = range ? range.label : 'All Time';
+  var fmtT    = function(d){ return d?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—'; };
+  var fmtDate = function(d){ return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
+
   if (!sessions.length) {
     body.innerHTML = '<div style="text-align:center;padding:48px 16px;">'
       +'<div style="width:56px;height:56px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">'
       +'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
       +'</div>'
-      +'<p class="font-semibold text-sm" style="color:#374151;">No completed shifts yet</p>'
-      +'<p class="text-xs mt-1" style="color:#9ca3af;">Your shift history will appear here after your first clock-out.</p>'
+      +'<p class="font-semibold text-sm" style="color:#374151;">No shifts in this period</p>'
+      +'<p class="text-xs mt-1" style="color:#9ca3af;">Try selecting a different time range.</p>'
       +'</div>';
     return;
   }
-  // Summary banner
+
+  // Period summary banner
   var totalNetMs = 0, totalMi = 0, totalDays = {};
-  sessions.forEach(function(s) {
+  sessions.forEach(function(s){
     totalNetMs += s.netMs;
     if (s.mileage != null) totalMi += s.mileage;
     totalDays[s.inTime.toDateString()] = 1;
   });
-  var totalNetHrs = (totalNetMs / 3600000).toFixed(2);
-  var daysCount = Object.keys(totalDays).length;
+  var totalNetHrs = (totalNetMs/3600000).toFixed(2);
+  var daysCount   = Object.keys(totalDays).length;
+
   var html = '<div style="background:linear-gradient(135deg,#1a2b8c 0%,#3b52d4 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
-    +'<p style="color:rgba(255,255,255,.75);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">All Time</p>'
-    +'<p style="color:#fff;font-size:42px;font-weight:800;line-height:1;margin-bottom:4px;">'+totalNetHrs+'</p>'
-    +'<p style="color:rgba(255,255,255,.75);font-size:13px;font-weight:600;margin-bottom:16px;">cumulative net hours</p>'
+    +'<p style="color:rgba(255,255,255,.65);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">'+periodLabel+'</p>'
+    +'<p style="color:#fff;font-size:44px;font-weight:800;line-height:1;margin-bottom:3px;">'+totalNetHrs+'</p>'
+    +'<p style="color:rgba(255,255,255,.75);font-size:13px;font-weight:600;margin-bottom:16px;">net hours</p>'
     +'<div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">'
-    +'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+daysCount+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">day'+(daysCount===1?'':'s')+' worked</p></div>'
-    +'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+sessions.length+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">session'+(sessions.length===1?'':'s')+'</p></div>'
-    +(totalMi>0?'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+totalMi.toFixed(1)+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">mi driven</p></div>':'')
+    +'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+daysCount+'</p><p style="color:rgba(255,255,255,.6);font-size:11px;">day'+(daysCount===1?'':'s')+' worked</p></div>'
+    +'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+sessions.length+'</p><p style="color:rgba(255,255,255,.6);font-size:11px;">session'+(sessions.length===1?'':'s')+'</p></div>'
+    +(totalMi>0?'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+totalMi.toFixed(1)+'</p><p style="color:rgba(255,255,255,.6);font-size:11px;">mi driven</p></div>':'')
     +'</div>'
     +'</div>';
-  // Group sessions by date
+
+  // Sessions grouped by date, newest first
   var byDate = {};
-  sessions.forEach(function(s) {
+  sessions.forEach(function(s){
     var dk = s.inTime.toDateString();
     if (!byDate[dk]) byDate[dk] = [];
     byDate[dk].push(s);
   });
   var dateKeys = Object.keys(byDate).sort(function(a,b){ return new Date(b)-new Date(a); });
-  var fmtT = function(d) { return d ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—'; };
-  var fmtDate = function(d) { return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
-  dateKeys.forEach(function(dk) {
+
+  dateKeys.forEach(function(dk){
     var daySessions = byDate[dk];
     var dayNetMs = 0, dayMi = 0;
     daySessions.forEach(function(s){ dayNetMs += s.netMs; if(s.mileage!=null) dayMi += s.mileage; });
     html += '<div style="background:#fff;border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
-      +'<p class="text-xs font-bold" style="color:#374151;">'+fmtDate(daySessions[0].inTime)+'</p>'
-      +'<div style="display:flex;gap:8px;align-items:center;">'
+      +'<p style="font-size:12px;font-weight:700;color:#374151;">'+fmtDate(daySessions[0].inTime)+'</p>'
+      +'<div style="display:flex;gap:6px;align-items:center;">'
       +'<span style="font-size:11px;font-weight:700;color:#15803d;background:#f0fdf4;padding:2px 8px;border-radius:99px;">'+(dayNetMs/3600000).toFixed(2)+' hrs</span>'
       +(dayMi>0?'<span style="font-size:11px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 8px;border-radius:99px;">'+dayMi.toFixed(1)+' mi</span>':'')
       +'</div>'
       +'</div>';
-    daySessions.forEach(function(sess, si) {
-      var netH = (sess.netMs/3600000).toFixed(2);
+    daySessions.forEach(function(sess, si){
+      var netH    = (sess.netMs/3600000).toFixed(2);
       var mealMin = Math.round((sess.mealMs||0)/60000);
-      var fac = (sess.facilities&&sess.facilities.length) ? sess.facilities.join(', ') : 'Not specified';
+      var fac     = (sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'Not specified';
       var breakSummary = '';
-      if (sess.breaks&&sess.breaks.length) {
-        breakSummary = sess.breaks.map(function(b){ return (b.btype==='meal'?'&#127859;':'&#9749;')+' '+Math.round(b.durationMs/60000)+'min '+(b.btype==='meal'?'meal':'rest'); }).join(' &nbsp; ');
-      }
+      if (sess.breaks&&sess.breaks.length) breakSummary = sess.breaks.map(function(b){ return (b.btype==='meal'?'&#127859;':'&#9749;')+' '+Math.round(b.durationMs/60000)+'min '+(b.btype==='meal'?'meal':'rest'); }).join(' &nbsp; ');
       if (sess.waivers&&sess.waivers.length) breakSummary += (breakSummary?' &nbsp; ':'')+'&#9989; meal waived';
       if (!breakSummary) breakSummary = '<span style="color:#9ca3af;">No breaks</span>';
       if (si > 0) html += '<div style="border-top:1px solid #f3f4f6;margin:8px 0;"></div>';
