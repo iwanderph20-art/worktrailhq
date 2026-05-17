@@ -1522,7 +1522,8 @@ function submitClockInQuestions() {
     location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null,
     approval:'pending', approvalToken:token,
     trackMileage: trackMileage,
-    tripType: trackMileage ? (qTripType || 'ONE_WAY') : null
+    tripType: trackMileage ? (qTripType || 'ONE_WAY') : null,
+    device: getDeviceInfo()
   };
   if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
@@ -1576,7 +1577,8 @@ function submitClockOut() {
     location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null,
     mileage: finalMiles,
     tripType: tripType,
-    tripSlip: tripSlip
+    tripSlip: tripSlip,
+    device: getDeviceInfo()
   };
   if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
@@ -2415,6 +2417,22 @@ function _renderTablesImpl() {
           +((approvalBtns||liveLocBtn)
             ?'<div style="padding:8px 14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.05);">'+approvalBtns+liveLocBtn+'</div>'
             :'')
+
+          // ── Device info row
+          +(function(){
+            var dIn  = clockInE  && clockInE.device;
+            var dOut = clockOutE && clockOutE.device;
+            if (!dIn && !dOut) return '';
+            var icon = function(d){ return d.type==='Mobile'?'📱':d.type==='Tablet'?'⬜':'🖥️'; };
+            var fmt  = function(d){ return icon(d)+' '+d.os+' · '+d.browser; };
+            var parts = [];
+            if (dIn)  parts.push('<span style="color:#6b7280;">IN: '+fmt(dIn)+'</span>');
+            if (dOut && (!dIn || dOut.os!==dIn.os || dOut.browser!==dIn.browser))
+              parts.push('<span style="color:#6b7280;">OUT: '+fmt(dOut)+'</span>');
+            else if (dOut && dIn && dOut.os===dIn.os && dOut.browser===dIn.browser && parts.length)
+              parts[0] = '<span style="color:#6b7280;">'+fmt(dIn)+'</span>';
+            return parts.length ? '<div style="padding:4px 14px 6px;display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+parts.join('')+'</div>' : '';
+          })()
 
           // ── Edit/Delete row (tertiary)
           +(editBtns?'<div style="padding:4px 14px 8px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'<span style="flex:1;"></span>'+deleteDayBtn+'</div>':'')
@@ -4581,6 +4599,31 @@ var TAX_CA = {
     ]
   }
 };
+
+// Device fingerprint — captured at each clock event
+function getDeviceInfo() {
+  var ua = navigator.userAgent || '';
+  var type = 'Desktop';
+  if (/Mobi|Android|iPhone|iPod/i.test(ua)) type = 'Mobile';
+  else if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) type = 'Tablet';
+  var os = 'Unknown';
+  if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+  else if (/Android/i.test(ua)) { os = 'Android '+((ua.match(/Android\s([\d.]+)/)||[])[1]||''); }
+  else if (/Windows NT/i.test(ua)) os = 'Windows';
+  else if (/Macintosh/i.test(ua)) os = 'macOS';
+  else if (/CrOS/i.test(ua)) os = 'ChromeOS';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+  var browser = 'Unknown';
+  if (/CriOS/i.test(ua)) browser = 'Chrome';
+  else if (/FxiOS/i.test(ua)) browser = 'Firefox';
+  else if (/EdgA?\/|Edg\//i.test(ua)) browser = 'Edge';
+  else if (/OPR|Opera/i.test(ua)) browser = 'Opera';
+  else if (/Chrome\/[\d]+/i.test(ua) && !/Chromium/i.test(ua)) browser = 'Chrome';
+  else if (/Safari\/[\d]+/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+  else if (/Firefox\/[\d]+/i.test(ua)) browser = 'Firefox';
+  else if (/Chromium/i.test(ua)) browser = 'Chromium';
+  return { type: type, os: os.trim(), browser: browser };
+}
 
 var IRS_MILEAGE_2026 = 0.725; // IRS standard mileage rate 2026 (kept for reference)
 
