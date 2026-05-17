@@ -2423,14 +2423,21 @@ function _renderTablesImpl() {
             var dIn  = clockInE  && clockInE.device;
             var dOut = clockOutE && clockOutE.device;
             if (!dIn && !dOut) return '';
-            var icon = function(d){ return d.type==='Mobile'?'📱':d.type==='Tablet'?'⬜':'🖥️'; };
-            var fmt  = function(d){ return icon(d)+' '+d.os+' · '+d.browser; };
+            var firstName = name.split(' ')[0];
+            var deviceLabel = function(d) {
+              var hw = d.type === 'Mobile' ? 'Phone' : d.type === 'Tablet' ? 'Tablet' : 'Laptop';
+              return firstName + '\'s ' + hw + ' · ' + d.os + ' · ' + d.browser;
+            };
+            var icon = function(d){ return d.type==='Mobile'?'📱':d.type==='Tablet'?'⬜':'💻'; };
+            var fmt  = function(d){ return icon(d)+' '+deviceLabel(d); };
+            var sameDevice = dIn && dOut && dIn.type===dOut.type && dIn.os===dOut.os && dIn.browser===dOut.browser;
             var parts = [];
-            if (dIn)  parts.push('<span style="color:#6b7280;">IN: '+fmt(dIn)+'</span>');
-            if (dOut && (!dIn || dOut.os!==dIn.os || dOut.browser!==dIn.browser))
-              parts.push('<span style="color:#6b7280;">OUT: '+fmt(dOut)+'</span>');
-            else if (dOut && dIn && dOut.os===dIn.os && dOut.browser===dIn.browser && parts.length)
-              parts[0] = '<span style="color:#6b7280;">'+fmt(dIn)+'</span>';
+            if (sameDevice) {
+              parts.push('<span style="color:#6b7280;">'+fmt(dIn)+'</span>');
+            } else {
+              if (dIn)  parts.push('<span style="color:#6b7280;">IN: '+fmt(dIn)+'</span>');
+              if (dOut) parts.push('<span style="color:#6b7280;">OUT: '+fmt(dOut)+'</span>');
+            }
             return parts.length ? '<div style="padding:4px 14px 6px;display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+parts.join('')+'</div>' : '';
           })()
 
