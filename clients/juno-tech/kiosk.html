@@ -761,30 +761,44 @@ video{object-fit:cover;transform:scaleX(-1);}
     </div>
     <div class="space-y-3">
       <div>
-        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Hourly Rate (USD)</p>
-        <input id="ppRate" type="number" min="0" step="0.01" placeholder="e.g. 18.50" class="inp inp-dk w-full">
-      </div>
-      <div>
-        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Filing Status</p>
-        <select id="ppFiling" class="inp inp-dk sel w-full">
-          <option value="single">Single</option>
-          <option value="mfj">Married Filing Jointly</option>
-          <option value="hoh">Head of Household</option>
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Role</p>
+        <select id="ppRole" onchange="togglePayProfileFields()" class="inp inp-dk sel w-full">
+          <option value="phlebotomist">Phlebotomist</option>
+          <option value="courier">Courier</option>
         </select>
       </div>
-      <div class="flex gap-2">
-        <div style="flex:1;">
-          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Federal Allowances</p>
-          <input id="ppFedEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
-        </div>
-        <div style="flex:1;">
-          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">CA Allowances</p>
-          <input id="ppStateEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+      <div id="ppWageFields">
+        <div class="space-y-3">
+          <div>
+            <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Hourly Rate (USD)</p>
+            <input id="ppRate" type="number" min="0" step="0.01" placeholder="e.g. 18.50" class="inp inp-dk w-full">
+          </div>
+          <div>
+            <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Filing Status</p>
+            <select id="ppFiling" class="inp inp-dk sel w-full">
+              <option value="single">Single</option>
+              <option value="mfj">Married Filing Jointly</option>
+              <option value="hoh">Head of Household</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <div style="flex:1;">
+              <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Federal Allowances</p>
+              <input id="ppFedEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+            </div>
+            <div style="flex:1;">
+              <p class="text-xs font-semibold mb-1" style="color:#6b7280;">CA Allowances</p>
+              <input id="ppStateEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+            </div>
+          </div>
         </div>
       </div>
+      <div id="ppCourierNote" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;">
+        <p class="text-xs" style="color:#15803d;margin:0;">&#128663; Courier — mileage reimbursement only. No hourly wages or tax withholding.</p>
+      </div>
       <div>
-        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Mileage Rate ($/mile) — leave blank for IRS default $0.70</p>
-        <input id="ppMileage" type="number" min="0" step="0.001" placeholder="0.725" class="inp inp-dk w-full">
+        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Custom Mileage Rate ($/mile) — leave blank for CMS default</p>
+        <input id="ppMileage" type="number" min="0" step="0.001" placeholder="CMS auto" class="inp inp-dk w-full">
       </div>
     </div>
     <div class="flex gap-2 mt-4">
@@ -1540,15 +1554,20 @@ function submitClockOut() {
   // Round trip: GPS tracks one leg, double it for full reimbursement distance
   var finalMiles = rawMiles !== null ? (tripType === 'ROUND_TRIP' ? Math.round(rawMiles * 2 * 100) / 100 : rawMiles) : null;
   // Trip slip (audit trail)
+  var isMultiStop = clockInEntry ? ((clockInEntry.facilities||[]).filter(function(f){ return f!=='Juno Tech Lab'; }).length > 1) : false;
+  var cms = finalMiles !== null ? calcCMSMileage(finalMiles, isMultiStop) : null;
   var tripSlip = finalMiles !== null ? {
     dateTime:      entryTs,
     startingPoint: 'Juno Tech Lab (Office)',
-    destination:   clockInEntry && clockInEntry.facilities ? clockInEntry.facilities.join(', ') : 'Patient Site',
+    destination:   clockInEntry && clockInEntry.facilities ? clockInEntry.facilities.filter(function(f){ return f!=='Juno Tech Lab'; }).join(', ') : 'Patient Site',
     rawMiles:      rawMiles,
     totalMiles:    finalMiles,
     tripType:      tripType,
-    rateApplied:   IRS_MILEAGE_2026,
-    totalReimbursement: Math.round(finalMiles * IRS_MILEAGE_2026 * 100) / 100,
+    isMultiStop:   isMultiStop,
+    hcpcs:         cms.hcpcs,
+    billedUnits:   cms.finalUnits,
+    unitRate:      cms.unitRate,
+    totalReimbursement: cms.total,
     nonTaxable:    true
   } : null;
   var entry = {
@@ -2079,45 +2098,47 @@ function renderEmployeeList() {
     return;
   }
   var html='';
-  emps.forEach(function(emp, idx) {
+  emps.forEach(function(emp) {
     var safeName = emp.name.replace(/"/g,'&quot;');
     var safeCode = emp.code.replace(/"/g,'&quot;');
-    var p = emp.payProfile || {};
+    var role    = emp.role || 'phlebotomist';
+    var p       = emp.payProfile || {};
     var rate    = parseFloat(p.hourlyRate) || null;
     var filing  = p.filingStatus || null;
     var fedEx   = parseInt(p.fedAllowances) || 0;
     var caEx    = parseInt(p.caAllowances)  || 0;
-    var mileR   = parseFloat(p.mileageRate) || IRS_MILEAGE_2026;
-    var filingLabel = filing === 'mfj' ? 'Married Filing Jointly' : filing === 'hoh' ? 'Head of Household' : filing === 'single' ? 'Single' : null;
-    var qvId = 'qv_'+idx;
-    var hasProfile = !!rate;
-    var quickViewBtn = '<button onclick="document.getElementById(\''+qvId+'\').style.display=document.getElementById(\''+qvId+'\').style.display===\'none\'?\'\':(document.getElementById(\''+qvId+'\').style.display=\'none\',\'\')"'
-      + ' class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f8faff;color:#6b7280;border:1px solid #e5e7eb;cursor:pointer;">Quick View</button>';
-    var qvContent = '<div id="'+qvId+'" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:#f8faff;border:1px solid #e5e7eb;">';
-    if (!hasProfile) {
-      qvContent += '<p style="font-size:11px;color:#9ca3af;margin:0;">No pay profile set yet.</p>';
+    var filingLabel = {single:'Single', mfj:'Married Filing Jointly', hoh:'Head of Household'}[filing] || 'Single';
+    var roleLabel = role === 'courier' ? 'Courier' : 'Phlebotomist';
+    var roleBg    = role === 'courier' ? '#fef9c3' : '#eff6ff';
+    var roleColor = role === 'courier' ? '#92400e' : '#1d4ed8';
+
+    // Inline profile summary
+    var summaryHtml = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;">';
+    summaryHtml += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+roleBg+';color:'+roleColor+';">'+roleLabel+'</span>';
+    if (role === 'courier') {
+      summaryHtml += '<span style="font-size:11px;color:#6b7280;">Mileage tracking only — CMS-CA 2026 rate</span>';
+    } else if (rate) {
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Rate</span> $'+rate.toFixed(2)+'/hr</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Filing</span> '+filingLabel+'</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Fed/CA</span> '+fedEx+'/'+caEx+'</span>';
+      summaryHtml += '<span style="font-size:11px;color:#7c3aed;"><span style="color:#9ca3af;">Mileage</span> CMS-CA 2026</span>';
     } else {
-      qvContent += '<div style="display:flex;flex-wrap:wrap;gap:10px 20px;">';
-      qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Hourly Rate</p><p style="font-size:13px;font-weight:700;color:#111827;margin:0;">$'+rate.toFixed(2)+'/hr</p></div>';
-      if (filingLabel) qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Filing Status</p><p style="font-size:13px;font-weight:600;color:#374151;margin:0;">'+filingLabel+'</p></div>';
-      qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Fed / CA Allowances</p><p style="font-size:13px;font-weight:600;color:#374151;margin:0;">'+fedEx+' / '+caEx+'</p></div>';
-      qvContent += '<div><p style="font-size:10px;color:#9ca3af;margin:0 0 1px;text-transform:uppercase;letter-spacing:.05em;">Mileage Rate</p><p style="font-size:13px;font-weight:600;color:#7c3aed;margin:0;">$'+mileR.toFixed(3)+'/mi</p></div>';
-      qvContent += '</div>';
+      summaryHtml += '<span style="font-size:11px;color:#f59e0b;">&#9888; No pay profile set</span>';
     }
-    qvContent += '</div>';
+    summaryHtml += '</div>';
+
     html += '<div class="rcard">'
       + '<div class="flex items-center gap-3 flex-wrap">'
       + '<div class="flex-1 min-w-0">'
       + '<p class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</p>'
       + '<p class="text-xs mt-0.5 font-mono tracking-widest" style="color:#1d4ed8;">'+emp.code+'</p>'
+      + summaryHtml
       + '</div>'
       + '<div class="flex gap-2 flex-wrap">'
-      + quickViewBtn
       + '<button onclick="openPayProfile(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;cursor:pointer;">Pay Profile</button>'
       + '<button onclick="regenCode(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
       + '<button onclick="removeEmployee(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
       + '</div></div>'
-      + qvContent
       + '</div>';
   });
   c.innerHTML=html;
@@ -4340,9 +4361,9 @@ function clearOldRecords() {
   var needsSeed=!emps||emps.length===0||typeof emps[0]==='string'||emps.some(function(e){ return !e.code||String(e.code).length!==4; });
   if(needsSeed){
     var DEFAULT_EMPLOYEES=[
-      {name:'Krys Ellis',code:'1001'},
-      {name:'Enrique Blanco',code:'1002'},
-      {name:'Hans Duran',code:'1003'}
+      {name:'Krys Ellis',code:'1001',role:'phlebotomist'},
+      {name:'Enrique Blanco',code:'1002',role:'phlebotomist'},
+      {name:'Hans Duran',code:'1003',role:'courier'}
     ];
     if(emps&&emps.length>0&&typeof emps[0]==='string'){
       emps=emps.map(function(name,i){ return {name:name,code:String(1001+i)}; });
@@ -4561,7 +4582,20 @@ var TAX_CA = {
   }
 };
 
-var IRS_MILEAGE_2026 = 0.725; // IRS standard mileage rate 2026
+var IRS_MILEAGE_2026 = 0.725; // IRS standard mileage rate 2026 (kept for reference)
+
+// CMS-CA 2026 Travel Reimbursement (HCPCS)
+function calcCMSMileage(rtMiles, isMultiStop) {
+  rtMiles = rtMiles || 0;
+  if (rtMiles <= 20.0 && !isMultiStop) {
+    // P9604 — flat rate for short single-location trips
+    return { hcpcs: 'P9604', unitRate: 11.34, finalUnits: 2.0, total: Math.round(2.0 * 11.34 * 100) / 100 };
+  } else {
+    // P9603 — per-mile rate for long or multi-stop trips
+    var finalUnits = rtMiles < 100 ? Math.round(rtMiles * 10) / 10 : Math.round(rtMiles);
+    return { hcpcs: 'P9603', unitRate: 1.25, finalUnits: finalUnits, total: Math.round(finalUnits * 1.25 * 100) / 100 };
+  }
+}
 var SS_WAGE_BASE_2026 = 176100; // OASDI wage base 2026 (est.)
 var FED_ALLOWANCE_2026 = 4300; // federal withholding allowance value 2026
 var CA_ALLOWANCE_2026  = 144;  // CA DE-4 allowance credit per allowance
@@ -4593,75 +4627,91 @@ function calcCAWithholding(annualGross, filing, allowances) {
   return Math.max(0, annualTax);
 }
 
-function calcPaycheck(emp, hoursWorked, totalMiles, periodDays) {
+function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays) {
   var profile = emp.payProfile || {};
+  var role    = emp.role || 'phlebotomist';
+  var r2 = function(n) { return Math.round(n * 100) / 100; };
+  var mileageReimb = r2(totalMileageReimb || 0);
+
+  // Courier: mileage reimbursement only — no wages or tax withholding
+  if (role === 'courier') {
+    return {
+      empName: emp.name, role: 'courier',
+      hoursWorked: 0, hourlyRate: 0, grossWages: 0,
+      fica: 0, medicare: 0, fedWith: 0, stateWith: 0, totalDeductions: 0,
+      mileageReimb: mileageReimb, totalMiles: totalMiles,
+      netPay: mileageReimb, filing: null, noProfile: false
+    };
+  }
+
   var rate    = parseFloat(profile.hourlyRate) || 0;
   var filing  = profile.filingStatus || 'single';
   var fedEx   = parseInt(profile.fedAllowances) || 0;
   var caEx    = parseInt(profile.caAllowances) || 0;
-  var mileRate = parseFloat(profile.mileageRate) || IRS_MILEAGE_2026;
 
-  if (!rate) return null; // no pay profile set
+  if (!rate) return {empName: emp.name, noProfile: true, grossWages: 0, mileageReimb: mileageReimb, totalMiles: totalMiles, netPay: mileageReimb};
 
-  var r2 = function(n) { return Math.round(n * 100) / 100; };
-
-  // 1. Round hours to 2dp first so displayed hours match the number used in math
-  //    e.g. raw 1.39167 → 1.39, then 1.39 * 24 = 33.36 exactly
   hoursWorked = r2(hoursWorked);
-  var grossWages = r2(hoursWorked * rate);
-
-  // 2. FICA 6.2% / Medicare 1.45%
-  var fica     = r2(grossWages * 0.062);
-  var medicare = r2(grossWages * 0.0145);
-
-  // 3. Federal flat 8.0%
-  var fedWith = r2(grossWages * 0.08);
-
-  // 4. State flat 4.0% (CA income tax + SDI combined)
-  var stateWith = r2(grossWages * 0.04);
-
-  // 5. Mileage reimbursement — non-taxable, uses Pay Profile rate
-  var mileageReimb = r2(totalMiles * mileRate);
-
+  var grossWages      = r2(hoursWorked * rate);
+  var fica            = r2(grossWages * 0.062);
+  var medicare        = r2(grossWages * 0.0145);
+  var fedWith         = r2(grossWages * 0.08);
+  var stateWith       = r2(grossWages * 0.04);
   var totalDeductions = r2(fica + medicare + fedWith + stateWith);
-  var netPay = r2(grossWages - totalDeductions + mileageReimb);
+  var netPay          = r2(grossWages - totalDeductions + mileageReimb);
 
   return {
-    empName:    emp.name,
-    hoursWorked: hoursWorked,
-    hourlyRate:  rate,
-    grossWages:  grossWages,
-    fica:        fica,
-    medicare:    medicare,
-    fedWith:     fedWith,
-    stateWith:   stateWith,
-    totalDeductions: totalDeductions,
-    mileageReimb:    mileageReimb,
-    totalMiles:      totalMiles,
-    mileRate:        mileRate,
-    netPay:      netPay,
-    filing:      filing,
-    noProfile:   !rate
+    empName: emp.name, role: 'phlebotomist',
+    hoursWorked: hoursWorked, hourlyRate: rate, grossWages: grossWages,
+    fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
+    totalDeductions: totalDeductions, mileageReimb: mileageReimb,
+    totalMiles: totalMiles, netPay: netPay, filing: filing, noProfile: false
   };
 }
 
 function fmt$(n) { return '$'+(Math.abs(n)).toFixed(2); }
 
 function renderPaycheck(result, fromStr, toStr) {
-  if (result.noProfile || !result.grossWages) {
+  if (result.noProfile) {
     return '<div class="rcard" style="text-align:center;padding:20px;">'
       +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
-      +'<p class="text-xs mt-2" style="color:#9ca3af;">'+(result.noProfile ? 'No pay profile set. Go to Employees → Pay Profile.' : 'No hours recorded in this period.')+'</p>'
+      +'<p class="text-xs mt-2" style="color:#9ca3af;">No pay profile set. Go to Employees → Pay Profile.</p>'
       +'</div>';
   }
   var filingLabel = {single:'Single',mfj:'Married Filing Jointly',hoh:'Head of Household'};
-  return '<div class="paycheck">'
-    +'<div class="paycheck-header">'
+  var header = '<div class="paycheck-header">'
     +'<p style="font-size:11px;opacity:.7;letter-spacing:.08em;text-transform:uppercase;margin:0 0 2px;">Juno Tech Laboratory</p>'
     +'<p style="font-size:17px;font-weight:800;margin:0 0 4px;">'+result.empName+'</p>'
     +'<p style="font-size:11px;opacity:.75;margin:0;">Pay Period: '+fromStr+' – '+toStr
-      +' &nbsp;|&nbsp; '+filingLabel[result.filing]+'</p>'
-    +'</div>'
+    +(result.role === 'courier' ? ' &nbsp;|&nbsp; Courier' : (result.filing ? ' &nbsp;|&nbsp; '+filingLabel[result.filing] : ''))+'</p>'
+    +'</div>';
+
+  // Courier: mileage-only slip
+  if (result.role === 'courier') {
+    if (!result.totalMiles) {
+      return '<div class="rcard" style="text-align:center;padding:20px;">'
+        +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
+        +'<p class="text-xs mt-2" style="color:#9ca3af;">No mileage recorded this period.</p>'
+        +'</div>';
+    }
+    return '<div class="paycheck">'
+      +header
+      +'<div class="paycheck-row"><span>Total Miles</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
+      +'<div class="paycheck-row reimb"><span>TRAVEL REIMBURSEMENT (CMS-CA 2026)</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
+      +'<div class="paycheck-row" style="font-size:10px;color:#9ca3af;"><span>Non-taxable expense reimbursement — not reported on W-2</span><span></span></div>'
+      +'<div class="paycheck-row net"><span>CHECK AMOUNT</span><span>'+fmt$(result.netPay)+'</span></div>'
+      +'</div>';
+  }
+
+  // Phlebotomist: full paycheck
+  if (!result.grossWages && !result.mileageReimb) {
+    return '<div class="rcard" style="text-align:center;padding:20px;">'
+      +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
+      +'<p class="text-xs mt-2" style="color:#9ca3af;">No hours recorded in this period.</p>'
+      +'</div>';
+  }
+  return '<div class="paycheck">'
+    +header
     +'<div class="paycheck-row"><span>Hours Worked</span><span>'+result.hoursWorked.toFixed(2)+' hrs @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
     +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>F.I.C.A. TAX WITHHOLDING</span><span>– '+fmt$(result.fica)+'</span></div>'
@@ -4669,7 +4719,7 @@ function renderPaycheck(result, fromStr, toStr) {
     +'<div class="paycheck-row deduct"><span>FED. WITHHOLDING TAX</span><span>– '+fmt$(result.fedWith)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>STATE WITHHOLDING TAX</span><span>– '+fmt$(result.stateWith)+'</span></div>'
     +'<div class="paycheck-row total"><span>TOTAL DEDUCTIONS</span><span>– '+fmt$(result.totalDeductions)+'</span></div>'
-    +'<div class="paycheck-row reimb"><span>MILEAGE + NON-TAXABLE'+(result.totalMiles > 0 ? ' ('+result.totalMiles.toFixed(1)+' mi @ $'+result.mileRate.toFixed(2)+'/mi)' : '')+'</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
+    +(result.mileageReimb > 0 ? '<div class="paycheck-row reimb"><span>TRAVEL REIMBURSEMENT (CMS-CA 2026)'+(result.totalMiles > 0 ? ' — '+result.totalMiles.toFixed(1)+' mi' : '')+'</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>' : '')
     +'<div class="paycheck-row net"><span>CHECK AMOUNT</span><span>'+fmt$(result.netPay)+'</span></div>'
     +'</div>';
 }
@@ -4732,20 +4782,30 @@ function runPayroll() {
 
     var sessions = [], cur = null;
     entries.forEach(function(e) {
-      if (e.type === 'in')  { cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0}; sessions.push(cur); }
+      if (e.type === 'in') {
+        var facs = e.facilities || [];
+        var nonLab = facs.filter(function(f){ return f !== 'Juno Tech Lab'; });
+        cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1};
+        sessions.push(cur);
+      }
       if (e.type === 'out' && cur) { cur.outTs = new Date(e.ts); cur.mileage = e.mileage || cur.mileage || 0; cur = null; }
     });
 
-    var totalHours = 0, totalMiles = 0;
+    var totalHours = 0, totalMiles = 0, totalMileageReimb = 0, mileageDetails = [];
     sessions.forEach(function(s) {
       if (s.inTs && s.outTs) {
         var hrs = (s.outTs - s.inTs) / 3600000;
-        // subtract unpaid meal breaks (>= 30 min gaps counted as break_start/break_end)
         totalHours += hrs;
       }
-      totalMiles += parseFloat(s.mileage) || 0;
+      var mi = parseFloat(s.mileage) || 0;
+      totalMiles += mi;
+      if (mi > 0) {
+        var cms = calcCMSMileage(mi, s.isMultiStop);
+        totalMileageReimb += cms.total;
+        mileageDetails.push({miles: mi, isMultiStop: s.isMultiStop, hcpcs: cms.hcpcs, units: cms.finalUnits, unitRate: cms.unitRate, total: cms.total});
+      }
     });
-    return {totalHours: totalHours, totalMiles: totalMiles};
+    return {totalHours: totalHours, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb, mileageDetails: mileageDetails};
   }
 
   var html = '<div style="margin-bottom:10px;"><p class="text-xs font-semibold" style="color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Pay Period: '+fromVal+' – '+toVal+' ('+periodDays+' days)</p></div>';
@@ -4753,7 +4813,7 @@ function runPayroll() {
 
   emps.forEach(function(emp) {
     var stats = buildSessMap(emp.name);
-    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, periodDays);
+    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays);
     if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
     allResults.push(result);
     html += renderPaycheck(result, fromVal, toVal);
@@ -4919,18 +4979,26 @@ function printPayroll() {
 
 /* ── Pay Profile modal ──────────────────────────────────────── */
 var _ppEmpName = '';
+function togglePayProfileFields() {
+  var role = document.getElementById('ppRole').value;
+  document.getElementById('ppWageFields').style.display   = role === 'courier' ? 'none' : '';
+  document.getElementById('ppCourierNote').style.display  = role === 'courier' ? '' : 'none';
+}
 function openPayProfile(empName) {
   _ppEmpName = empName;
   var emps = store.getJ(K.employees, []);
   var emp = emps.find(function(e){ return e.name === empName; });
   if (!emp) return;
   var profile = emp.payProfile || {};
+  var role = emp.role || 'phlebotomist';
   document.getElementById('ppEmpName').textContent = empName;
+  document.getElementById('ppRole').value    = role;
   document.getElementById('ppRate').value    = profile.hourlyRate || '';
   document.getElementById('ppFiling').value  = profile.filingStatus || 'single';
   document.getElementById('ppFedEx').value   = profile.fedAllowances || '';
   document.getElementById('ppStateEx').value = profile.caAllowances || '';
   document.getElementById('ppMileage').value = profile.mileageRate || '';
+  togglePayProfileFields();
   document.getElementById('payProfileModal').classList.add('open');
 }
 function closePayProfile() {
@@ -4940,16 +5008,19 @@ function savePayProfile() {
   var emps = store.getJ(K.employees, []);
   var emp = emps.find(function(e){ return e.name === _ppEmpName; });
   if (!emp) return;
+  var role = document.getElementById('ppRole').value || 'phlebotomist';
+  emp.role = role;
   emp.payProfile = {
-    hourlyRate:    parseFloat(document.getElementById('ppRate').value) || 0,
+    hourlyRate:    role === 'courier' ? 0 : (parseFloat(document.getElementById('ppRate').value) || 0),
     filingStatus:  document.getElementById('ppFiling').value || 'single',
     fedAllowances: parseInt(document.getElementById('ppFedEx').value) || 0,
     caAllowances:  parseInt(document.getElementById('ppStateEx').value) || 0,
-    mileageRate:   parseFloat(document.getElementById('ppMileage').value) || IRS_MILEAGE_2026
+    mileageRate:   parseFloat(document.getElementById('ppMileage').value) || 0
   };
   store.setJ(K.employees, emps);
   pushEmployeeToFirebase(emp);
   closePayProfile();
+  renderEmployeeList();
   toast('Pay profile saved for '+_ppEmpName);
   logAdminAction('pay_profile_update', _ppEmpName);
 }
