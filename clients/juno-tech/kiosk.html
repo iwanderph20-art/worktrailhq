@@ -451,10 +451,31 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button onclick="closeSupply()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
     </div>
     <p style="font-size:12px;color:#1d4ed8;background:#eff6ff;border-radius:10px;padding:10px 12px;margin:0 0 12px;">Log supplies you have <strong>received</strong>. Add as many items as needed.</p>
+    <!-- Received From -->
+    <div style="margin-bottom:12px;">
+      <p style="font-size:12px;font-weight:600;color:#374151;margin:0 0 5px;">Received From</p>
+      <select id="supplyFrom" class="inp" style="font-size:13px;border-color:#93c5fd;">
+        <option value="">Select source…</option>
+        <option value="SDI Lab">SDI Lab</option>
+        <option value="Juno Tech Lab">Juno Tech Lab</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
     <div id="supplyRows" style="margin-bottom:8px;"></div>
     <button onclick="addSupplyRow('supplyRows','#93c5fd')" class="tap w-full py-2 rounded-xl text-sm font-semibold mb-3"
       style="background:#eff6ff;color:#1d4ed8;border:1px dashed #93c5fd;cursor:pointer;">＋ Add Another Item</button>
     <input id="supplyNote" type="text" placeholder="Notes (optional)…" class="inp mb-3">
+    <!-- Photo attachment -->
+    <div style="margin-bottom:12px;">
+      <p style="font-size:12px;font-weight:600;color:#374151;margin:0 0 5px;">&#128247; Attach Photo <span style="font-weight:400;color:#9ca3af;">(optional)</span></p>
+      <input type="file" id="supplyPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="previewSupplyPhoto(this)">
+      <div id="supplyPhotoPreview" style="display:none;position:relative;width:100%;border-radius:12px;overflow:hidden;margin-bottom:8px;max-height:180px;">
+        <img id="supplyPhotoImg" src="" style="width:100%;object-fit:cover;display:block;border-radius:12px;">
+        <button onclick="clearSupplyPhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);border:none;border-radius:99px;width:28px;height:28px;cursor:pointer;color:#fff;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;">&#10005;</button>
+      </div>
+      <button onclick="document.getElementById('supplyPhotoInput').click()" class="tap w-full py-3 rounded-xl text-sm font-semibold"
+        style="background:#f0fdf4;color:#15803d;border:1.5px dashed #86efac;cursor:pointer;">&#128247; Take / Upload Photo</button>
+    </div>
     <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
       <p style="font-size:12px;color:#92400e;line-height:1.6;margin:0;">
         By clicking <strong>Confirm &amp; Submit</strong>, you certify that the items listed above have been received in the quantities described and that this information is accurate to the best of your knowledge.
@@ -1929,11 +1950,15 @@ function addSupplyRow(containerId, accent) {
   var isReq = containerId === 'supplyReqRows';
   var div = document.createElement('div');
   div.id = id;
-  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px;';
-  div.innerHTML = '<select class="inp sel srow-item" style="flex:2;border-color:'+accent+';font-size:13px;">'
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;';
+  div.innerHTML = '<select class="inp sel srow-item" style="flex:1 1 100%;border-color:'+accent+';font-size:13px;">'
     +_supplyOpts(isReq ? 'Select item needed…' : 'Select item…')+'</select>'
-    +'<input type="text" inputmode="numeric" class="inp srow-qty" placeholder="Qty" style="flex:0 0 64px;border-color:'+accent+';text-align:center;">'
-    +'<button onclick="removeSupplyRow(\''+id+'\')" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;padding:0 2px;line-height:1;">&#10005;</button>';
+    +'<input type="text" inputmode="numeric" class="inp srow-qty" placeholder="Qty" style="flex:1;min-width:0;border-color:'+accent+';text-align:center;">'
+    +'<select class="inp srow-unit" style="flex:1;min-width:0;border-color:'+accent+';font-size:13px;">'
+    +'<option value="pcs">Pieces</option>'
+    +'<option value="box">Box</option>'
+    +'</select>'
+    +'<button onclick="removeSupplyRow(\''+id+'\')" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">&#10005;</button>';
   document.getElementById(containerId).appendChild(div);
 }
 function removeSupplyRow(id) {
@@ -1947,7 +1972,9 @@ function getSupplyRows(containerId) {
   document.getElementById(containerId).querySelectorAll('[id^="sr"]').forEach(function(row) {
     var item = row.querySelector('.srow-item').value;
     var qty  = row.querySelector('.srow-qty').value || '1';
-    if (item) rows.push({item:item, qty:qty});
+    var unitEl = row.querySelector('.srow-unit');
+    var unit = unitEl ? unitEl.value : 'pcs';
+    if (item) rows.push({item:item, qty:qty, unit:unit});
   });
   return rows;
 }
@@ -2113,25 +2140,53 @@ function renderEmpLogs() {
   body.innerHTML = html;
 }
 
+var _supplyPhotoData = null; // holds base64 data URL for current supply log photo
 function openSupply() {
   _initSupplyRows('supplyRows', '#93c5fd');
   document.getElementById('supplyNote').value = '';
+  document.getElementById('supplyFrom').value = '';
+  clearSupplyPhoto();
   document.getElementById('supplyWrap').classList.add('open');
 }
 function closeSupply() { document.getElementById('supplyWrap').classList.remove('open'); }
+function previewSupplyPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _supplyPhotoData = e.target.result;
+    document.getElementById('supplyPhotoImg').src = _supplyPhotoData;
+    document.getElementById('supplyPhotoPreview').style.display = '';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function clearSupplyPhoto() {
+  _supplyPhotoData = null;
+  var inp = document.getElementById('supplyPhotoInput');
+  if (inp) inp.value = '';
+  var prev = document.getElementById('supplyPhotoPreview');
+  if (prev) prev.style.display = 'none';
+  var img = document.getElementById('supplyPhotoImg');
+  if (img) img.src = '';
+}
 function submitSupply() {
   var rows = getSupplyRows('supplyRows');
   if (!rows.length) { toast('Please select at least one item'); return; }
   var note = document.getElementById('supplyNote').value.trim();
+  var from = document.getElementById('supplyFrom').value.trim();
+  var photo = _supplyPhotoData || null;
   var arr = store.getJ(K.supplies, []);
   var now = new Date();
+  var photoTs = null;
   rows.forEach(function(r, i) {
     var ts = new Date(now.getTime() + i).toISOString();
-    var entry = {name:currentEmp?currentEmp.name:'Unknown', item:r.item, qty:r.qty, note:note, ts:ts, reqType:'received'};
+    if (i === 0) photoTs = ts; // attach photo to first row's ts
+    var entry = {name:currentEmp?currentEmp.name:'Unknown', item:r.item, qty:r.qty, unit:r.unit||'pcs', from:from, note:note, ts:ts, reqType:'received', hasPhoto:!!photo};
     arr.push(entry);
     if (fbCfg.url) fbPut('supplies', ts, entry);
   });
   store.setJ(K.supplies, arr);
+  if (photo && photoTs) savePhoto('sup_'+photoTs, photo);
+  clearSupplyPhoto();
   closeSupply();
   toast(rows.length > 1 ? rows.length+' items logged!' : 'Supply log submitted!');
 }
@@ -2747,11 +2802,24 @@ function _renderTablesImpl() {
     var dateStr = new Date(first.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
     var html = '<div style="background:'+bg+';border:1px solid '+border+';border-radius:12px;margin:5px 0;overflow:hidden;">';
-    // Header row — name + date
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.07);">'
-      +'<span style="font-size:14px;font-weight:800;color:#111827;">'+first.name+'</span>'
+    // Header row — name + date + from source
+    var fromLabel = first.from ? ' <span style="font-size:10px;font-weight:600;background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:99px;">From: '+first.from+'</span>' : '';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.07);">'
+      +'<span style="font-size:14px;font-weight:800;color:#111827;">'+first.name+fromLabel+'</span>'
       +'<span style="font-size:12px;font-weight:600;color:#6b7280;">'+dateStr+'</span>'
       +'</div>';
+
+    // Photo thumbnail (shown once for the group, tied to the first hasPhoto entry)
+    var photoEntry = entries.find(function(e){ return e.hasPhoto && e.reqType !== 'request'; });
+    if (photoEntry) {
+      var supPhotoId = 'sp_'+(String(photoEntry.ts).replace(/[:.]/g,''));
+      html += '<div id="'+supPhotoId+'-wrap" style="padding:8px 12px 4px;border-bottom:1px solid rgba(0,0,0,.05);">'
+        +'<img id="'+supPhotoId+'" src="" onclick="showThumbPhoto(\'sup_'+String(photoEntry.ts).replace(/'/g,'')+'\',\'Supply Photo — '+first.name+'\')" '
+        +'style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;cursor:pointer;display:block;opacity:.3;transition:opacity .25s;">'
+        +'</div>';
+      // Async-load photo
+      (function(pid, pts){ loadPhoto('sup_'+pts, function(url){ if(!url) return; var el=document.getElementById(pid); if(el){el.src=url;el.style.opacity='1';} }); })(supPhotoId, photoEntry.ts);
+    }
 
     // One row per item
     entries.forEach(function(r) {
@@ -2759,6 +2827,7 @@ function _renderTablesImpl() {
       var isItemDone   = isReq && r.status === 'completed';
       var itemColor    = isItemDone ? '#9ca3af' : (isReq ? '#15803d' : '#1d4ed8');
       var timeStr      = new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+      var unitLabel    = r.unit ? ' <span style="font-size:10px;color:#6b7280;background:#f3f4f6;padding:1px 5px;border-radius:4px;">'+r.unit+'</span>' : '';
       var doneBadge    = isItemDone
         ? ' <span style="font-size:10px;color:#9ca3af;">&#10003; '+new Date(r.completedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})+'</span>'
         : '';
@@ -2766,6 +2835,7 @@ function _renderTablesImpl() {
         +'<div style="flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
         +'<span style="font-size:13px;font-weight:700;color:'+itemColor+';">'+r.item+'</span>'
         +'<span style="font-size:12px;font-weight:600;color:#374151;">x'+r.qty+'</span>'
+        +unitLabel
         +'<span style="font-size:11px;color:#9ca3af;">'+timeStr+'</span>'
         +doneBadge
         +'</div>'
