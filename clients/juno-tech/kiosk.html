@@ -370,7 +370,12 @@ video{object-fit:cover;transform:scaleX(-1);}
             </svg>
           </button>
           <!-- Dropdown list -->
-          <div id="qFacDropdownList" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;background:#fff;border-radius:14px;border:1.5px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.12);overflow:hidden;max-height:260px;overflow-y:auto;"></div>
+          <div id="qFacDropdownList" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;background:#fff;border-radius:14px;border:1.5px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.12);overflow:hidden;max-height:260px;overflow-y:auto;">
+            <!-- items injected by renderQFacGrid() -->
+            <button onclick="closeQFacDropdown();event.stopPropagation();" style="display:flex;align-items:center;justify-content:center;width:100%;padding:12px 16px;border:none;border-top:2px solid #e5e7eb;background:#f9fafb;cursor:pointer;font-size:13px;font-weight:700;color:#1a2b8c;gap:6px;position:sticky;bottom:0;">
+              &#10003; Done
+            </button>
+          </div>
         </div>
         <!-- Selected chips -->
         <div id="qFacChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
@@ -1206,6 +1211,13 @@ document.addEventListener('keydown', function(e) {
   if (e.key>='0' && e.key<='9') pinKey(Number(e.key));
   if (e.key==='Backspace') pinBackspace();
 });
+// Close facility dropdown when tapping outside of it
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('qFacDropdownList');
+  var btn  = document.getElementById('qFacDropdownBtn');
+  if (!wrap || wrap.style.display === 'none') return;
+  if (!wrap.contains(e.target) && !btn.contains(e.target)) closeQFacDropdown();
+});
 
 /* ── employee view ──────────────────────── */
 function enterEmpView() {
@@ -1476,7 +1488,12 @@ function renderQFacGrid() {
       +(isSel?'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#1a2b8c" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>':'')
       +'</button>';
   });
-  list.innerHTML = html;
+  // Preserve the sticky Done button (last child), replace only the facility items before it
+  var doneBtn = list.lastElementChild;
+  var tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  while (list.firstChild && list.firstChild !== doneBtn) list.removeChild(list.firstChild);
+  while (tmp.firstChild) list.insertBefore(tmp.firstChild, doneBtn);
   // Chips
   var chipsEl = document.getElementById('qFacChips');
   if (chipsEl) {
