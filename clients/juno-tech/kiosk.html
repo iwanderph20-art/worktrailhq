@@ -873,7 +873,7 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div class="space-y-3">
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Type</label>
-        <select id="editType" class="inp w-full mt-1" style="color:#111827;">
+        <select id="editType" class="inp w-full mt-1" style="color:#111827;" onchange="document.getElementById('editMileageRow').style.display=(this.value==='in'||this.value==='out')?'':'none';">
           <option value="in">Clock In</option>
           <option value="out">Clock Out</option>
           <option value="break_start">Break Start</option>
@@ -887,6 +887,14 @@ video{object-fit:cover;transform:scaleX(-1);}
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Note</label>
         <input id="editNote" type="text" placeholder="Optional note..." class="inp w-full mt-1" style="color:#111827;">
+      </div>
+      <div id="editMileageRow" style="display:none;">
+        <label class="text-xs font-semibold" style="color:#6b7280;">Mileage (mi)</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+          <input id="editMileage" type="number" step="0.1" min="0" placeholder="e.g. 12.5" class="inp" style="flex:1;color:#111827;">
+          <button onclick="document.getElementById('editMileage').value=''" class="tap px-3 py-2 rounded-xl text-xs font-semibold" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;white-space:nowrap;">Clear Miles</button>
+        </div>
+        <p class="text-xs mt-1" style="color:#9ca3af;">Leave blank or clear to remove mileage from this entry.</p>
       </div>
       <input type="hidden" id="editOrigTs">
       <button onclick="saveEditEntry()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-2"
@@ -2916,6 +2924,10 @@ function openEditEntry(ts) {
   document.getElementById('editDatetime').value = local;
   document.getElementById('editNote').value = entry.note || '';
   document.getElementById('editOrigTs').value = ts;
+  // Show mileage field only for clock-in or clock-out entries
+  var hasMileageField = (entry.type === 'in' || entry.type === 'out');
+  document.getElementById('editMileageRow').style.display = hasMileageField ? '' : 'none';
+  document.getElementById('editMileage').value = (hasMileageField && entry.mileage != null) ? entry.mileage : '';
   document.getElementById('editEntryWrap').style.display = 'flex';
 }
 function closeEditEntry() { document.getElementById('editEntryWrap').style.display = 'none'; }
@@ -2929,10 +2941,17 @@ function saveEditEntry() {
   var found = false;
   var updatedEntry = null;
   var oldDesc = '';
+  var newMileageRaw = document.getElementById('editMileage').value.trim();
+  var newMileage = newMileageRaw !== '' ? parseFloat(newMileageRaw) : null;
   records.forEach(function(r) {
     if (String(r.ts) === String(origTs)) {
       oldDesc = (r.name||'?')+' — '+(TYPE_LABEL[r.type]||r.type)+' at '+new Date(r.ts).toLocaleString();
-      r.type=newType; r.ts=new Date(rawDt).toISOString(); r.note=newNote; found=true; updatedEntry=r;
+      r.type=newType; r.ts=new Date(rawDt).toISOString(); r.note=newNote;
+      if (r.type === 'in' || r.type === 'out') {
+        if (newMileage !== null && !isNaN(newMileage)) r.mileage = newMileage;
+        else delete r.mileage; // cleared
+      }
+      found=true; updatedEntry=r;
     }
   });
   if (!found) { toast('Entry not found'); return; }
@@ -5019,16 +5038,14 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   var profile = emp.payProfile || {};
   var role    = emp.role || 'phlebotomist';
   var r2 = function(n) { return Math.round(n * 100) / 100; };
-  var mileageReimb = r2(totalMileageReimb || 0);
-
-  // Courier: mileage reimbursement only — no wages or tax withholding
+  // Courier: hours-only payroll, miles shown as info
   if (role === 'courier') {
     return {
       empName: emp.name, role: 'courier',
       hoursWorked: 0, hourlyRate: 0, grossWages: 0,
       fica: 0, medicare: 0, fedWith: 0, stateWith: 0, totalDeductions: 0,
-      mileageReimb: mileageReimb, totalMiles: totalMiles,
-      netPay: mileageReimb, filing: null, noProfile: false
+      totalMiles: totalMiles,
+      netPay: 0, filing: null, noProfile: false
     };
   }
 
@@ -5037,7 +5054,7 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   var fedEx   = parseInt(profile.fedAllowances) || 0;
   var caEx    = parseInt(profile.caAllowances) || 0;
 
-  if (!rate) return {empName: emp.name, noProfile: true, grossWages: 0, mileageReimb: mileageReimb, totalMiles: totalMiles, netPay: mileageReimb};
+  if (!rate) return {empName: emp.name, noProfile: true, grossWages: 0, totalMiles: totalMiles, netPay: 0};
 
   hoursWorked = r2(hoursWorked);
   var grossWages      = r2(hoursWorked * rate);
@@ -5046,13 +5063,13 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   var fedWith         = r2(grossWages * 0.08);
   var stateWith       = r2(grossWages * 0.04);
   var totalDeductions = r2(fica + medicare + fedWith + stateWith);
-  var netPay          = r2(grossWages - totalDeductions + mileageReimb);
+  var netPay          = r2(grossWages - totalDeductions); // miles excluded from pay
 
   return {
     empName: emp.name, role: 'phlebotomist',
     hoursWorked: hoursWorked, hourlyRate: rate, grossWages: grossWages,
     fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
-    totalDeductions: totalDeductions, mileageReimb: mileageReimb,
+    totalDeductions: totalDeductions,
     totalMiles: totalMiles, netPay: netPay, filing: filing, noProfile: false
   };
 }
@@ -5074,25 +5091,23 @@ function renderPaycheck(result, fromStr, toStr) {
     +(result.role === 'courier' ? ' &nbsp;|&nbsp; Courier' : (result.filing ? ' &nbsp;|&nbsp; '+filingLabel[result.filing] : ''))+'</p>'
     +'</div>';
 
-  // Courier: mileage-only slip
+  var milesInfoRow = (result.totalMiles > 0)
+    ? '<div class="paycheck-row" style="color:#6b7280;font-size:11px;"><span>&#128663; Miles Driven (info only — not included in pay)</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
+    : '';
+
+  // Courier: mileage info + no wages slip
   if (result.role === 'courier') {
-    if (!result.totalMiles) {
-      return '<div class="rcard" style="text-align:center;padding:20px;">'
-        +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
-        +'<p class="text-xs mt-2" style="color:#9ca3af;">No mileage recorded this period.</p>'
-        +'</div>';
-    }
     return '<div class="paycheck">'
       +header
-      +'<div class="paycheck-row"><span>Total Miles</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
-      +'<div class="paycheck-row reimb"><span>TRAVEL REIMBURSEMENT (CMS-CA 2026)</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
-      +'<div class="paycheck-row" style="font-size:10px;color:#9ca3af;"><span>Non-taxable expense reimbursement — not reported on W-2</span><span></span></div>'
-      +'<div class="paycheck-row net"><span>CHECK AMOUNT</span><span>'+fmt$(result.netPay)+'</span></div>'
+      +(result.totalMiles > 0
+        ? '<div class="paycheck-row"><span>&#128663; Miles Driven</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
+        : '<div class="paycheck-row" style="color:#9ca3af;font-size:12px;"><span>No mileage recorded this period.</span><span></span></div>')
+      +'<div class="paycheck-row" style="font-size:10px;color:#9ca3af;"><span>Courier — mileage tracked for reference only, not included in payroll.</span><span></span></div>'
       +'</div>';
   }
 
-  // Phlebotomist: full paycheck
-  if (!result.grossWages && !result.mileageReimb) {
+  // Phlebotomist: hours-based paycheck, miles as info only
+  if (!result.grossWages) {
     return '<div class="rcard" style="text-align:center;padding:20px;">'
       +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
       +'<p class="text-xs mt-2" style="color:#9ca3af;">No hours recorded in this period.</p>'
@@ -5107,7 +5122,7 @@ function renderPaycheck(result, fromStr, toStr) {
     +'<div class="paycheck-row deduct"><span>FED. WITHHOLDING TAX</span><span>– '+fmt$(result.fedWith)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>STATE WITHHOLDING TAX</span><span>– '+fmt$(result.stateWith)+'</span></div>'
     +'<div class="paycheck-row total"><span>TOTAL DEDUCTIONS</span><span>– '+fmt$(result.totalDeductions)+'</span></div>'
-    +(result.mileageReimb > 0 ? '<div class="paycheck-row reimb"><span>TRAVEL REIMBURSEMENT (CMS-CA 2026)'+(result.totalMiles > 0 ? ' — '+result.totalMiles.toFixed(1)+' mi' : '')+'</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>' : '')
+    +milesInfoRow
     +'<div class="paycheck-row net"><span>CHECK AMOUNT</span><span>'+fmt$(result.netPay)+'</span></div>'
     +'</div>';
 }
@@ -5212,12 +5227,12 @@ function runPayroll() {
     var totalGross = allResults.reduce(function(s,r){ return s+(r.grossWages||0); }, 0);
     var totalNet   = allResults.reduce(function(s,r){ return s+(r.netPay||0); }, 0);
     var totalDed   = allResults.reduce(function(s,r){ return s+(r.totalDeductions||0); }, 0);
-    var totalMiRe  = allResults.reduce(function(s,r){ return s+(r.mileageReimb||0); }, 0);
+    var totalMi = allResults.reduce(function(s,r){ return s+(r.totalMiles||0); }, 0);
     html += '<div class="rcard" style="background:#1a2b8c;color:#fff;padding:16px 18px;">'
       +'<p class="text-xs font-bold mb-3" style="opacity:.7;text-transform:uppercase;letter-spacing:.08em;">Payroll Summary — All Employees</p>'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Gross Wages</span><span style="font-weight:700;">'+fmt$(totalGross)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Deductions</span><span>– '+fmt$(totalDed)+'</span></div>'
-      +(totalMiRe>0?'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Mileage Reimbursement</span><span>+ '+fmt$(totalMiRe)+'</span></div>':'')
+      +(totalMi>0?'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;opacity:.75;"><span>&#128663; Total Miles (info only)</span><span>'+totalMi.toFixed(1)+' mi</span></div>':'')
       +'<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;border-top:1px solid rgba(255,255,255,.2);padding-top:10px;margin-top:4px;"><span>Total Payroll Cost</span><span>'+fmt$(totalNet)+'</span></div>'
       +'</div>';
   }
