@@ -2942,30 +2942,49 @@ function saveEditEntry() {
   var updatedEntry = null;
   var oldDesc = '';
   var newMileageRaw = document.getElementById('editMileage').value.trim();
-  var newMileage = newMileageRaw !== '' ? parseFloat(newMileageRaw) : null;
+  var clearingMileage = (newMileageRaw === '');
+  var newMileage = clearingMileage ? null : parseFloat(newMileageRaw);
+  // Preserve original ts — only change it if the datetime field was actually modified
+  var origDt = new Date(origTs);
+  var inputDt = new Date(rawDt);
+  var dtChanged = Math.abs(origDt - inputDt) > 60000; // more than 1-min diff = intentional change
   records.forEach(function(r) {
     if (String(r.ts) === String(origTs)) {
       oldDesc = (r.name||'?')+' — '+(TYPE_LABEL[r.type]||r.type)+' at '+new Date(r.ts).toLocaleString();
-      r.type=newType; r.ts=new Date(rawDt).toISOString(); r.note=newNote;
+      r.type = newType;
+      if (dtChanged) r.ts = inputDt.toISOString(); // only change ts if admin intentionally moved the time
+      r.note = newNote;
       if (r.type === 'in' || r.type === 'out') {
-        if (newMileage !== null && !isNaN(newMileage)) r.mileage = newMileage;
-        else delete r.mileage; // cleared
+        r.mileage = (newMileage !== null && !isNaN(newMileage)) ? newMileage : null;
       }
-      found=true; updatedEntry=r;
+      found = true; updatedEntry = r;
     }
   });
   if (!found) { toast('Entry not found'); return; }
+  // If mileage was cleared, also clear the partner entry (corresponding OUT for an IN, or IN for an OUT)
+  if (updatedEntry && (updatedEntry.type === 'in' || updatedEntry.type === 'out') && clearingMileage) {
+    var empName = updatedEntry.name;
+    var entryTime = new Date(updatedEntry.ts);
+    var partnerType = updatedEntry.type === 'in' ? 'out' : 'in';
+    // Find the partner within a 24-hour window
+    records.forEach(function(r) {
+      if (r.name === empName && r.type === partnerType && r !== updatedEntry) {
+        var diff = new Date(r.ts) - entryTime;
+        if (updatedEntry.type === 'in' && diff > 0 && diff < 86400000) { r.mileage = null; fbPut('timesheet', r.ts, r); }
+        if (updatedEntry.type === 'out' && diff < 0 && diff > -86400000) { r.mileage = null; fbPut('timesheet', r.ts, r); }
+      }
+    });
+  }
   store.setJ(K.timesheet, records);
-  // If ts changed, update Firebase: delete old key, put new
-  if (updatedEntry) {
+  var newTs = updatedEntry.ts;
+  if (dtChanged) {
     fbDeleteEntry('timesheet', origTs);
-    fbPut('timesheet', updatedEntry.ts, updatedEntry);
-    // Update deletedTs if origTs was previously tracked
     var deleted = store.getJ(K.deletedTs,[]);
     var idx = deleted.indexOf(String(origTs));
     if(idx>=0){ deleted.splice(idx,1); store.setJ(K.deletedTs,deleted); }
   }
-  logAdminAction('EDIT', oldDesc+' → type:'+newType+', time:'+new Date(rawDt).toLocaleString()+(newNote?' note:'+newNote:''));
+  fbPut('timesheet', newTs, updatedEntry);
+  logAdminAction('EDIT', oldDesc+' → type:'+newType+(dtChanged?', time:'+new Date(rawDt).toLocaleString():'')+(newNote?' note:'+newNote:'')+(clearingMileage?' [mileage cleared]':''));
   closeEditEntry(); renderTables(); toast('Entry updated');
   updateStorageUsage();
 }
@@ -3608,9 +3627,14 @@ function syncFromCloud(cb) {
     // Step 2: fetch timesheet, always overwrite local (handles all-deleted case)
     fbFetchAll('timesheet', function(raw) {
       if (raw && typeof raw === 'object') {
+        var seenTs = {};
         var entries = (Array.isArray(raw) ? raw : Object.values(raw))
           .filter(function(e){ return e && e.ts && deletedTs.indexOf(String(e.ts)) < 0; })
-          .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+          .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); })
+          .filter(function(e){ // deduplicate by ts — keep first occurrence (earliest sort)
+            if (seenTs[String(e.ts)]) return false;
+            seenTs[String(e.ts)] = true; return true;
+          });
         store.setJ(K.timesheet, entries);
       }
       // Step 3: fetch supplies
@@ -5216,7 +5240,13 @@ function runPayroll() {
         cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1};
         sessions.push(cur);
       }
-      if (e.type === 'out' && cur) { cur.outTs = new Date(e.ts); cur.mileage = e.mileage || cur.mileage || 0; cur = null; }
+      if (e.type === 'out' && cur) {
+        cur.outTs = new Date(e.ts);
+        // null means admin explicitly cleared; undefined means not tracked (fall back to IN's value)
+        if ('mileage' in e) cur.mileage = e.mileage; // null (cleared) or a number
+        // else cur.mileage stays as set from clock-in
+        cur = null;
+      }
     });
 
     var totalHours = 0, totalMiles = 0, totalMileageReimb = 0, mileageDetails = [];
