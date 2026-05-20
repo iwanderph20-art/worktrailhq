@@ -5160,17 +5160,19 @@ function calcCAWithholding(annualGross, filing, allowances) {
   return Math.max(0, annualTax);
 }
 
-function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays) {
+function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats) {
   var profile = emp.payProfile || {};
   var role    = emp.role || 'phlebotomist';
   var r2 = function(n) { return Math.round(n * 100) / 100; };
-  // Courier: hours-only payroll, miles shown as info
+  // Courier: mileage tracking only — no wages, no deductions
   if (role === 'courier') {
     return {
       empName: emp.name, role: 'courier',
       hoursWorked: 0, hourlyRate: 0, grossWages: 0,
       fica: 0, medicare: 0, fedWith: 0, stateWith: 0, totalDeductions: 0,
       totalMiles: totalMiles,
+      mileageDetails: (extraStats && extraStats.mileageDetails) || [],
+      sessions: (extraStats && extraStats.sessions) || [],
       netPay: 0, filing: null, noProfile: false
     };
   }
@@ -5221,14 +5223,35 @@ function renderPaycheck(result, fromStr, toStr) {
     ? '<div class="paycheck-row" style="color:#6b7280;font-size:11px;"><span>&#128663; Miles Driven (info only — not included in pay)</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
     : '';
 
-  // Courier: mileage info + no wages slip
+  // Courier: mileage log only — no wage computation
   if (result.role === 'courier') {
+    var miDetails = result.mileageDetails || [];
+    var rowsHtml = '';
+    if (miDetails.length > 0) {
+      miDetails.forEach(function(d) {
+        var dateStr = d.date ? (function(dt){
+          var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          return mo[dt.getMonth()]+' '+dt.getDate()+', '+dt.getFullYear();
+        })(new Date(d.date)) : '—';
+        rowsHtml += '<div style="display:flex;justify-content:space-between;align-items:center;'
+          +'padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px;">'
+          +'<span style="color:#374151;">'+dateStr+'</span>'
+          +'<span style="font-weight:700;color:#1e3a8a;">'+d.miles.toFixed(1)+' mi</span>'
+          +'</div>';
+      });
+    } else {
+      rowsHtml = '<p style="color:#9ca3af;font-size:12px;text-align:center;padding:12px 0;">No mileage recorded this period.</p>';
+    }
     return '<div class="paycheck">'
       +header
+      +'<div style="padding:4px 0 8px;">'
+      +rowsHtml
+      +'</div>'
       +(result.totalMiles > 0
-        ? '<div class="paycheck-row"><span>&#128663; Miles Driven</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
-        : '<div class="paycheck-row" style="color:#9ca3af;font-size:12px;"><span>No mileage recorded this period.</span><span></span></div>')
-      +'<div class="paycheck-row" style="font-size:10px;color:#9ca3af;"><span>Courier — mileage tracked for reference only, not included in payroll.</span><span></span></div>'
+        ? '<div style="display:flex;justify-content:space-between;align-items:center;'
+          +'padding:12px 0 4px;border-top:2px solid #1e3a8a;font-size:15px;font-weight:800;color:#1e3a8a;">'
+          +'<span>Total Miles</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
+        : '')
       +'</div>';
   }
 
@@ -5337,10 +5360,14 @@ function runPayroll() {
       if (mi > 0) {
         var cms = calcCMSMileage(mi, s.isMultiStop);
         totalMileageReimb += cms.total;
-        mileageDetails.push({miles: mi, isMultiStop: s.isMultiStop, hcpcs: cms.hcpcs, units: cms.finalUnits, unitRate: cms.unitRate, total: cms.total});
+        mileageDetails.push({
+          date: s.inTs,
+          miles: mi, isMultiStop: s.isMultiStop,
+          hcpcs: cms.hcpcs, units: cms.finalUnits, unitRate: cms.unitRate, total: cms.total
+        });
       }
     });
-    return {totalHours: totalHours, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb, mileageDetails: mileageDetails};
+    return {totalHours: totalHours, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb, mileageDetails: mileageDetails, sessions: sessions};
   }
 
   var html = '<div style="margin-bottom:10px;"><p class="text-xs font-semibold" style="color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Pay Period: '+fromVal+' – '+toVal+' ('+periodDays+' days)</p></div>';
@@ -5348,7 +5375,7 @@ function runPayroll() {
 
   emps.forEach(function(emp) {
     var stats = buildSessMap(emp.name);
-    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays);
+    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays, stats);
     if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
     allResults.push(result);
     html += renderPaycheck(result, fromVal, toVal);
