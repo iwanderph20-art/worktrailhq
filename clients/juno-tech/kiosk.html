@@ -2358,14 +2358,43 @@ function syncEmployeesFromCloud(cb) {
           var localEmps = store.getJ(K.employees, []);
           var merged = {};
           localEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
-          cloudEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
-          // Deduplicate by name — keep only the first entry per name (case-insensitive)
-          var seen = {}, deduped = [];
+          cloudEmps.forEach(function(e){
+            if(!e||!e.code) return;
+            var existing = merged[e.code];
+            if (existing) {
+              // Merge: take cloud values for all fields, but never lose a payProfile
+              // that exists locally but isn't yet in Firebase (e.g. if the push is still
+              // in-flight or the employee was created from a different device session).
+              var pay = (e.payProfile && e.payProfile.hourlyRate) ? e.payProfile : (existing.payProfile || e.payProfile);
+              merged[e.code] = Object.assign({}, existing, e);
+              if (pay) merged[e.code].payProfile = pay;
+            } else {
+              merged[e.code] = e;
+            }
+          });
+          // Deduplicate by name — prefer the version that has a payProfile set
+          var byName = {};
           Object.values(merged).forEach(function(e) {
             var key = e.name.trim().toLowerCase();
-            if (!seen[key]) { seen[key]=true; deduped.push(e); }
+            if (!byName[key]) {
+              byName[key] = e;
+            } else {
+              // Keep whichever has a real hourly rate; tie-break to the cloud version
+              var existingRate = (byName[key].payProfile && byName[key].payProfile.hourlyRate) || 0;
+              var newRate = (e.payProfile && e.payProfile.hourlyRate) || 0;
+              if (newRate > 0 && existingRate === 0) byName[key] = e;
+            }
           });
-          store.setJ(K.employees, deduped);
+          var finalEmps = Object.values(byName);
+          store.setJ(K.employees, finalEmps);
+          // Re-push any employees whose payProfile was preserved from local but missing in cloud
+          // This self-heals Firebase so future syncs on other devices also get the pay profile
+          finalEmps.forEach(function(emp) {
+            var cloudMatch = cloudEmps.find(function(c){ return c.code === emp.code; });
+            if (emp.payProfile && emp.payProfile.hourlyRate && cloudMatch && !cloudMatch.payProfile) {
+              pushEmployeeToFirebase(emp);
+            }
+          });
         }
       }
       if(cb) cb();
