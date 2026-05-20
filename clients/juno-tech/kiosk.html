@@ -3635,9 +3635,50 @@ function syncFromCloud(cb) {
             if (seenTs[String(e.ts)]) return false;
             seenTs[String(e.ts)] = true; return true;
           });
-        store.setJ(K.timesheet, entries);
+        // Step 2b: fetch /jtl/approvals/ and merge into entries — approvals node always wins
+        // This ensures an approval made on any device survives a re-sync even if the
+        // timesheet entry in Firebase was written before the approval happened.
+        fbFetchAll('approvals', function(rawApprovals) {
+          if (rawApprovals && typeof rawApprovals === 'object') {
+            // Build a map: tsKey → {status, updatedAt}
+            // /jtl/approvals/ is keyed by tsToKey(ts), same key used for timesheet
+            var approvalMap = {};
+            Object.keys(rawApprovals).forEach(function(k){
+              var rec = rawApprovals[k];
+              if (rec && rec.status) approvalMap[k] = rec;
+            });
+            // Merge approval status into timesheet entries
+            entries.forEach(function(e) {
+              var key = tsToKey(e.ts);
+              var approval = approvalMap[key];
+              if (approval && (approval.status === 'approved' || approval.status === 'denied')) {
+                if (e.approval !== approval.status) {
+                  e.approval = approval.status;
+                  if (approval.status === 'approved' && approval.updatedAt) e.approvedAt = approval.updatedAt;
+                }
+              }
+            });
+          }
+          // Also merge local approvals cache (covers offline approvals not yet in Firebase)
+          var localApprovals = store.getJ('jtl_approvals', {});
+          entries.forEach(function(e) {
+            var localA = localApprovals[String(e.ts)];
+            if (localA && (localA.status === 'approved' || localA.status === 'denied')) {
+              if (e.approval !== localA.status) {
+                e.approval = localA.status;
+                if (localA.status === 'approved' && localA.updatedAt) e.approvedAt = localA.updatedAt;
+              }
+            }
+          });
+          store.setJ(K.timesheet, entries);
+          // Step 3: fetch supplies
+          _syncSupplies();
+        });
+        return; // supplies fetched inside approvals callback
       }
-      // Step 3: fetch supplies
+      // no raw data — still proceed
+      _syncSupplies();
+      function _syncSupplies() {
       fbFetchAll('supplies', function(rawS) {
         if (rawS && typeof rawS === 'object') {
           var sups = Array.isArray(rawS) ? rawS : Object.values(rawS);
@@ -3661,6 +3702,7 @@ function syncFromCloud(cb) {
           if (cb) cb();
         });
       });
+      } // end _syncSupplies
     });
   });
 }
@@ -4344,8 +4386,11 @@ function adminApproveEntry(ts) {
   var approvedAt=new Date().toISOString();
   arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='approved'; e.approvedAt=approvedAt; approvedEntry=e;}});
   store.setJ(K.timesheet,arr);
-  fbPut('timesheet',ts,approvedEntry||{});
-  if(approvedEntry) fbPutState(approvedEntry.name,'in',ts);
+  // Only push to Firebase if we actually found the entry — never overwrite with empty object
+  if(approvedEntry) {
+    fbPut('timesheet',ts,approvedEntry);
+    fbPutState(approvedEntry.name,'in',ts);
+  }
   logAdminAction('APPROVE','Clock-in approved for entry at '+new Date(ts).toLocaleString());
   renderTables(); toast('Clock-in approved');
 }
@@ -4356,8 +4401,11 @@ function adminDenyEntry(ts) {
   var deniedEntry=null;
   arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='denied'; deniedEntry=e;}});
   store.setJ(K.timesheet,arr);
-  fbPut('timesheet',ts,deniedEntry||{});
-  if(deniedEntry) fbPutState(deniedEntry.name,'out',ts); // update cross-device state for staff
+  // Only push to Firebase if we actually found the entry — never overwrite with empty object
+  if(deniedEntry) {
+    fbPut('timesheet',ts,deniedEntry);
+    fbPutState(deniedEntry.name,'out',ts); // update cross-device state for staff
+  }
   logAdminAction('DENY','Clock-in denied for entry at '+new Date(ts).toLocaleString());
   renderTables(); toast('Clock-in denied');
 }
