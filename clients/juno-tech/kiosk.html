@@ -4423,6 +4423,11 @@ var MEAL_DUE_HRS      = 4.0;   // strict 4-hour meal break trigger
 var MEAL_WARN_HRS     = 3 + 50/60; // pre-warning at 3h 50m
 var REST_INTERVAL_HRS = 4.0;   // rest break every 4 hours
 var REST_WARN_HRS     = 3 + 50/60; // pre-warning at 3h 50m
+var SHIFT_MAX_HRS     = 8.0;   // hard shift limit — must clock out
+
+// Meal break snooze state (one snooze allowed; next alert uses urgent alarm)
+var _mealSnoozed     = false;
+var _mealSnoozeTimer = null;
 
 function getCABreakReqs(hrs) {
   if      (hrs < 3.5)  return {rest:0, meal:0, mealWaivable:false};
@@ -4517,18 +4522,22 @@ function scheduleBreakAlerts(clockInTs) {
     checkBreakCompliance();
   });
 
-  // ── Second rest break pre-warning (7h 50m)
+  // ── Second rest break pre-warning (7h 50m) + approaching shift limit
   _at(7 + 50/60, function() {
     if (clockState !== 'in') return;
-    if (_restCountForSession(clockInTs) >= 2) return;
     playBreakChime();
-    toast('⏰ 2nd paid rest break due in 10 minutes.', 8000);
+    if (_restCountForSession(clockInTs) < 2) {
+      toast('⏰ 2nd paid rest break due in 10 minutes. Shift limit in 10 minutes — prepare to clock out.', 8000);
+    } else {
+      toast('⏰ Shift limit in 10 minutes — start wrapping up and prepare to clock out.', 8000);
+    }
   });
 
-  // ── Second rest break due (8h)
-  _at(8.0, function() {
-    if (clockState !== 'in') return;
-    checkBreakCompliance();
+  // ── 8-hour shift limit: mandatory clock-out alarm
+  _at(SHIFT_MAX_HRS, function() {
+    if (clockState !== 'in' && clockState !== 'break' && clockState !== 'pending') return;
+    playUrgentAlarm();
+    checkBreakCompliance(); // will display the 8-hour shift-end alert
   });
 }
 
@@ -4573,6 +4582,8 @@ function startBreakCheck() {
 function stopBreakCheck() {
   if(breakCheckID){ clearInterval(breakCheckID); breakCheckID=null; }
   _clearBreakAlertTimers();
+  if (_mealSnoozeTimer) { clearTimeout(_mealSnoozeTimer); _mealSnoozeTimer = null; }
+  _mealSnoozed = false;
 }
 function checkBreakCompliance() {
   if(!currentEmp || (clockState !== 'in' && clockState !== 'pending')) return;
@@ -4602,15 +4613,27 @@ function checkBreakCompliance() {
 
   var elapsedHrs  = (new Date() - lastIn) / 3600000;
   var mealHandled = mealTaken > 0 || mealWaived;
+  // Priority flags
+  var shiftEndDue = elapsedHrs >= SHIFT_MAX_HRS;
   // Strict 4-hour meal break rule — no waiver for shifts > 6 hours
   var mealDue     = elapsedHrs >= MEAL_DUE_HRS && !mealHandled;
-  var canWaive    = elapsedHrs < 6.0; // waiver only allowed if shift will end < 6h
-  // Rest break: first due at 4h, second at 8h
+  var canWaive    = elapsedHrs < 6.0;
+  // Rest break: first due at 4h, second at 8h (if not at shift-end yet)
   var restDue1    = elapsedHrs >= REST_INTERVAL_HRS && restTaken < 1;
   var restDue2    = elapsedHrs >= 8.0 && restTaken < 2;
-  var restDue     = restDue1 || restDue2;
+  var restDue     = (restDue1 || restDue2) && !shiftEndDue;
 
-  if (mealDue) {
+  if (shiftEndDue) {
+    // ── HIGHEST PRIORITY: 8-hour shift limit — must clock out now
+    alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
+    alrt.style.display = '';
+    alrtTitle.textContent = '⛔ 8-Hour Shift Limit Reached';
+    alrtMsg.textContent = 'You have worked ' + elapsedHrs.toFixed(1) + ' hours. '
+      + 'You must clock out and leave the office now. '
+      + 'Staying beyond 8 hours requires prior manager approval.';
+    alrtBtns.innerHTML = '<button onclick="handleClock()" class="tap w-full py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">⏹️ Clock Out Now</button>';
+  } else if (mealDue && !_mealSnoozed) {
+    // ── Meal break required — show with optional snooze (once)
     alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
     alrt.style.display = '';
     alrtTitle.textContent = '🔔 Meal Break Required';
@@ -4618,7 +4641,8 @@ function checkBreakCompliance() {
       + 'A 30-minute unpaid meal break is required now.'
       + (canWaive ? ' You may waive this break only if your shift ends before 6 hours.' : ' This break cannot be waived for shifts over 6 hours.');
     var btns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start 30-min Meal Break</button>';
-    if (canWaive) btns += ' <button onclick="waiveMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#fef9c3;color:#92400e;border:1px solid #fbbf24;cursor:pointer;">Waive (shift &lt; 6h only)</button>';
+    btns += ' <button onclick="snoozeMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Snooze 30 min</button>';
+    if (canWaive) btns += '<button onclick="waiveMealBreak()" class="tap w-full mt-2 py-2.5 rounded-xl text-sm font-semibold" style="background:#fef9c3;color:#92400e;border:1px solid #fbbf24;cursor:pointer;">Waive (shift &lt; 6h only)</button>';
     alrtBtns.innerHTML = btns;
   } else if (restDue) {
     var restNum = restDue2 ? '2nd' : '1st';
@@ -4627,7 +4651,7 @@ function checkBreakCompliance() {
     alrtTitle.textContent = '🔔 ' + restNum.charAt(0).toUpperCase()+restNum.slice(1) + ' Rest Break Due';
     alrtMsg.textContent = 'You have earned a 10-minute paid rest break. This is a duty-free break — step away completely.';
     alrtBtns.innerHTML = '<button onclick="startBreak(10,\'rest\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">☕ Start 10-min Rest Break</button>';
-  } else {
+  } else if (!_mealSnoozed) {
     alrt.style.display = 'none';
   }
 }
@@ -4647,6 +4671,21 @@ function waiveMealBreak() {
   fbPut('timesheet',ts,entry);
   var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
   toast('Meal break waiver recorded.');
+}
+
+function snoozeMealBreak() {
+  if (_mealSnoozeTimer) { clearTimeout(_mealSnoozeTimer); _mealSnoozeTimer = null; }
+  _mealSnoozed = true;
+  var alrt = document.getElementById('breakAlert');
+  if (alrt) alrt.style.display = 'none';
+  toast('Meal break snoozed for 30 minutes. A louder alarm will remind you — you must take your break.', 7000);
+  _mealSnoozeTimer = setTimeout(function() {
+    _mealSnoozed = false;
+    _mealSnoozeTimer = null;
+    if (clockState !== 'in' && clockState !== 'pending') return;
+    playUrgentAlarm();
+    checkBreakCompliance();
+  }, 30 * 60 * 1000);
 }
 
 /* ── Clock-out gate: block if shift > 6h with no meal break ── */
