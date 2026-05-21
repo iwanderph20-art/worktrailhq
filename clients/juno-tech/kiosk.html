@@ -1883,12 +1883,17 @@ function startBreak(mins, btype) {
     : mins+'-min paid rest break started';
   document.getElementById('breakLabel').textContent=lbl;
   var bsTs=breakStart.toISOString();
-  var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min',breakType:breakType};
+  var empCode = currentEmp.code || currentEmp.name;
+  var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min',breakType:breakType,empId:empCode};
   var arr=store.getJ(K.timesheet,[]);
   arr.push(bsEntry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',bsTs,bsEntry);
   fbPutState(currentEmp.name,'break',bsTs);
+  // Audit log — visible to admin
+  logAdminAction('BREAK_START', currentEmp.name + ' (ID: ' + empCode + ') — '
+    + (breakType==='meal' ? '30-min unpaid meal break' : mins+'-min paid rest break')
+    + ' started at ' + new Date(bsTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
   var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
   renderEmpState(); startBreakTimer(mins);
   toast(breakType==='meal'?'Meal break started (30 min unpaid)':'Rest break started ('+mins+' min paid)');
@@ -1918,12 +1923,18 @@ function endBreak() {
   }
   stopBreakTimer(); clockState='in';
   var beTs=new Date().toISOString();
-  var beEntry={name:currentEmp.name,type:'break_end',ts:beTs,note:breakMins+' min'};
+  var actualMins = breakStart ? ((new Date() - breakStart) / 60000) : breakMins;
+  var empCode = currentEmp.code || currentEmp.name;
+  var beEntry={name:currentEmp.name,type:'break_end',ts:beTs,note:breakMins+' min',empId:empCode};
   var arr=store.getJ(K.timesheet,[]);
   arr.push(beEntry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',beTs,beEntry);
   fbPutState(currentEmp.name,'in',beTs);
+  // Audit log — visible to admin
+  logAdminAction('BREAK_END', currentEmp.name + ' (ID: ' + empCode + ') — break ended at '
+    + new Date(beTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
+    + '. Duration: ' + actualMins.toFixed(1) + ' min.');
   breakStart=null; breakMins=0;
   renderEmpState(); updateTodaySummary();
   checkBreakCompliance(); // re-evaluate remaining break obligations
@@ -4681,21 +4692,28 @@ function checkBreakCompliance() {
     // ── Meal break MANDATORY — phase-aware buttons
     alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
     alrt.style.display = '';
-    alrtTitle.textContent = '🔔 Meal Break Required';
+    // Hard cutoff time = clock-in + 4h30m (30 min before end of 5th hour)
+    var mealDeadline    = new Date(lastIn.getTime() + 4.5 * 3600000);
+    var mealDeadlineStr = mealDeadline.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+    var canDelay = elapsedHrs < 4.5; // delay only allowed before 4h30m hard cutoff
     var btns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start Meal Break Now</button>';
-    if (_mealSnoozePhase === 0) {
-      // Initial 4h alert — snooze available
+    if (_mealSnoozePhase === 0 && canDelay) {
+      // Initial 4h alert — one delay allowed
+      alrtTitle.textContent = '🔔 Meal Break Required';
       alrtMsg.textContent = 'You have been working for ' + elapsedHrs.toFixed(1) + ' hours. '
-        + 'A 30-minute unpaid meal break is required. This break is mandatory and cannot be waived.';
-      btns += ' <button onclick="snoozeMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Snooze 15 min</button>';
-    } else if (_mealSnoozePhase === 1) {
-      // 4h 15m alert — Start Now or defer to 4:30 (last chance to delay)
-      alrtMsg.textContent = 'You must take your 30-minute unpaid meal break. '
-        + 'Start now, or schedule it for 4h 30m. No further delays will be allowed after 4:30.';
-      btns += ' <button onclick="deferMealBreakTo430()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏰ Start at 4:30</button>';
+        + 'A 30-minute unpaid meal break is required now. This break is mandatory and cannot be waived.';
+      btns += ' <button onclick="snoozeMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
+    } else if (_mealSnoozePhase === 1 && canDelay) {
+      // 4h15m alert — one final delay available, show actual deadline time
+      alrtTitle.textContent = '🔔 Mandatory Meal Break';
+      alrtMsg.textContent = 'Mandatory: Must start by ' + mealDeadlineStr + '. '
+        + 'One final delay is permitted for clinical emergencies only. No further delays after ' + mealDeadlineStr + '.';
+      btns += ' <button onclick="deferMealBreakTo430()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
     } else {
-      // 4h 30m final alert — no more options
-      alrtMsg.textContent = 'Your meal break is now overdue. You must start your 30-minute unpaid break immediately. No further delays.';
+      // 4h30m / past cutoff — hard stop, no delay
+      alrtTitle.textContent = '🔔 Mandatory Meal Break';
+      alrtMsg.textContent = 'Mandatory: Meal break must start now to ensure compliance with labor laws. '
+        + 'The ' + mealDeadlineStr + ' deadline has passed. No further delays are permitted.';
     }
     alrtBtns.innerHTML = btns;
   } else if (restDue) {
@@ -4716,16 +4734,32 @@ function waiveMealBreak() {
   toast('Meal break waiver is not permitted. You must take your 30-minute break.', 5000);
 }
 
+function _getMealDeadlineStr() {
+  // Returns the hard-cutoff time string (clock-in + 4h30m) for use in audit logs
+  var entries = store.getJ(K.timesheet, []).filter(function(e){ return currentEmp && e.name === currentEmp.name && e.type === 'in'; })
+    .sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
+  if (!entries.length) return '—';
+  var deadline = new Date(new Date(entries[0].ts).getTime() + 4.5 * 3600000);
+  return deadline.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+}
+
 function snoozeMealBreak() {
   if (_mealSnoozeTimer) { clearTimeout(_mealSnoozeTimer); _mealSnoozeTimer = null; }
   _mealSnoozed = true;
   var alrt = document.getElementById('breakAlert');
   if (alrt) alrt.style.display = 'none';
-  toast('Snoozed 15 minutes. A loud alarm will sound at 4h 15m — you must take your break.', 7000);
+  var deadlineStr = _getMealDeadlineStr();
+  var empCode = currentEmp ? (currentEmp.code || currentEmp.name) : '—';
+  // Audit log: reason, employee ID, timestamp, deadline
+  logAdminAction('MEAL_BREAK_DELAY', (currentEmp ? currentEmp.name : '?') + ' (ID: ' + empCode + ')'
+    + ' — Meal break delayed 15 min. Reason: Clinical Emergency.'
+    + ' Hard cutoff: ' + deadlineStr + '.'
+    + ' Delay recorded at: ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
+  toast('Meal break delayed 15 min (Clinical Emergency). A loud alarm will sound — break is mandatory.', 7000);
   _mealSnoozeTimer = setTimeout(function() {
     _mealSnoozed = false;
     _mealSnoozeTimer = null;
-    _mealSnoozePhase = 1; // post-snooze: 2 options — Start Now or defer to 4:30
+    _mealSnoozePhase = 1; // post-delay: show final delay option with deadline time
     if (clockState !== 'in' && clockState !== 'pending') return;
     playUrgentAlarm();
     checkBreakCompliance();
@@ -4737,7 +4771,14 @@ function deferMealBreakTo430() {
   _mealSnoozed = true;
   var alrt = document.getElementById('breakAlert');
   if (alrt) alrt.style.display = 'none';
-  toast('Break scheduled for 4:30. You must start your meal break then — no further delays.', 7000);
+  var deadlineStr = _getMealDeadlineStr();
+  var empCode = currentEmp ? (currentEmp.code || currentEmp.name) : '—';
+  // Audit log: reason, employee ID, timestamp, deadline
+  logAdminAction('MEAL_BREAK_DELAY', (currentEmp ? currentEmp.name : '?') + ' (ID: ' + empCode + ')'
+    + ' — Meal break delayed to ' + deadlineStr + '. Reason: Clinical Emergency (final delay).'
+    + ' No further delays permitted after ' + deadlineStr + '.'
+    + ' Delay recorded at: ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
+  toast('Meal break delayed to ' + deadlineStr + '. This is your final delay — break is mandatory at that time.', 7000);
   _mealSnoozeTimer = setTimeout(function() {
     _mealSnoozed = false;
     _mealSnoozeTimer = null;
@@ -4762,8 +4803,8 @@ function _checkClockOutBreakGate() {
   });
   if (!lastIn) return true;
   var elapsed = (Date.now() - new Date(lastIn)) / 3600000;
-  // Strictly block clock-out if > 6h and no meal break
-  if (elapsed >= 6.0 && mealTaken === 0 && !mealWaived) {
+  // Block clock-out if meal break is due (>= 4h) and not yet taken
+  if (elapsed >= MEAL_DUE_HRS && mealTaken === 0 && !mealWaived) {
     playUrgentAlarm();
     var alrt = document.getElementById('breakAlert');
     var alrtTitle = document.getElementById('breakAlertTitle');
@@ -4772,11 +4813,10 @@ function _checkClockOutBreakGate() {
     if (alrt) {
       alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
       alrt.style.display = '';
-      alrtTitle.textContent = '🚫 Clock-Out Blocked';
-      alrtMsg.textContent   = 'You have worked ' + elapsed.toFixed(1) + ' hours without a meal break. '
-        + 'California law and Juno Tech policy require a 30-minute meal break for shifts over 6 hours. '
-        + 'You must take your meal break before clocking out.';
-      alrtBtns.innerHTML = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Take Meal Break Now</button>';
+      alrtTitle.textContent = '🚫 Compliance Alert';
+      alrtMsg.textContent   = 'Compliance Alert: You have not taken your required 30-minute meal break. '
+        + 'You must take this break before you can clock out.';
+      alrtBtns.innerHTML = '<button onclick="startBreak(30,\'meal\')" class="tap w-full py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Take Meal Break Now</button>';
       alrt.scrollIntoView({behavior:'smooth', block:'center'});
     }
     return false; // BLOCK clock-out
