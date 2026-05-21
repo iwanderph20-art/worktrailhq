@@ -1422,6 +1422,8 @@ function renderEmpState() {
 /* ── clock in/out ───────────────────────── */
 function handleClock() {
   pendingAction = (clockState==='out') ? 'in' : 'out';
+  // Block clock-out if CA break gate fails
+  if (pendingAction === 'out' && !_checkClockOutBreakGate()) return;
   // Location is required — show blocking modal if not yet granted
   if (!currentLocation) {
     openLocationModal();
@@ -1905,6 +1907,15 @@ function startBreakTimer(mins) {
 }
 function stopBreakTimer() { if(breakTimerID){ clearInterval(breakTimerID); breakTimerID=null; } }
 function endBreak() {
+  // Enforce minimum break duration: 30 min for meal, 10 min for rest
+  var elapsedMins = breakStart ? (new Date() - breakStart) / 60000 : 999;
+  var isMeal = breakMins >= 30;
+  var minMins = isMeal ? 30 : 10;
+  if (elapsedMins < minMins) {
+    var remaining = Math.ceil(minMins - elapsedMins);
+    toast((isMeal ? 'Meal' : 'Rest') + ' break must be at least ' + minMins + ' min. ' + remaining + ' min remaining.');
+    return;
+  }
   stopBreakTimer(); clockState='in';
   var beTs=new Date().toISOString();
   var beEntry={name:currentEmp.name,type:'break_end',ts:beTs,note:breakMins+' min'};
@@ -4402,36 +4413,184 @@ function copyEmailTemplate() {
 // 5.1–6 hrs: 1 rest, 1 meal (waivable if shift ≤ 6 hrs)
 // 6.1–10 hrs: 2 rest, 1 meal
 // 10.1–12 hrs: 3 rest, 2 meal (1 waivable)
+/* ── CA Break Compliance ─────────────────────────────────────────────────
+ * Strict 4-hour rule (user's policy, stricter than CA's 5th-hour default):
+ *   Meal break (30 min unpaid) MUST start by the end of the 4th hour.
+ *   Shifts > 6 hours: meal break is MANDATORY — no waiver allowed.
+ *   Rest break (10 min paid) due every 4 hours worked.
+ * ─────────────────────────────────────────────────────────────────────── */
+var MEAL_DUE_HRS      = 4.0;   // strict 4-hour meal break trigger
+var MEAL_WARN_HRS     = 3 + 50/60; // pre-warning at 3h 50m
+var REST_INTERVAL_HRS = 4.0;   // rest break every 4 hours
+var REST_WARN_HRS     = 3 + 50/60; // pre-warning at 3h 50m
+
 function getCABreakReqs(hrs) {
   if      (hrs < 3.5)  return {rest:0, meal:0, mealWaivable:false};
-  else if (hrs < 5.1)  return {rest:1, meal:0, mealWaivable:false};
-  else if (hrs < 6.1)  return {rest:1, meal:1, mealWaivable:true};
-  else if (hrs < 10.1) return {rest:2, meal:1, mealWaivable:false};
-  else                  return {rest:3, meal:2, mealWaivable:true};
+  else if (hrs < 4.0)  return {rest:1, meal:0, mealWaivable:false};
+  else if (hrs < 6.0)  return {rest:1, meal:1, mealWaivable:true};
+  else if (hrs < 10.0) return {rest:2, meal:1, mealWaivable:false};
+  else                  return {rest:3, meal:2, mealWaivable:false};
 }
+
+/* ── Break chime (Web Audio API — no external dependency) ── */
+function playBreakChime() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Three-note ascending chime: C5 → E5 → G5
+    [523.25, 659.25, 783.99].forEach(function(freq, i) {
+      var osc  = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      var t = ctx.currentTime + i * 0.28;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.45, t + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.start(t); osc.stop(t + 0.56);
+    });
+  } catch(e) {}
+}
+
+function playUrgentAlarm() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Repeating two-tone alarm: 880 Hz → 660 Hz, 3 cycles
+    for (var cycle = 0; cycle < 3; cycle++) {
+      [880, 660].forEach(function(freq, j) {
+        var osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        var t = ctx.currentTime + cycle * 0.6 + j * 0.3;
+        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.setValueAtTime(0, t + 0.28);
+        osc.start(t); osc.stop(t + 0.29);
+      });
+    }
+  } catch(e) {}
+}
+
+/* ── Scheduled break alert timers (setTimeout-based, precise) ── */
+var _breakAlertTimers = [];
+function _clearBreakAlertTimers() {
+  _breakAlertTimers.forEach(clearTimeout);
+  _breakAlertTimers = [];
+}
+function scheduleBreakAlerts(clockInTs) {
+  _clearBreakAlertTimers();
+  var now   = Date.now();
+  var inMs  = new Date(clockInTs).getTime();
+
+  function _at(offsetHrs, fn) {
+    var delay = (inMs + offsetHrs * 3600000) - now;
+    if (delay > 0) _breakAlertTimers.push(setTimeout(fn, delay));
+    else if (delay > -300000) fn(); // within 5 min past — fire immediately
+  }
+
+  // ── Meal break pre-warning (3h 50m)
+  _at(MEAL_WARN_HRS, function() {
+    if (clockState !== 'in' && clockState !== 'pending') return;
+    if (_mealHandledForSession(clockInTs)) return;
+    playBreakChime();
+    toast('⏰ Meal break required in 10 minutes. Please plan accordingly.', 8000);
+  });
+
+  // ── Meal break MANDATORY (4h) — full alert
+  _at(MEAL_DUE_HRS, function() {
+    if (clockState !== 'in' && clockState !== 'pending') return;
+    checkBreakCompliance();
+    if (!_mealHandledForSession(clockInTs)) playUrgentAlarm();
+  });
+
+  // ── Rest break pre-warning (3h 50m)
+  _at(REST_WARN_HRS, function() {
+    if (clockState !== 'in') return;
+    if (_restCountForSession(clockInTs) >= 1) return;
+    playBreakChime();
+    toast('⏰ 10-minute paid rest break due in 10 minutes.', 8000);
+  });
+
+  // ── Rest break due (4h)
+  _at(REST_INTERVAL_HRS, function() {
+    if (clockState !== 'in') return;
+    checkBreakCompliance();
+  });
+
+  // ── Second rest break pre-warning (7h 50m)
+  _at(7 + 50/60, function() {
+    if (clockState !== 'in') return;
+    if (_restCountForSession(clockInTs) >= 2) return;
+    playBreakChime();
+    toast('⏰ 2nd paid rest break due in 10 minutes.', 8000);
+  });
+
+  // ── Second rest break due (8h)
+  _at(8.0, function() {
+    if (clockState !== 'in') return;
+    checkBreakCompliance();
+  });
+}
+
+function _sessionEntries(clockInTs) {
+  var inD = new Date(clockInTs);
+  return store.getJ(K.timesheet, [])
+    .filter(function(e){ return e.name === (currentEmp && currentEmp.name) && new Date(e.ts) >= inD; })
+    .map(function(e){ return Object.assign({}, e, {_d: new Date(e.ts)}); })
+    .sort(function(a,b){ return a._d - b._d; });
+}
+function _mealHandledForSession(clockInTs) {
+  var entries = _sessionEntries(clockInTs);
+  var mealTaken = 0, mealWaived = false, inBreak = false, brkType = '';
+  entries.forEach(function(e) {
+    if (e.type === 'break_start') { inBreak = true; brkType = e.breakType || (parseInt(e.note) >= 30 ? 'meal' : 'rest'); }
+    else if (e.type === 'break_end') { if (inBreak && brkType === 'meal') mealTaken++; inBreak = false; }
+    else if (e.type === 'break_waived' && e.breakType === 'meal') mealWaived = true;
+  });
+  return mealTaken > 0 || mealWaived;
+}
+function _restCountForSession(clockInTs) {
+  var entries = _sessionEntries(clockInTs);
+  var restTaken = 0, inBreak = false, brkType = '';
+  entries.forEach(function(e) {
+    if (e.type === 'break_start') { inBreak = true; brkType = e.breakType || (parseInt(e.note) >= 30 ? 'meal' : 'rest'); }
+    else if (e.type === 'break_end') { if (inBreak && brkType === 'rest') restTaken++; inBreak = false; }
+  });
+  return restTaken;
+}
+
 var breakCheckID = null;
 function startBreakCheck() {
   stopBreakCheck();
   checkBreakCompliance();
-  breakCheckID = setInterval(checkBreakCompliance, 60000); // re-check every minute
+  breakCheckID = setInterval(checkBreakCompliance, 60000); // fallback re-check every minute
+  // Schedule precise alerts based on actual clock-in time
+  var entries = store.getJ(K.timesheet, []).filter(function(e){
+    return currentEmp && e.name === currentEmp.name && e.type === 'in';
+  }).sort(function(a,b){ return new Date(b.ts) - new Date(a.ts); });
+  if (entries.length) scheduleBreakAlerts(entries[0].ts);
 }
 function stopBreakCheck() {
   if(breakCheckID){ clearInterval(breakCheckID); breakCheckID=null; }
+  _clearBreakAlertTimers();
 }
 function checkBreakCompliance() {
-  if(!currentEmp || clockState !== 'in') return;
+  if(!currentEmp || (clockState !== 'in' && clockState !== 'pending')) return;
   var entries = store.getJ(K.timesheet,[])
     .filter(function(e){ return e.name===currentEmp.name; })
     .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||'',breakType:e.breakType||''}; })
     .sort(function(a,b){ return a._d-b._d; });
 
-  // Walk entries to find meal break status for current session
-  var lastIn=null, mealTaken=0, mealWaived=false, inBreak=false, brkType='rest';
+  // Walk entries to find meal + rest break status for current session
+  var lastIn=null, mealTaken=0, restTaken=0, mealWaived=false, inBreak=false, brkType='rest';
   entries.forEach(function(e){
-    if(e.type==='in'){ lastIn=e._d; mealTaken=0; mealWaived=false; inBreak=false; }
-    else if(e.type==='break_start'){ inBreak=true; brkType=e.breakType||(e.note.indexOf('30')>=0?'meal':'rest'); }
-    else if(e.type==='break_end'){ if(inBreak&&brkType==='meal') mealTaken++; inBreak=false; }
-    else if(e.type==='break_waived'){ mealWaived=true; }
+    if(e.type==='in'){ lastIn=e._d; mealTaken=0; restTaken=0; mealWaived=false; inBreak=false; }
+    else if(e.type==='break_start'){ inBreak=true; brkType=e.breakType||(parseInt(e.note)>=30?'meal':'rest'); }
+    else if(e.type==='break_end'){
+      if(inBreak){ if(brkType==='meal') mealTaken++; else restTaken++; }
+      inBreak=false;
+    }
+    else if(e.type==='break_waived'&&e.breakType==='meal'){ mealWaived=true; }
   });
   if(!lastIn) return;
 
@@ -4443,31 +4602,87 @@ function checkBreakCompliance() {
 
   var elapsedHrs  = (new Date() - lastIn) / 3600000;
   var mealHandled = mealTaken > 0 || mealWaived;
-  var mealDue     = elapsedHrs >= 5.0 && !mealHandled;
-  // Shift ≤ 6 hrs: waivable by mutual consent (show waive option)
-  var waivable    = elapsedHrs < 6.0;
+  // Strict 4-hour meal break rule — no waiver for shifts > 6 hours
+  var mealDue     = elapsedHrs >= MEAL_DUE_HRS && !mealHandled;
+  var canWaive    = elapsedHrs < 6.0; // waiver only allowed if shift will end < 6h
+  // Rest break: first due at 4h, second at 8h
+  var restDue1    = elapsedHrs >= REST_INTERVAL_HRS && restTaken < 1;
+  var restDue2    = elapsedHrs >= 8.0 && restTaken < 2;
+  var restDue     = restDue1 || restDue2;
 
   if (mealDue) {
     alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
     alrt.style.display = '';
-    alrtTitle.textContent = '30-min Meal Break';
-    alrtMsg.textContent = 'You\'ve worked ' + elapsedHrs.toFixed(1) + ' hrs. Take your unpaid meal break now, or waive it if your shift will end within 6 hours.';
-    var btns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f97316;color:#fff;border:none;cursor:pointer;">&#127859; Take 30-min Break</button>';
-    if (waivable) btns += '<button onclick="waiveMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#fef9c3;color:#92400e;border:1px solid #fbbf24;cursor:pointer;">Waive Break</button>';
+    alrtTitle.textContent = '🔔 Meal Break Required';
+    alrtMsg.textContent = 'You have been working for ' + elapsedHrs.toFixed(1) + ' hours. '
+      + 'A 30-minute unpaid meal break is required now.'
+      + (canWaive ? ' You may waive this break only if your shift ends before 6 hours.' : ' This break cannot be waived for shifts over 6 hours.');
+    var btns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start 30-min Meal Break</button>';
+    if (canWaive) btns += ' <button onclick="waiveMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#fef9c3;color:#92400e;border:1px solid #fbbf24;cursor:pointer;">Waive (shift &lt; 6h only)</button>';
     alrtBtns.innerHTML = btns;
+  } else if (restDue) {
+    var restNum = restDue2 ? '2nd' : '1st';
+    alrt.className = 'glass rounded-3xl px-5 py-4 break-notice';
+    alrt.style.display = '';
+    alrtTitle.textContent = '🔔 ' + restNum.charAt(0).toUpperCase()+restNum.slice(1) + ' Rest Break Due';
+    alrtMsg.textContent = 'You have earned a 10-minute paid rest break. This is a duty-free break — step away completely.';
+    alrtBtns.innerHTML = '<button onclick="startBreak(10,\'rest\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">☕ Start 10-min Rest Break</button>';
   } else {
     alrt.style.display = 'none';
   }
 }
 function waiveMealBreak() {
   if(!currentEmp) return;
-  if(!confirm('Waive your meal break?\n\nBy tapping OK you confirm you are voluntarily waiving your right to a 30-minute unpaid meal break for this shift, as permitted under California law.')) return;
+  // Check current elapsed hours — no waiver if > 6h
+  var entries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name && e.type==='in'; })
+    .sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
+  if (entries.length) {
+    var elapsed = (Date.now() - new Date(entries[0].ts)) / 3600000;
+    if (elapsed >= 6.0) { toast('Meal break cannot be waived — shift is over 6 hours. Please take your break.'); return; }
+  }
+  if(!confirm('Waive your meal break?\n\nBy tapping OK you confirm you are voluntarily waiving your 30-minute unpaid meal break. This is only permitted if your shift will end before 6 hours total.\n\nJuno Tech Laboratory — California Labor Code § 512')) return;
   var ts=new Date().toISOString();
   var entry={name:currentEmp.name,type:'break_waived',ts:ts,breakType:'meal',note:'Meal break waived by employee'};
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet',ts,entry);
   var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
   toast('Meal break waiver recorded.');
+}
+
+/* ── Clock-out gate: block if shift > 6h with no meal break ── */
+function _checkClockOutBreakGate() {
+  if (!currentEmp) return true;
+  var tsArr = store.getJ(K.timesheet, []).filter(function(e){ return e.name === currentEmp.name; })
+    .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+  var lastIn = null, mealTaken = 0, mealWaived = false, inBreak = false, brkType = '';
+  tsArr.forEach(function(e){
+    if(e.type==='in'){ lastIn=e.ts; mealTaken=0; mealWaived=false; inBreak=false; }
+    else if(e.type==='break_start'){ inBreak=true; brkType=e.breakType||(parseInt(e.note||0)>=30?'meal':'rest'); }
+    else if(e.type==='break_end'){ if(inBreak&&brkType==='meal') mealTaken++; inBreak=false; }
+    else if(e.type==='break_waived'&&e.breakType==='meal') mealWaived=true;
+  });
+  if (!lastIn) return true;
+  var elapsed = (Date.now() - new Date(lastIn)) / 3600000;
+  // Strictly block clock-out if > 6h and no meal break
+  if (elapsed >= 6.0 && mealTaken === 0 && !mealWaived) {
+    playUrgentAlarm();
+    var alrt = document.getElementById('breakAlert');
+    var alrtTitle = document.getElementById('breakAlertTitle');
+    var alrtMsg   = document.getElementById('breakAlertMsg');
+    var alrtBtns  = document.getElementById('breakAlertBtns');
+    if (alrt) {
+      alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
+      alrt.style.display = '';
+      alrtTitle.textContent = '🚫 Clock-Out Blocked';
+      alrtMsg.textContent   = 'You have worked ' + elapsed.toFixed(1) + ' hours without a meal break. '
+        + 'California law and Juno Tech policy require a 30-minute meal break for shifts over 6 hours. '
+        + 'You must take your meal break before clocking out.';
+      alrtBtns.innerHTML = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Take Meal Break Now</button>';
+      alrt.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    return false; // BLOCK clock-out
+  }
+  return true;
 }
 
 /* ── Approval Engine ─────────────────────── */
@@ -4544,6 +4759,7 @@ function handleApprovalResult(ts, status) {
     store.setJ(K.timesheet,arr);
     clockState='in'; pendingEntryTs=null;
     if(currentEmp) fbPutState(currentEmp.name,'in',ts); // cross-device state
+    scheduleBreakAlerts(ts); // start precise CA break alert timers from actual clock-in time
     var an=document.getElementById('approvedNotice');
     var pc=document.getElementById('pendingCard');
     if(pc) pc.style.display='none';
