@@ -1683,13 +1683,29 @@ function submitClockInQuestions() {
   // GPS mileage — only if Juno Tech Lab selected AND opted-in
   var trackMileage = qSelectedFacs.indexOf('Juno Tech Lab') >= 0 && qDroveMode === true;
   var note = (document.getElementById('qNote').value||'').trim();
+
+  // Geofence check for phlebotomists (not couriers)
+  var empRole = currentEmp ? (currentEmp.role || 'phlebotomist') : 'phlebotomist';
+  if (empRole !== 'courier' && currentLocation) {
+    var locInfo = locationLabel(currentLocation.lat, currentLocation.lng);
+    if (!locInfo.atLab) {
+      toast('Heads up: you appear to be clocking in ' + locInfo.text + '. Your log has been submitted.', 5000);
+    }
+  }
+
   var entryTs = new Date().toISOString();
   var token   = genApprovalToken(entryTs);
+  // Store distance-from-lab on the entry so admin can see it in Records
+  var locMeta = (empRole !== 'courier' && currentLocation)
+    ? locationLabel(currentLocation.lat, currentLocation.lng)
+    : null;
   var entry   = {
     name:currentEmp.name, type:'in', ts:entryTs,
     hasPhoto:!!pendingPhoto, photo: pendingPhoto||null,
     note:note, facilities:facList,
     location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null,
+    locationLabel: locMeta ? locMeta.text : null,
+    locationAtLab: locMeta ? locMeta.atLab : null,
     approval:'pending', approvalToken:token,
     trackMileage: trackMileage,
     tripType: trackMileage ? (qTripType || 'ONE_WAY') : null,
@@ -2804,13 +2820,19 @@ function _renderTablesImpl() {
             ?'<div style="padding:8px 14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.05);">'+approvalBtns+liveLocBtn+'</div>'
             :'')
 
-          // ── Device info row
+          // ── Device + location info row
           +(function(){
             var dIn  = clockInE  && clockInE.device;
             var dOut = clockOutE && clockOutE.device;
-            if (!dIn && !dOut) return '';
+            var locLbl = clockInE && clockInE.locationLabel;
+            var atLab  = clockInE && clockInE.locationAtLab;
+            // Also compute live distance if entry has lat/lng but no stored label
+            if (!locLbl && clockInE && clockInE.location && clockInE.location.lat) {
+              var ll = locationLabel(clockInE.location.lat, clockInE.location.lng);
+              locLbl = ll.text; atLab = ll.atLab;
+            }
+            if (!dIn && !dOut && !locLbl) return '';
             var firstName = name.split(' ')[0];
-            // Count uses of a device signature across ALL entries for this employee
             var allEmpEntries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===name && e.device; });
             var deviceUseCount = function(d) {
               var sig = d.type+'|'+d.os+'|'+d.browser;
@@ -2825,13 +2847,20 @@ function _renderTablesImpl() {
             var fmt  = function(d){ return icon(d)+' '+deviceLabel(d); };
             var sameDevice = dIn && dOut && dIn.type===dOut.type && dIn.os===dOut.os && dIn.browser===dOut.browser;
             var parts = [];
-            if (sameDevice) {
-              parts.push('<span style="color:#6b7280;">'+fmt(dIn)+'</span>');
-            } else {
-              if (dIn)  parts.push('<span style="color:#6b7280;">IN: '+fmt(dIn)+'</span>');
-              if (dOut) parts.push('<span style="color:#6b7280;">OUT: '+fmt(dOut)+'</span>');
+            // Location chip
+            if (locLbl) {
+              var locColor = atLab ? '#15803d' : '#b45309';
+              var locBg    = atLab ? '#dcfce7'  : '#fef3c7';
+              parts.push('<span style="background:'+locBg+';color:'+locColor+';font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;">📍 '+locLbl+'</span>');
             }
-            return parts.length ? '<div style="padding:4px 14px 6px;display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.04);">'+parts.join('')+'</div>' : '';
+            // Device chip(s)
+            if (sameDevice) {
+              parts.push('<span style="color:#6b7280;font-size:11px;">'+fmt(dIn)+'</span>');
+            } else {
+              if (dIn)  parts.push('<span style="color:#6b7280;font-size:11px;">IN: '+fmt(dIn)+'</span>');
+              if (dOut) parts.push('<span style="color:#6b7280;font-size:11px;">OUT: '+fmt(dOut)+'</span>');
+            }
+            return parts.length ? '<div style="padding:5px 14px 7px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(0,0,0,.04);">'+parts.join('')+'</div>' : '';
           })()
 
           // ── Edit/Delete row (tertiary)
@@ -3978,6 +4007,17 @@ function updateLocationPill(state, text) {
 function updateMileagePill() {
   var pv = document.getElementById('mileagePillVal');
   if (pv && mileageTracking) pv.textContent = mileageTotalMiles.toFixed(2)+' mi';
+}
+// Juno Tech Lab geofence
+var JUNO_LAB = { lat: 33.8932, lng: -118.2335, address: '1410 W Alondra Blvd, Compton, CA 90220' };
+var JUNO_LAB_RADIUS_MI = 0.3; // within ~1600 ft = "at the lab"
+function distanceFromLab(lat, lng) {
+  return haversineMiles(lat, lng, JUNO_LAB.lat, JUNO_LAB.lng);
+}
+function locationLabel(lat, lng) {
+  var d = distanceFromLab(lat, lng);
+  if (d <= JUNO_LAB_RADIUS_MI) return { text: 'Near Juno Tech Lab', atLab: true, miles: d };
+  return { text: d.toFixed(1) + ' mi from Juno Tech Lab', atLab: false, miles: d };
 }
 function haversineMiles(lat1,lng1,lat2,lng2){
   var R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
