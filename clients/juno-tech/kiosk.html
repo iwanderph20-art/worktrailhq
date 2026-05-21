@@ -2651,11 +2651,13 @@ function _renderTablesImpl() {
         var isPending  = !!pendingEntry;
         var isApproved = !!(clockInE && clockInE.approval==='approved' && !pendingEntry);
         var isDenied   = !!(clockInE && clockInE.approval==='denied' && !pendingEntry);
-        var isStillIn  = !!(clockInE && !clockOutE);
+        // Manual entries are historical records — never treat as "currently on shift"
+        var isManualOnly = !!(clockInE && clockInE.manualEntry && !clockOutE);
+        var isStillIn  = !!(clockInE && !clockOutE && !isManualOnly);
 
         // Computed stats — running hours if active, else last complete session
         var hoursVal = isStillIn
-          ? (Date.now()-clockInE._d)/3600000
+          ? Math.max(0, (Date.now()-clockInE._d)/3600000) // clamp so future clock-ins don't show negative
           : (sess ? sess.netMs/3600000 : null);
         var hoursStr = hoursVal!==null ? hoursVal.toFixed(2)+' hrs' : '—';
         var milesVal = sess ? sess.mileage : (clockInE&&clockInE.mileage!=null?clockInE.mileage:null);
@@ -2670,16 +2672,17 @@ function _renderTablesImpl() {
         // Employee initials avatar
         var initials=name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
 
-        // ── Card colors: green = still working, gray = done, amber = pending, red = denied
-        var accentColor = isPending?'#f59e0b':isApproved&&isStillIn?'#22c55e':isApproved?'#9ca3af':isDenied?'#ef4444':'#9ca3af';
-        var cardBg2     = isPending?'#fff':isApproved&&isStillIn?'#f0fdf4':isApproved?'#f9fafb':isDenied?'#fff5f5':'#f9fafb';
+        // ── Card colors: green = still working, gray = done, amber = pending, red = denied, orange = manual incomplete
+        var accentColor = isPending?'#f59e0b':isManualOnly?'#f97316':isApproved&&isStillIn?'#22c55e':isApproved?'#9ca3af':isDenied?'#ef4444':'#9ca3af';
+        var cardBg2     = isPending?'#fff':isManualOnly?'#fff7ed':isApproved&&isStillIn?'#f0fdf4':isApproved?'#f9fafb':isDenied?'#fff5f5':'#f9fafb';
 
         // Status badge (slim pill)
         var statusBadge='';
-        if(isPending)              statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fef3c7;color:#92400e;letter-spacing:.04em;">&#9679; PENDING</span>';
+        if(isPending)                  statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fef3c7;color:#92400e;letter-spacing:.04em;">&#9679; PENDING</span>';
+        else if(isManualOnly)          statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#ffedd5;color:#c2410c;letter-spacing:.04em;">&#9888; MISSING CLOCK-OUT</span>';
         else if(isApproved&&isStillIn) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#dcfce7;color:#15803d;letter-spacing:.04em;">&#9679; ON SHIFT</span>';
-        else if(isApproved)        statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#f3f4f6;color:#6b7280;letter-spacing:.04em;">&#10003; DONE</span>';
-        else if(isDenied)          statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fee2e2;color:#dc2626;letter-spacing:.04em;">&#10005; DENIED</span>';
+        else if(isApproved)            statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#f3f4f6;color:#6b7280;letter-spacing:.04em;">&#10003; DONE</span>';
+        else if(isDenied)              statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fee2e2;color:#dc2626;letter-spacing:.04em;">&#10005; DENIED</span>';
 
         // Times
         var timeFmt={hour:'numeric',minute:'2-digit',hour12:true};
@@ -2720,7 +2723,7 @@ function _renderTablesImpl() {
            +'<button onclick="adminDenyEntry(\''+safeInTs2+'\')" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#10005; Deny</button>'
           :'';
         var safeName4map=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        var liveLocBtn=(isApproved&&isStillIn)
+        var liveLocBtn=(isApproved&&isStillIn&&!isManualOnly)
           ?'<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;cursor:pointer;font-weight:700;">&#128205; Live</button>'
           :'';
 
