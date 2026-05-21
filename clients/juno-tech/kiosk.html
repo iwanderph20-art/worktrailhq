@@ -2631,6 +2631,11 @@ function _renderTablesImpl() {
         emp.forEach(function(e){
           if(e.type==='out' && clockInE && e._d > clockInE._d) clockOutE = e;
         });
+        // ── Orphaned clock-out: no clock-in this day (e.g. shift entered across day boundary)
+        // Still show the out time so the entry isn't invisible
+        if (!clockInE && !clockOutE) {
+          emp.forEach(function(e){ if(e.type==='out') clockOutE = e; });
+        }
 
         // ── Find any truly-pending entry (pending clock-in not yet approved, with or without clock-out)
         var pendingEntry = null;
@@ -3088,8 +3093,9 @@ function openManualEntry() {
   var pad = function(n){ return String(n).padStart(2,'0'); };
   var local = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())
     +'T'+pad(now.getHours())+':'+pad(now.getMinutes());
-  // For full-shift mode, default clock-out to 1 hour after clock-in
-  var later = new Date(now.getTime() + 3600000);
+  // For full-shift mode, default clock-out to 8 hours after clock-in, same day
+  var later = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+    Math.min(now.getHours() + 8, 23), now.getMinutes(), 0, 0);
   var localOut = later.getFullYear()+'-'+pad(later.getMonth()+1)+'-'+pad(later.getDate())
     +'T'+pad(later.getHours())+':'+pad(later.getMinutes());
   document.getElementById('manualDatetime').value   = local;
@@ -3125,6 +3131,10 @@ function saveManualEntry() {
     var inTs  = new Date(inDt);
     var outTs = new Date(outDt);
     if (outTs <= inTs) { toast('Clock-out must be after clock-in'); return; }
+    // Warn if spanning calendar days — entries will appear on separate day rows
+    if (inTs.toDateString() !== outTs.toDateString()) {
+      if (!confirm('Clock-in and clock-out are on different calendar days (' + inTs.toLocaleDateString() + ' and ' + outTs.toLocaleDateString() + '). They will appear on separate day rows in Records. Continue?')) return;
+    }
     var inEntry = {
       ts: inTs.toISOString(), name: empName, type: 'in', note: note,
       approval: 'approved', manualEntry: true, addedBy: 'admin', addedAt: addedAt,
