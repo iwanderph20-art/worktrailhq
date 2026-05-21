@@ -3798,6 +3798,23 @@ function syncFromCloud(cb) {
               }
             }
           });
+          // Preserve local-only entries that haven't landed in Firebase yet
+          // (e.g. a manual entry saved 2 seconds ago when the 30s auto-refresh fires)
+          // Only keep local entries that are NOT in deletedTs — legitimately deleted entries stay gone
+          var cloudTsSet = {};
+          entries.forEach(function(e){ cloudTsSet[String(e.ts)] = true; });
+          var localOnly = store.getJ(K.timesheet, []).filter(function(e){
+            return e && e.ts
+              && !cloudTsSet[String(e.ts)]                        // not yet in Firebase
+              && deletedTs.indexOf(String(e.ts)) < 0;             // not deleted
+          });
+          if (localOnly.length) {
+            // Merge in and re-sort
+            localOnly.forEach(function(e){ entries.push(e); });
+            entries.sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+            // Re-push these in-flight entries to Firebase so they catch up
+            localOnly.forEach(function(e){ fbPut('timesheet', e.ts, e); });
+          }
           store.setJ(K.timesheet, entries);
           // Step 3: fetch supplies
           _syncSupplies();
