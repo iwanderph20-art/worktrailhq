@@ -905,7 +905,7 @@ video{object-fit:cover;transform:scaleX(-1);}
 
 <!-- Manual Log Entry Modal -->
 <div id="manualEntryWrap" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
-  <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+  <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
     <div class="flex items-center justify-between mb-4">
       <div>
         <p class="font-bold text-base" style="color:#111827;">&#43; Add Manual Log Entry</p>
@@ -914,24 +914,53 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button onclick="closeManualEntry()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
     </div>
     <div class="space-y-3">
+      <!-- Mode toggle -->
+      <div style="display:flex;gap:8px;background:#f3f4f6;border-radius:10px;padding:4px;">
+        <button id="manualModeSingle" onclick="setManualMode('single')"
+          style="flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:#1a2b8c;color:#fff;">Single Entry</button>
+        <button id="manualModeShift" onclick="setManualMode('shift')"
+          style="flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:transparent;color:#6b7280;">Full Shift</button>
+      </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Employee</label>
         <select id="manualEmpName" class="inp w-full mt-1" style="color:#111827;">
           <option value="">— Select employee —</option>
         </select>
       </div>
-      <div>
-        <label class="text-xs font-semibold" style="color:#6b7280;">Entry Type</label>
-        <select id="manualType" class="inp w-full mt-1" style="color:#111827;">
-          <option value="in">Clock In</option>
-          <option value="out">Clock Out</option>
-          <option value="break_start">Break Start</option>
-          <option value="break_end">Break End</option>
-        </select>
+      <!-- Single entry fields -->
+      <div id="manualSingleFields">
+        <div>
+          <label class="text-xs font-semibold" style="color:#6b7280;">Entry Type</label>
+          <select id="manualType" class="inp w-full mt-1" style="color:#111827;">
+            <option value="in">Clock In</option>
+            <option value="out">Clock Out</option>
+            <option value="break_start">Break Start</option>
+            <option value="break_end">Break End</option>
+          </select>
+        </div>
+        <div style="margin-top:10px;">
+          <label class="text-xs font-semibold" style="color:#6b7280;">Date &amp; Time</label>
+          <input id="manualDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+        </div>
       </div>
-      <div>
-        <label class="text-xs font-semibold" style="color:#6b7280;">Date &amp; Time</label>
-        <input id="manualDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+      <!-- Full shift fields -->
+      <div id="manualShiftFields" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label class="text-xs font-semibold" style="color:#6b7280;">Clock In</label>
+            <input id="manualInDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+          </div>
+          <div>
+            <label class="text-xs font-semibold" style="color:#6b7280;">Clock Out</label>
+            <input id="manualOutDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <label class="text-xs font-semibold" style="color:#6b7280;">Facility</label>
+          <select id="manualFacility" class="inp w-full mt-1" style="color:#111827;">
+            <option value="">— Select facility —</option>
+          </select>
+        </div>
       </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Reason / Note <span style="font-weight:400;color:#9ca3af;">(required)</span></label>
@@ -941,7 +970,7 @@ video{object-fit:cover;transform:scaleX(-1);}
         &#9888; Manual entries are flagged as admin-added and will appear with a &#128221; badge in the timesheet.
       </div>
       <button onclick="saveManualEntry()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-1"
-        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Add Entry</button>
+        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;" id="manualSaveBtn">Add Entry</button>
     </div>
   </div>
 </div>
@@ -3018,6 +3047,20 @@ function saveEditEntry() {
   updateStorageUsage();
 }
 /* ── Manual Log Entry ────────────────────── */
+var _manualMode = 'single'; // 'single' or 'shift'
+function setManualMode(mode) {
+  _manualMode = mode;
+  var isSingle = mode === 'single';
+  document.getElementById('manualSingleFields').style.display = isSingle ? '' : 'none';
+  document.getElementById('manualShiftFields').style.display  = isSingle ? 'none' : '';
+  document.getElementById('manualSaveBtn').textContent = isSingle ? 'Add Entry' : 'Add Clock In + Clock Out';
+  var btnSingle = document.getElementById('manualModeSingle');
+  var btnShift  = document.getElementById('manualModeShift');
+  btnSingle.style.background = isSingle ? '#1a2b8c' : 'transparent';
+  btnSingle.style.color      = isSingle ? '#fff' : '#6b7280';
+  btnShift.style.background  = isSingle ? 'transparent' : '#1a2b8c';
+  btnShift.style.color       = isSingle ? '#6b7280' : '#fff';
+}
 function openManualEntry() {
   // Populate employee dropdown
   var emps = store.getJ(K.employees, []);
@@ -3029,15 +3072,32 @@ function openManualEntry() {
     opt.textContent = e.name;
     sel.appendChild(opt);
   });
+  // Populate facility dropdown
+  var facSel = document.getElementById('manualFacility');
+  if (facSel) {
+    facSel.innerHTML = '<option value="">— Select facility —</option>';
+    (typeof FACILITIES !== 'undefined' ? FACILITIES : []).forEach(function(f){
+      var o = document.createElement('option');
+      o.value = f; o.textContent = f;
+      facSel.appendChild(o);
+    });
+  }
   // Default datetime to now
   var now = new Date();
   now.setSeconds(0,0);
   var pad = function(n){ return String(n).padStart(2,'0'); };
   var local = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())
     +'T'+pad(now.getHours())+':'+pad(now.getMinutes());
-  document.getElementById('manualDatetime').value = local;
+  // For full-shift mode, default clock-out to 1 hour after clock-in
+  var later = new Date(now.getTime() + 3600000);
+  var localOut = later.getFullYear()+'-'+pad(later.getMonth()+1)+'-'+pad(later.getDate())
+    +'T'+pad(later.getHours())+':'+pad(later.getMinutes());
+  document.getElementById('manualDatetime').value   = local;
+  document.getElementById('manualInDatetime').value  = local;
+  document.getElementById('manualOutDatetime').value = localOut;
   document.getElementById('manualNote').value = '';
   document.getElementById('manualType').value = 'in';
+  setManualMode('single');
   document.getElementById('manualEntryWrap').style.display = 'flex';
 }
 function closeManualEntry() {
@@ -3045,40 +3105,66 @@ function closeManualEntry() {
 }
 function saveManualEntry() {
   var empName = document.getElementById('manualEmpName').value.trim();
-  var type    = document.getElementById('manualType').value;
-  var rawDt   = document.getElementById('manualDatetime').value;
   var note    = document.getElementById('manualNote').value.trim();
   if (!empName) { toast('Select an employee'); return; }
-  if (!rawDt)   { toast('Select a date and time'); return; }
   if (!note)    { toast('A reason is required for manual entries'); return; }
 
   var emps = store.getJ(K.employees, []);
   var emp  = emps.filter(function(e){ return e.name === empName; })[0] || {};
+  var arr  = store.getJ(K.timesheet, []);
+  var addedAt = new Date().toISOString();
 
-  var entry = {
-    ts:          new Date(rawDt).toISOString(),
-    name:        empName,
-    type:        type,
-    note:        note,
-    approval:    type === 'in' ? 'approved' : undefined,
-    manualEntry: true,
-    addedBy:     'admin',
-    addedAt:     new Date().toISOString(),
-    facilities:  emp.facilities || [],
-    hasPhoto:    false
-  };
-  // Remove undefined keys
-  Object.keys(entry).forEach(function(k){ if(entry[k]===undefined) delete entry[k]; });
-
-  var arr = store.getJ(K.timesheet, []);
-  arr.push(entry);
-  store.setJ(K.timesheet, arr);
-  fbPut('timesheet', entry.ts, entry);
-
-  logAdminAction('MANUAL_ENTRY', empName+' — '+(TYPE_LABEL[type]||type)+' at '+new Date(rawDt).toLocaleString()+' | Reason: '+note);
-  closeManualEntry();
-  renderTables();
-  toast('Manual entry added for '+empName);
+  if (_manualMode === 'shift') {
+    // Full shift — create both clock-in and clock-out entries
+    var inDt  = document.getElementById('manualInDatetime').value;
+    var outDt = document.getElementById('manualOutDatetime').value;
+    var facVal = document.getElementById('manualFacility').value;
+    var facList = facVal ? [facVal] : [];
+    if (!inDt)  { toast('Select a clock-in time'); return; }
+    if (!outDt) { toast('Select a clock-out time'); return; }
+    var inTs  = new Date(inDt);
+    var outTs = new Date(outDt);
+    if (outTs <= inTs) { toast('Clock-out must be after clock-in'); return; }
+    var inEntry = {
+      ts: inTs.toISOString(), name: empName, type: 'in', note: note,
+      approval: 'approved', manualEntry: true, addedBy: 'admin', addedAt: addedAt,
+      facilities: facList, hasPhoto: false
+    };
+    var outEntry = {
+      ts: outTs.toISOString(), name: empName, type: 'out', note: note,
+      manualEntry: true, addedBy: 'admin', addedAt: addedAt,
+      facilities: facList, hasPhoto: false
+    };
+    arr.push(inEntry);
+    arr.push(outEntry);
+    store.setJ(K.timesheet, arr);
+    fbPut('timesheet', inEntry.ts, inEntry);
+    fbPut('timesheet', outEntry.ts, outEntry);
+    logAdminAction('MANUAL_ENTRY', empName+' — Full shift: '+inTs.toLocaleString()+' → '+outTs.toLocaleString()+' | Reason: '+note);
+    closeManualEntry();
+    renderTables();
+    toast('Shift added for '+empName);
+  } else {
+    // Single entry
+    var type  = document.getElementById('manualType').value;
+    var rawDt = document.getElementById('manualDatetime').value;
+    if (!rawDt) { toast('Select a date and time'); return; }
+    var entry = {
+      ts:          new Date(rawDt).toISOString(),
+      name:        empName, type: type, note: note,
+      approval:    type === 'in' ? 'approved' : undefined,
+      manualEntry: true, addedBy: 'admin', addedAt: addedAt,
+      facilities:  emp.facilities || [], hasPhoto: false
+    };
+    Object.keys(entry).forEach(function(k){ if(entry[k]===undefined) delete entry[k]; });
+    arr.push(entry);
+    store.setJ(K.timesheet, arr);
+    fbPut('timesheet', entry.ts, entry);
+    logAdminAction('MANUAL_ENTRY', empName+' — '+(TYPE_LABEL[type]||type)+' at '+new Date(rawDt).toLocaleString()+' | Reason: '+note);
+    closeManualEntry();
+    renderTables();
+    toast('Manual entry added for '+empName);
+  }
   updateStorageUsage();
 }
 
