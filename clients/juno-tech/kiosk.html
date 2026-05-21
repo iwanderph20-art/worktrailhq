@@ -4430,9 +4430,13 @@ var REST2_WARN_HRS = 6 - 10/60;   // pre-warning at 5h 50m
 var SHIFT_WARN_HRS = 7.5;         // wrap-up alarm at 7h 30m
 var SHIFT_MAX_HRS  = 8.0;         // hard shift limit — must clock out
 
-// Meal break snooze state (one snooze allowed; next alert uses urgent alarm)
+// Meal break snooze state
+// phase 0 = initial 4h alert (snooze available)
+// phase 1 = post-snooze 4h15m alert (Start Now or defer to 4:30)
+// phase 2 = final 4h30m alert (Start Now only — no further delays)
 var _mealSnoozed     = false;
 var _mealSnoozeTimer = null;
+var _mealSnoozePhase = 0;
 
 function getCABreakReqs(hrs) {
   if      (hrs < 2.0)  return {rest:0, meal:0, mealWaivable:false};
@@ -4625,6 +4629,7 @@ function stopBreakCheck() {
   _clearBreakAlertTimers();
   if (_mealSnoozeTimer) { clearTimeout(_mealSnoozeTimer); _mealSnoozeTimer = null; }
   _mealSnoozed = false;
+  _mealSnoozePhase = 0;
 }
 function checkBreakCompliance() {
   if(!currentEmp || (clockState !== 'in' && clockState !== 'pending')) return;
@@ -4673,14 +4678,25 @@ function checkBreakCompliance() {
       + 'Staying beyond 8 hours requires prior manager approval.';
     alrtBtns.innerHTML = '<button onclick="handleClock()" class="tap w-full py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">⏹️ Clock Out Now</button>';
   } else if (mealDue && !_mealSnoozed) {
-    // ── Meal break MANDATORY — no waiver
+    // ── Meal break MANDATORY — phase-aware buttons
     alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
     alrt.style.display = '';
     alrtTitle.textContent = '🔔 Meal Break Required';
-    alrtMsg.textContent = 'You have been working for ' + elapsedHrs.toFixed(1) + ' hours. '
-      + 'A 30-minute unpaid meal break is required now. This break is mandatory and cannot be waived.';
-    var btns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start 30-min Meal Break</button>';
-    btns += ' <button onclick="snoozeMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Snooze 30 min</button>';
+    var btns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start Meal Break Now</button>';
+    if (_mealSnoozePhase === 0) {
+      // Initial 4h alert — snooze available
+      alrtMsg.textContent = 'You have been working for ' + elapsedHrs.toFixed(1) + ' hours. '
+        + 'A 30-minute unpaid meal break is required. This break is mandatory and cannot be waived.';
+      btns += ' <button onclick="snoozeMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Snooze 15 min</button>';
+    } else if (_mealSnoozePhase === 1) {
+      // 4h 15m alert — Start Now or defer to 4:30 (last chance to delay)
+      alrtMsg.textContent = 'You must take your 30-minute unpaid meal break. '
+        + 'Start now, or schedule it for 4h 30m. No further delays will be allowed after 4:30.';
+      btns += ' <button onclick="deferMealBreakTo430()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏰ Start at 4:30</button>';
+    } else {
+      // 4h 30m final alert — no more options
+      alrtMsg.textContent = 'Your meal break is now overdue. You must start your 30-minute unpaid break immediately. No further delays.';
+    }
     alrtBtns.innerHTML = btns;
   } else if (restDue) {
     // ── Rest break (1st at 2h, 2nd at 6h)
@@ -4705,14 +4721,31 @@ function snoozeMealBreak() {
   _mealSnoozed = true;
   var alrt = document.getElementById('breakAlert');
   if (alrt) alrt.style.display = 'none';
-  toast('Meal break snoozed for 30 minutes. A louder alarm will remind you — you must take your break.', 7000);
+  toast('Snoozed 15 minutes. A loud alarm will sound at 4h 15m — you must take your break.', 7000);
   _mealSnoozeTimer = setTimeout(function() {
     _mealSnoozed = false;
     _mealSnoozeTimer = null;
+    _mealSnoozePhase = 1; // post-snooze: 2 options — Start Now or defer to 4:30
     if (clockState !== 'in' && clockState !== 'pending') return;
     playUrgentAlarm();
     checkBreakCompliance();
-  }, 30 * 60 * 1000);
+  }, 15 * 60 * 1000);
+}
+
+function deferMealBreakTo430() {
+  if (_mealSnoozeTimer) { clearTimeout(_mealSnoozeTimer); _mealSnoozeTimer = null; }
+  _mealSnoozed = true;
+  var alrt = document.getElementById('breakAlert');
+  if (alrt) alrt.style.display = 'none';
+  toast('Break scheduled for 4:30. You must start your meal break then — no further delays.', 7000);
+  _mealSnoozeTimer = setTimeout(function() {
+    _mealSnoozed = false;
+    _mealSnoozeTimer = null;
+    _mealSnoozePhase = 2; // final: Start Now only — no more options
+    if (clockState !== 'in' && clockState !== 'pending') return;
+    playUrgentAlarm();
+    checkBreakCompliance();
+  }, 15 * 60 * 1000);
 }
 
 /* ── Clock-out gate: block if shift > 6h with no meal break ── */
