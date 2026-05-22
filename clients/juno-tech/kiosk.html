@@ -1689,7 +1689,7 @@ function submitClockInQuestions() {
   // Geofence check for phlebotomists (not couriers)
   var empRole = currentEmp ? (currentEmp.role || 'phlebotomist') : 'phlebotomist';
   if (empRole !== 'courier' && currentLocation) {
-    var locInfo = locationLabel(currentLocation.lat, currentLocation.lng);
+    var locInfo = locationLabel(currentLocation.lat, currentLocation.lng, currentEmp.name);
     if (!locInfo.atLab) {
       toast('Heads up: you appear to be clocking in ' + locInfo.text + '. Your log has been submitted.', 5000);
     }
@@ -1699,7 +1699,7 @@ function submitClockInQuestions() {
   var token   = genApprovalToken(entryTs);
   // Store distance-from-lab on the entry so admin can see it in Records
   var locMeta = (empRole !== 'courier' && currentLocation)
-    ? locationLabel(currentLocation.lat, currentLocation.lng)
+    ? locationLabel(currentLocation.lat, currentLocation.lng, currentEmp.name)
     : null;
   var entry   = {
     name:currentEmp.name, type:'in', ts:entryTs,
@@ -2851,7 +2851,7 @@ function _renderTablesImpl() {
             var atLab  = clockInE && clockInE.locationAtLab;
             // Also compute live distance if entry has lat/lng but no stored label
             if (!locLbl && clockInE && clockInE.location && clockInE.location.lat) {
-              var ll = locationLabel(clockInE.location.lat, clockInE.location.lng);
+              var ll = locationLabel(clockInE.location.lat, clockInE.location.lng, name);
               locLbl = ll.text; atLab = ll.atLab;
             }
             if (!dIn && !dOut && !locLbl) return '';
@@ -2872,8 +2872,9 @@ function _renderTablesImpl() {
             var parts = [];
             // Location chip
             if (locLbl) {
-              var locColor = atLab ? '#15803d' : '#b45309';
-              var locBg    = atLab ? '#dcfce7'  : '#fef3c7';
+              var isWrong  = locLbl.indexOf('⚠') === 0;
+              var locColor = atLab ? '#15803d' : isWrong ? '#991b1b' : '#b45309';
+              var locBg    = atLab ? '#dcfce7'  : isWrong ? '#fee2e2' : '#fef3c7';
               parts.push('<span style="background:'+locBg+';color:'+locColor+';font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;">📍 '+locLbl+'</span>');
             }
             // Device chip(s)
@@ -4033,21 +4034,41 @@ function updateMileagePill() {
 }
 // Known facility geofences
 var KNOWN_FACILITIES = [
-  { name: 'Juno Tech Lab',    lat: 33.8884074,  lng: -118.2445339, radius: 0.5 },
-  { name: 'Leisure Garden',   lat: 34.6914363,  lng: -118.1569600, radius: 0.5 }
+  { name: 'Juno Tech Lab',  lat: 33.8884074, lng: -118.2445339, radius: 0.5 },
+  { name: 'Leisure Garden', lat: 34.6914363, lng: -118.1569600, radius: 0.5 }
 ];
+// Employee → assigned facility (name must match exactly as registered)
+var EMP_FACILITY = {
+  'Enrique Blanco': 'Juno Tech Lab',
+  'Krys':           'Juno Tech Lab',
+  'Hans':           'Juno Tech Lab',
+  'Cristina':       'Leisure Garden',
+  'Julissa':        'Leisure Garden',
+  'Mylyn':          'Leisure Garden',
+  'Jose':           'Leisure Garden'
+};
 function distanceFromLab(lat, lng) {
   return haversineMiles(lat, lng, KNOWN_FACILITIES[0].lat, KNOWN_FACILITIES[0].lng);
 }
-function locationLabel(lat, lng) {
+function locationLabel(lat, lng, empName) {
+  var assigned = empName ? EMP_FACILITY[empName] : null;
+  // Check all known facilities for proximity
   for (var i = 0; i < KNOWN_FACILITIES.length; i++) {
     var f = KNOWN_FACILITIES[i];
     var d = haversineMiles(lat, lng, f.lat, f.lng);
-    if (d <= f.radius) return { text: '✓ ' + f.name, atLab: true, miles: d, facility: f.name };
+    if (d <= f.radius) {
+      // At a known facility — check if it's their assigned one
+      if (assigned && assigned !== f.name) {
+        return { text: '⚠ ' + f.name + ' (assigned: ' + assigned + ')', atLab: false, miles: d, facility: f.name, wrongFacility: true };
+      }
+      return { text: '✓ ' + f.name, atLab: true, miles: d, facility: f.name };
+    }
   }
-  // Not near any known facility — show distance from Juno Tech Lab as fallback
-  var dLab = distanceFromLab(lat, lng);
-  return { text: dLab.toFixed(1) + ' mi from Juno Tech Lab', atLab: false, miles: dLab };
+  // Not near any facility — show distance from assigned facility or Juno Tech Lab
+  var ref = assigned ? KNOWN_FACILITIES.filter(function(f){ return f.name === assigned; })[0] : KNOWN_FACILITIES[0];
+  if (!ref) ref = KNOWN_FACILITIES[0];
+  var dRef = haversineMiles(lat, lng, ref.lat, ref.lng);
+  return { text: dRef.toFixed(1) + ' mi from ' + ref.name, atLab: false, miles: dRef };
 }
 function haversineMiles(lat1,lng1,lat2,lng2){
   var R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
