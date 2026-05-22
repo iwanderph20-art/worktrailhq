@@ -4031,16 +4031,23 @@ function updateMileagePill() {
   var pv = document.getElementById('mileagePillVal');
   if (pv && mileageTracking) pv.textContent = mileageTotalMiles.toFixed(2)+' mi';
 }
-// Juno Tech Lab geofence
-var JUNO_LAB = { lat: 33.8884074, lng: -118.2445339, address: '1410 W Alondra Blvd, Compton, CA 90220' };
-var JUNO_LAB_RADIUS_MI = 0.5; // within ~0.5 mi = "at the lab" (covers lab + immediate vicinity)
+// Known facility geofences
+var KNOWN_FACILITIES = [
+  { name: 'Juno Tech Lab',    lat: 33.8884074,  lng: -118.2445339, radius: 0.5 },
+  { name: 'Leisure Garden',   lat: 34.6914363,  lng: -118.1569600, radius: 0.5 }
+];
 function distanceFromLab(lat, lng) {
-  return haversineMiles(lat, lng, JUNO_LAB.lat, JUNO_LAB.lng);
+  return haversineMiles(lat, lng, KNOWN_FACILITIES[0].lat, KNOWN_FACILITIES[0].lng);
 }
 function locationLabel(lat, lng) {
-  var d = distanceFromLab(lat, lng);
-  if (d <= JUNO_LAB_RADIUS_MI) return { text: '✓ Juno Tech Lab', atLab: true, miles: d };
-  return { text: d.toFixed(1) + ' mi from Juno Tech Lab', atLab: false, miles: d };
+  for (var i = 0; i < KNOWN_FACILITIES.length; i++) {
+    var f = KNOWN_FACILITIES[i];
+    var d = haversineMiles(lat, lng, f.lat, f.lng);
+    if (d <= f.radius) return { text: '✓ ' + f.name, atLab: true, miles: d, facility: f.name };
+  }
+  // Not near any known facility — show distance from Juno Tech Lab as fallback
+  var dLab = distanceFromLab(lat, lng);
+  return { text: dLab.toFixed(1) + ' mi from Juno Tech Lab', atLab: false, miles: dLab };
 }
 function haversineMiles(lat1,lng1,lat2,lng2){
   var R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
