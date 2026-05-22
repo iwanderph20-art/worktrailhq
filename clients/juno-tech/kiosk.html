@@ -3170,6 +3170,15 @@ function openManualEntry() {
 function closeManualEntry() {
   document.getElementById('manualEntryWrap').style.display = 'none';
 }
+// Return a unique ISO timestamp: if baseDate's ms already exists in existingArr, bump by 1ms until free.
+// Prevents Firebase key collisions when two employees share the same clock-in/out time.
+function makeUniqueTs(baseDate, existingArr) {
+  var taken = {};
+  (existingArr || []).forEach(function(e){ if (e.ts) taken[e.ts] = true; });
+  var d = new Date(baseDate.getTime());
+  while (taken[d.toISOString()]) { d = new Date(d.getTime() + 1); }
+  return d.toISOString();
+}
 function saveManualEntry() {
   var empName = document.getElementById('manualEmpName').value.trim();
   var note    = document.getElementById('manualNote').value.trim();
@@ -3197,12 +3206,12 @@ function saveManualEntry() {
       if (!confirm('Clock-in and clock-out are on different calendar days (' + inTs.toLocaleDateString() + ' and ' + outTs.toLocaleDateString() + '). They will appear on separate day rows in Records. Continue?')) return;
     }
     var inEntry = {
-      ts: inTs.toISOString(), name: empName, type: 'in', note: note,
+      ts: makeUniqueTs(inTs, arr), name: empName, type: 'in', note: note,
       approval: 'approved', manualEntry: true, addedBy: 'admin', addedAt: addedAt,
       facilities: facList, hasPhoto: false
     };
     var outEntry = {
-      ts: outTs.toISOString(), name: empName, type: 'out', note: note,
+      ts: makeUniqueTs(outTs, arr), name: empName, type: 'out', note: note,
       manualEntry: true, addedBy: 'admin', addedAt: addedAt,
       facilities: facList, hasPhoto: false
     };
@@ -3221,7 +3230,7 @@ function saveManualEntry() {
     var rawDt = document.getElementById('manualDatetime').value;
     if (!rawDt) { toast('Select a date and time'); return; }
     var entry = {
-      ts:          new Date(rawDt).toISOString(),
+      ts:          makeUniqueTs(new Date(rawDt), arr),
       name:        empName, type: type, note: note,
       approval:    type === 'in' ? 'approved' : undefined,
       manualEntry: true, addedBy: 'admin', addedAt: addedAt,
