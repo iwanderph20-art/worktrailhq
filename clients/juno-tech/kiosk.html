@@ -3072,6 +3072,22 @@ function saveEditEntry() {
   var origDt = new Date(origTs);
   var inputDt = new Date(rawDt);
   var dtChanged = Math.abs(origDt - inputDt) > 60000; // more than 1-min diff = intentional change
+  // Warn if the new time would invert a clock-in/clock-out pair (hours would show as 0)
+  if (dtChanged && (newType === 'in' || newType === 'out')) {
+    var partnerTypeCheck = newType === 'in' ? 'out' : 'in';
+    var empForCheck = null;
+    records.forEach(function(r){ if (String(r.ts) === String(origTs)) empForCheck = r; });
+    if (empForCheck) {
+      var hasInversion = false;
+      records.forEach(function(r) {
+        if (r.name === empForCheck.name && r.type === partnerTypeCheck && String(r.ts) !== String(origTs)) {
+          var timeDiff = newType === 'in' ? new Date(r.ts) - inputDt : inputDt - new Date(r.ts);
+          if (timeDiff < 0 && Math.abs(timeDiff) < 86400000) hasInversion = true;
+        }
+      });
+      if (hasInversion && !confirm('Warning: The new time would place a clock-' + newType + ' AFTER its matching clock-' + partnerTypeCheck + ' for ' + empForCheck.name + '. Total hours will show as 0. Continue anyway?')) return;
+    }
+  }
   records.forEach(function(r) {
     if (String(r.ts) === String(origTs)) {
       oldDesc = (r.name||'?')+' — '+(TYPE_LABEL[r.type]||r.type)+' at '+new Date(r.ts).toLocaleString();
@@ -3108,6 +3124,14 @@ function saveEditEntry() {
     if(idx>=0){ deleted.splice(idx,1); store.setJ(K.deletedTs,deleted); }
   }
   fbPut('timesheet', newTs, updatedEntry);
+  // Migrate photo in IndexedDB from old ts key to new ts key so it doesn't disappear after a time edit
+  if (dtChanged) {
+    (function(oTs, nTs){
+      loadPhoto(oTs, function(url) {
+        if (url) { savePhoto(nTs, url); deletePhoto(oTs); }
+      });
+    })(origTs, newTs);
+  }
   logAdminAction('EDIT', oldDesc+' → type:'+newType+(dtChanged?', time:'+new Date(rawDt).toLocaleString():'')+(newNote?' note:'+newNote:'')+(clearingMileage?' [mileage cleared]':''));
   closeEditEntry(); renderTables(); toast('Entry updated');
   updateStorageUsage();
@@ -3170,11 +3194,12 @@ function openManualEntry() {
 function closeManualEntry() {
   document.getElementById('manualEntryWrap').style.display = 'none';
 }
-// Return a unique ISO timestamp: if baseDate's ms already exists in existingArr, bump by 1ms until free.
-// Prevents Firebase key collisions when two employees share the same clock-in/out time.
+// Return a unique ISO timestamp: if baseDate's ms already exists in existingArr OR deletedTs, bump by 1ms.
+// Prevents Firebase key collisions AND avoids reusing a deleted timestamp that syncFromCloud would filter out.
 function makeUniqueTs(baseDate, existingArr) {
   var taken = {};
   (existingArr || []).forEach(function(e){ if (e.ts) taken[e.ts] = true; });
+  store.getJ(K.deletedTs, []).forEach(function(ts){ taken[String(ts)] = true; });
   var d = new Date(baseDate.getTime());
   while (taken[d.toISOString()]) { d = new Date(d.getTime() + 1); }
   return d.toISOString();
