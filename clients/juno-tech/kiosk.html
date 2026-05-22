@@ -4032,14 +4032,14 @@ function updateMileagePill() {
   if (pv && mileageTracking) pv.textContent = mileageTotalMiles.toFixed(2)+' mi';
 }
 // Juno Tech Lab geofence
-var JUNO_LAB = { lat: 33.8932, lng: -118.2335, address: '1410 W Alondra Blvd, Compton, CA 90220' };
-var JUNO_LAB_RADIUS_MI = 0.3; // within ~1600 ft = "at the lab"
+var JUNO_LAB = { lat: 33.8884074, lng: -118.2445339, address: '1410 W Alondra Blvd, Compton, CA 90220' };
+var JUNO_LAB_RADIUS_MI = 0.5; // within ~0.5 mi = "at the lab" (covers lab + immediate vicinity)
 function distanceFromLab(lat, lng) {
   return haversineMiles(lat, lng, JUNO_LAB.lat, JUNO_LAB.lng);
 }
 function locationLabel(lat, lng) {
   var d = distanceFromLab(lat, lng);
-  if (d <= JUNO_LAB_RADIUS_MI) return { text: 'Near Juno Tech Lab', atLab: true, miles: d };
+  if (d <= JUNO_LAB_RADIUS_MI) return { text: '✓ Juno Tech Lab', atLab: true, miles: d };
   return { text: d.toFixed(1) + ' mi from Juno Tech Lab', atLab: false, miles: d };
 }
 function haversineMiles(lat1,lng1,lat2,lng2){
