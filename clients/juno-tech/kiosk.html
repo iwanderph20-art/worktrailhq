@@ -3894,19 +3894,34 @@ function syncFromCloud(cb) {
   // Step 1: merge cloud deletedTs so this device honours deletions made elsewhere
   fbFetchAll('deletedTs', function(rawDel) {
     var deletedTs = store.getJ(K.deletedTs, []);
+    // Keep a map of ts → deletedAt so we can compare against entry addedAt below
+    var deletedAtMap = {};
     if (rawDel && typeof rawDel === 'object') {
-      var cloudDel = (Array.isArray(rawDel) ? rawDel : Object.values(rawDel))
-        .filter(function(e){ return e && e.ts; })
-        .map(function(e){ return String(e.ts); });
-      cloudDel.forEach(function(t){ if (deletedTs.indexOf(t) < 0) deletedTs.push(t); });
+      var cloudDelObjs = (Array.isArray(rawDel) ? rawDel : Object.values(rawDel))
+        .filter(function(e){ return e && e.ts; });
+      cloudDelObjs.forEach(function(e) {
+        var t = String(e.ts);
+        if (deletedTs.indexOf(t) < 0) deletedTs.push(t);
+        if (e.deletedAt) deletedAtMap[t] = e.deletedAt;
+      });
       store.setJ(K.deletedTs, deletedTs);
+    }
+    // Helper: returns true if entry e should be treated as deleted.
+    // An entry is NOT treated as deleted if it was explicitly re-added (addedAt) after the
+    // deletion record — this prevents a reused timestamp from being silently wiped.
+    function isDeleted(e) {
+      var tsStr = String(e.ts);
+      if (deletedTs.indexOf(tsStr) < 0) return false; // not in deleted list at all
+      var delAt = deletedAtMap[tsStr];
+      if (delAt && e.addedAt && new Date(e.addedAt) > new Date(delAt)) return false; // re-added after deletion
+      return true;
     }
     // Step 2: fetch timesheet, always overwrite local (handles all-deleted case)
     fbFetchAll('timesheet', function(raw) {
       if (raw && typeof raw === 'object') {
         var seenTs = {};
         var entries = (Array.isArray(raw) ? raw : Object.values(raw))
-          .filter(function(e){ return e && e.ts && deletedTs.indexOf(String(e.ts)) < 0; })
+          .filter(function(e){ return e && e.ts && !isDeleted(e); })
           .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); })
           .filter(function(e){ // deduplicate by ts — keep first occurrence (earliest sort)
             if (seenTs[String(e.ts)]) return false;
@@ -3954,8 +3969,8 @@ function syncFromCloud(cb) {
           entries.forEach(function(e){ cloudTsSet[String(e.ts)] = true; });
           var localOnly = store.getJ(K.timesheet, []).filter(function(e){
             return e && e.ts
-              && !cloudTsSet[String(e.ts)]                        // not yet in Firebase
-              && deletedTs.indexOf(String(e.ts)) < 0;             // not deleted
+              && !cloudTsSet[String(e.ts)]   // not yet in Firebase
+              && !isDeleted(e);              // not deleted (respects re-added-after-deletion)
           });
           if (localOnly.length) {
             // Merge in and re-sort
