@@ -1943,6 +1943,10 @@ function endBreak() {
 }
 
 /* ── hours calculation ──────────────────── */
+function fmtHrs(h) {
+  var totalMins = Math.round(h * 60);
+  return Math.floor(totalMins / 60) + 'h ' + (totalMins % 60) + 'm';
+}
 function computeHoursFromEntries(entries) {
   var totalMs=0, inTime=null, bst=null, brkMs=0;
   for (var i=0;i<entries.length;i++) {
@@ -1988,7 +1992,7 @@ function updateTodaySummary() {
   });
   var bMins=Math.round(brkMs/60000);
   document.getElementById('sumBreaks').textContent = bMins>0 ? bMins+' min' : 'None';
-  document.getElementById('sumTotal').textContent  = computeHoursFromEntries(entries).toFixed(2)+' hrs';
+  document.getElementById('sumTotal').textContent  = fmtHrs(computeHoursFromEntries(entries));
 }
 
 /* ── camera ─────────────────────────────── */
@@ -2157,7 +2161,7 @@ function renderEmpLogs() {
     if (s.mileage != null) totalMi += s.mileage;
     totalDays[s.inTime.toDateString()] = 1;
   });
-  var totalNetHrs = (totalNetMs/3600000).toFixed(2);
+  var totalNetHrs = fmtHrs(totalNetMs/3600000);
   var daysCount   = Object.keys(totalDays).length;
 
   var html = '<div style="background:linear-gradient(135deg,#1a2b8c 0%,#3b52d4 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
@@ -2188,12 +2192,12 @@ function renderEmpLogs() {
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
       +'<p style="font-size:12px;font-weight:700;color:#374151;">'+fmtDate(daySessions[0].inTime)+'</p>'
       +'<div style="display:flex;gap:6px;align-items:center;">'
-      +'<span style="font-size:11px;font-weight:700;color:#15803d;background:#f0fdf4;padding:2px 8px;border-radius:99px;">'+(dayNetMs/3600000).toFixed(2)+' hrs</span>'
+      +'<span style="font-size:11px;font-weight:700;color:#15803d;background:#f0fdf4;padding:2px 8px;border-radius:99px;">'+fmtHrs(dayNetMs/3600000)+'</span>'
       +(dayMi>0?'<span style="font-size:11px;font-weight:700;color:#7c3aed;background:#f5f3ff;padding:2px 8px;border-radius:99px;">'+dayMi.toFixed(1)+' mi</span>':'')
       +'</div>'
       +'</div>';
     daySessions.forEach(function(sess, si){
-      var netH    = (sess.netMs/3600000).toFixed(2);
+      var netH    = fmtHrs(sess.netMs/3600000);
       var mealMin = Math.round((sess.mealMs||0)/60000);
       var fac     = (sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'Not specified';
       var breakSummary = '';
@@ -2205,7 +2209,7 @@ function renderEmpLogs() {
         +'<div><p class="text-xs" style="color:#9ca3af;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtT(sess.inTime)+'</p></div>'
         +'<div><p class="text-xs" style="color:#9ca3af;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+(sess.outTime?fmtT(sess.outTime):'Not recorded')+'</p></div>'
         +'<div><p class="text-xs" style="color:#9ca3af;">Facility</p><p class="text-xs font-semibold" style="color:#374151;">'+fac+'</p></div>'
-        +'<div><p class="text-xs" style="color:#9ca3af;">Net Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+' hrs</p></div>'
+        +'<div><p class="text-xs" style="color:#9ca3af;">Net Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+'</p></div>'
         +(sess.mileage!=null?'<div><p class="text-xs" style="color:#9ca3af;">Mileage</p><p class="text-xs font-bold" style="color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
         +(mealMin>0?'<div><p class="text-xs" style="color:#9ca3af;">Meal Break (unpaid)</p><p class="text-xs font-semibold" style="color:#c2410c;">'+mealMin+' min</p></div>':'')
         +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#9ca3af;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
@@ -2694,11 +2698,12 @@ function _renderTablesImpl() {
         var isManualOnly = !!(clockInE && clockInE.manualEntry && !clockOutE);
         var isStillIn  = !!(clockInE && !clockOutE && !isManualOnly);
 
-        // Computed stats — running hours if active, else last complete session
+        // Computed stats — sum all completed sessions; add running time if still in
+        var totalDayNetMs = sessions.reduce(function(acc,s){ return acc+s.netMs; },0);
         var hoursVal = isStillIn
-          ? Math.max(0, (Date.now()-clockInE._d)/3600000) // clamp so future clock-ins don't show negative
-          : (sess ? sess.netMs/3600000 : null);
-        var hoursStr = hoursVal!==null ? hoursVal.toFixed(2)+' hrs' : '—';
+          ? Math.max(0,(Date.now()-clockInE._d)/3600000) + totalDayNetMs/3600000
+          : (sessions.length ? totalDayNetMs/3600000 : null);
+        var hoursStr = hoursVal !== null ? fmtHrs(hoursVal) : '—';
         var milesVal = sess ? sess.mileage : (clockInE&&clockInE.mileage!=null?clockInE.mileage:null);
         if(!milesVal && clockOutE && clockOutE.mileage!=null) milesVal=clockOutE.mileage;
         var breakCount= sess ? sess.breaks.length : 0;
@@ -2771,7 +2776,7 @@ function _renderTablesImpl() {
         raw.forEach(function(e){
           var safeTs=String(e.ts).replace(/'/g,'');
           var tl=TYPE_LABEL[e.type]||e.type;
-          var manualBadge=e.manualEntry?'<span title="Manually added by admin" style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span> ':'';
+          var manualBadge=e.manualEntry?'<span title="Manually added by admin" style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span>'+(e.note?' <span style="font-size:9px;color:#92400e;font-style:italic;">'+e.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</span>':'')+' ':'';
           editBtns+=manualBadge;
           editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:500;">Edit '+tl+'</button> ';
           editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
@@ -3419,7 +3424,7 @@ function openEmpDetail(name) {
   var daysCount=Object.keys(days).length;
   document.getElementById('detailStats').innerHTML =
     '<div class="rounded-2xl p-4 text-center" style="background:#f0fdf4;">'
-    +'<p class="text-2xl font-bold" style="color:#15803d;">'+totalHrs.toFixed(2)+'</p>'
+    +'<p class="text-2xl font-bold" style="color:#15803d;">'+fmtHrs(totalHrs)+'</p>'
     +'<p class="text-xs mt-1" style="color:#86efac;">Total Hrs</p></div>'
     +'<div class="rounded-2xl p-4 text-center" style="background:#fef9c3;">'
     +'<p class="text-2xl font-bold" style="color:#a16207;">'+Math.round(totalBrkMs/60000)+'</p>'
@@ -3436,7 +3441,7 @@ function openEmpDetail(name) {
       var fmtD=function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
       var restMin=Math.round((sess.restMs||0)/60000);
       var mealMin=Math.round((sess.mealMs||0)/60000);
-      var netHrs=(sess.netMs/3600000).toFixed(2);
+      var netHrs=fmtHrs(sess.netMs/3600000);
       var fac=(sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'—';
       var compliant=(sess.compliantRest!==false)&&(sess.compliantMeal!==false);
       var compIcon=compliant?'&#10003;':'&#9888;';
@@ -3446,7 +3451,7 @@ function openEmpDetail(name) {
         +'<td class="py-2.5 pr-3 text-xs font-medium" style="color:#111827;">'+fmt(sess.inTime)+'</td>'
         +'<td class="py-2.5 pr-3 text-xs font-medium" style="color:#111827;">'+fmt(sess.outTime)+'</td>'
         +'<td class="py-2.5 pr-3 text-xs" style="color:#a16207;">'+(restMin>0?restMin+'m rest':'—')+(mealMin>0?' '+mealMin+'m meal':'')+(sess.mealWaivedCount>0?' (waived)':'')+'</td>'
-        +'<td class="py-2.5 pr-3 text-xs font-bold" style="color:#1d4ed8;">'+netHrs+' hrs</td>'
+        +'<td class="py-2.5 pr-3 text-xs font-bold" style="color:#1d4ed8;">'+netHrs+'</td>'
         +'<td class="py-2.5 text-xs" style="color:'+compColor+';font-weight:700;">'+compIcon+'</td>'
         +'</tr>';
     });
@@ -3555,7 +3560,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
     html += '<div class="rcard" style="background:linear-gradient(135deg,#1a2b8c 0%,#3b52d4 100%);border:none;text-align:center;padding:20px;">'
       +'<p style="color:rgba(255,255,255,.75);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">'+emps[0].name+'</p>'
       +'<p style="color:rgba(255,255,255,.6);font-size:11px;margin-bottom:16px;">'+dateLabel+'</p>'
-      +'<p style="color:#fff;font-size:48px;font-weight:800;line-height:1;margin-bottom:4px;">'+es.netHrs.toFixed(2)+'</p>'
+      +'<p style="color:#fff;font-size:48px;font-weight:800;line-height:1;margin-bottom:4px;">'+fmtHrs(es.netHrs)+'</p>'
       +'<p style="color:rgba(255,255,255,.75);font-size:13px;font-weight:600;margin-bottom:18px;">cumulative net hours</p>'
       +'<div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;">'
       +'<div style="text-align:center;"><p style="color:#fff;font-size:20px;font-weight:700;">'+es.days+'</p><p style="color:rgba(255,255,255,.65);font-size:11px;">day'+(es.days===1?'':'s')+ ' worked</p></div>'
@@ -3569,7 +3574,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
     // ── Summary cards (all employees)
     html += '<div class="grid grid-cols-3 gap-3 rcard">'
       +'<div class="rstat"><p class="n" style="color:#1a2b8c;">'+present+'</p><p class="l">Employees</p></div>'
-      +'<div class="rstat"><p class="n">'+totalNetHrs.toFixed(2)+'</p><p class="l">Net Paid Hrs</p></div>'
+      +'<div class="rstat"><p class="n">'+fmtHrs(totalNetHrs)+'</p><p class="l">Net Paid Hrs</p></div>'
       +'<div class="rstat"><p class="n">'+sups.length+'</p><p class="l">Supply Req</p></div>'
       +'</div>';
   }
@@ -3601,7 +3606,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
       +'<span class="font-semibold text-sm" style="color:#111827;">'+emp.name+'</span>'
       +flagIcon
-      +'<span class="text-xs font-bold" style="color:#15803d;">'+s.netHrs.toFixed(2)+' net hrs</span>'
+      +'<span class="text-xs font-bold" style="color:#15803d;">'+fmtHrs(s.netHrs)+'</span>'
       +'<span class="text-xs" style="color:#c2410c;">'+s.mealMins+' min meal (unpaid)</span>'
       +'<span class="text-xs" style="color:#a16207;">'+s.restMins+' min rest (paid)</span>'
       +'<span class="text-xs" style="color:#6b7280;">'+s.days+' day'+(s.days===1?'':'s')+'</span>'
@@ -3615,7 +3620,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
       s.sessions.forEach(function(sess,si) {
         var fmtDT=function(d){ return d?d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}):'Not clocked out'; };
         var fmtT=function(d){ return d?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—'; };
-        var netH=(sess.netMs/3600000).toFixed(2);
+        var netH=fmtHrs(sess.netMs/3600000);
         var mealMin=Math.round((sess.mealMs||0)/60000);
         var restMin=Math.round((sess.restMs||0)/60000);
         var fac=(sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'Not specified';
@@ -3650,7 +3655,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
           +'<div><p class="text-xs" style="color:#6b7280;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtDT(sess.inTime)+'</p>'+(sess.inNote?'<p class="text-xs" style="color:#92400e;font-style:italic;">Note: '+sess.inNote+'</p>':'')+'</div>'
           +'<div><p class="text-xs" style="color:#6b7280;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtDT(sess.outTime)+'</p>'+(sess.outNote?'<p class="text-xs" style="color:#92400e;font-style:italic;">Note: '+sess.outNote+'</p>':'')+'</div>'
           +'<div><p class="text-xs" style="color:#6b7280;">Facility / Location</p><p class="text-xs font-semibold" style="color:#374151;">'+fac+'</p></div>'
-          +'<div><p class="text-xs" style="color:#6b7280;">Net Paid Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+' hrs</p></div>'
+          +'<div><p class="text-xs" style="color:#6b7280;">Net Paid Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+'</p></div>'
           +(sess.mileage!=null?'<div><p class="text-xs" style="color:#6b7280;">Mileage</p><p class="text-xs font-bold" style="color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
           +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#6b7280;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
           +'</div></div>'
@@ -3693,7 +3698,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
         +'<td>'+(sess.mileage!=null?sess.mileage.toFixed(1)+' mi':'—')+'</td>'
         +'<td>'+Math.round((sess.mealMs||0)/60000)+'</td>'
         +'<td>'+Math.round((sess.restMs||0)/60000)+'</td>'
-        +'<td>'+(sess.netMs/3600000).toFixed(2)+'</td>'
+        +'<td>'+fmtHrs(sess.netMs/3600000)+'</td>'
         +'<td>'+compliance+'</td></tr>';
     });
   });
@@ -5863,7 +5868,7 @@ function renderPaycheck(result, fromStr, toStr) {
   }
   return '<div class="paycheck">'
     +header
-    +'<div class="paycheck-row"><span>Hours Worked</span><span>'+result.hoursWorked.toFixed(2)+' hrs @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+    +'<div class="paycheck-row"><span>Hours Worked</span><span>'+fmtHrs(result.hoursWorked)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
     +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>F.I.C.A. TAX WITHHOLDING</span><span>– '+fmt$(result.fica)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>MEDICARE TAX WITHHOLDING</span><span>– '+fmt$(result.medicare)+'</span></div>'
@@ -6107,7 +6112,7 @@ function printPayroll() {
       +'</div>'
       // Table
       +'<table style="width:100%;border-collapse:collapse;">'
-      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+r.hoursWorked.toFixed(2)+' hrs worked @ $'+r.hourlyRate.toFixed(2)+'/hr</td></tr>'
+      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+fmtHrs(r.hoursWorked)+' worked @ $'+r.hourlyRate.toFixed(2)+'/hr</td></tr>'
       + pRow('WAGES EARNED', fmt$(r.grossWages), '#111827', true)
       + pRow('F.I.C.A. TAX WITHHOLDING', '– '+fmt$(r.fica), '#b91c1c')
       + pRow('MEDICARE TAX WITHHOLDING', '– '+fmt$(r.medicare), '#b91c1c')
