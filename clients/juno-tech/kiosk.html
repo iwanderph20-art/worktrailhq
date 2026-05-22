@@ -4445,6 +4445,13 @@ var REST2_HARD_HRS = 6 + 15/60;   // mandatory cutoff at 6h 15m
 var SHIFT_WARN_HRS = 7.5;         // wrap-up alarm at 7h 30m
 var SHIFT_MAX_HRS  = 8.0;         // hard shift limit — must clock out
 
+// Employees exempt from break notifications (names must match exactly as entered)
+var BREAK_EXEMPT = ['Mylyn', 'Jose', 'Julissa', 'Cristina'];
+function _isBreakExempt() {
+  if (!currentEmp) return false;
+  return BREAK_EXEMPT.indexOf(currentEmp.name) !== -1;
+}
+
 // Meal break delay state (phase 0 = initial, phase 1 = mandatory — no further delay)
 var _mealSnoozed     = false;
 var _mealSnoozeTimer = null;
@@ -4531,6 +4538,7 @@ function _clearBreakAlertTimers() {
   _breakAlertTimers = [];
 }
 function scheduleBreakAlerts(clockInTs) {
+  if (_isBreakExempt()) return; // exempt employee — no break alerts
   _clearBreakAlertTimers();
   var now  = Date.now();
   var inMs = new Date(clockInTs).getTime();
@@ -4682,6 +4690,7 @@ function stopBreakCheck() {
 }
 function checkBreakCompliance() {
   if(!currentEmp || (clockState !== 'in' && clockState !== 'pending')) return;
+  if (_isBreakExempt()) return; // exempt employee — no break alerts
   var entries = store.getJ(K.timesheet,[])
     .filter(function(e){ return e.name===currentEmp.name; })
     .map(function(e){ return {type:e.type,_d:new Date(e.ts),note:e.note||'',breakType:e.breakType||''}; })
