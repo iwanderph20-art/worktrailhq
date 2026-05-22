@@ -5922,9 +5922,14 @@ function fmt$(n) { return '$'+(Math.abs(n)).toFixed(2); }
 
 function renderPaycheck(result, fromStr, toStr) {
   if (result.noProfile) {
-    return '<div class="rcard" style="text-align:center;padding:20px;">'
+    var hoursNote = (result.hoursWorked > 0)
+      ? '<p style="font-size:14px;font-weight:700;color:#111827;margin:6px 0 2px;">'+fmtHrs(result.hoursWorked)+' logged this period</p>'
+      : '<p style="font-size:12px;color:#9ca3af;margin:6px 0 2px;">No completed sessions in this period</p>';
+    return '<div class="rcard" style="text-align:center;padding:20px;border-left:4px solid #f97316;">'
       +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
-      +'<p class="text-xs mt-2" style="color:#9ca3af;">No pay profile set. Go to Employees → Pay Profile.</p>'
+      +hoursNote
+      +'<p class="text-xs mt-2" style="color:#dc2626;font-weight:600;">&#9888; Not in employee roster — no pay profile found.</p>'
+      +'<p class="text-xs mt-1" style="color:#9ca3af;">Re-add this employee under the Employees tab to assign a pay rate.</p>'
       +'</div>';
   }
   var filingLabel = {single:'Single',mfj:'Married Filing Jointly',hoh:'Head of Household'};
@@ -6093,6 +6098,26 @@ function runPayroll() {
     var stats = buildSessMap(emp.name);
     var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays, stats);
     if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
+    allResults.push(result);
+    html += renderPaycheck(result, fromVal, toVal);
+  });
+
+  // Also include employees who have timesheet entries in this period but are missing from the roster.
+  // This prevents staff from silently disappearing from payroll if they were removed from Employees.
+  var rosteredNames = {};
+  emps.forEach(function(e){ rosteredNames[e.name] = true; });
+  var unrosteredNames = {};
+  ts.filter(function(e){
+    var d = new Date(e.ts);
+    return d >= fromDate && d <= toDate;
+  }).forEach(function(e){
+    if (!rosteredNames[e.name]) unrosteredNames[e.name] = true;
+  });
+  Object.keys(unrosteredNames).sort().forEach(function(name) {
+    if (empFilter && name !== empFilter) return;
+    var stats = buildSessMap(name);
+    var result = { empName: name, noProfile: true, grossWages: 0, netPay: 0,
+                   hoursWorked: stats.totalHours, totalMiles: stats.totalMiles };
     allResults.push(result);
     html += renderPaycheck(result, fromVal, toVal);
   });
