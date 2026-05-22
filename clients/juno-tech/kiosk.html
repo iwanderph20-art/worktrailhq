@@ -2476,12 +2476,19 @@ function syncEmployeesFromCloud(cb) {
             }
           });
           var finalEmps = Object.values(byName);
+          // Restore pay profiles from backup key for any employee whose profile was wiped by sync
+          var backupProfiles = store.getJ('jtl_payprofiles', {});
+          finalEmps.forEach(function(emp) {
+            if ((!emp.payProfile || !emp.payProfile.hourlyRate) && backupProfiles[emp.name] && backupProfiles[emp.name].hourlyRate) {
+              emp.payProfile = backupProfiles[emp.name];
+            }
+          });
           store.setJ(K.employees, finalEmps);
           // Re-push any employees whose payProfile was preserved from local but missing in cloud
           // This self-heals Firebase so future syncs on other devices also get the pay profile
           finalEmps.forEach(function(emp) {
             var cloudMatch = cloudEmps.find(function(c){ return c.code === emp.code; });
-            if (emp.payProfile && emp.payProfile.hourlyRate && cloudMatch && !cloudMatch.payProfile) {
+            if (emp.payProfile && emp.payProfile.hourlyRate && cloudMatch && (!cloudMatch.payProfile || !cloudMatch.payProfile.hourlyRate)) {
               pushEmployeeToFirebase(emp);
             }
           });
@@ -5590,6 +5597,13 @@ function clearOldRecords() {
     } else if(emps&&emps.length>0){
       var idx=0; emps.forEach(function(e){ if(!e.code||String(e.code).length!==4){ e.code=String(1001+idx); idx++; } });
     } else { emps=DEFAULT_EMPLOYEES; }
+    // Restore any pay profiles from the backup key that were lost during re-seed
+    var _savedProfiles=store.getJ('jtl_payprofiles',{});
+    emps.forEach(function(e){
+      if((!e.payProfile||!e.payProfile.hourlyRate)&&_savedProfiles[e.name]&&_savedProfiles[e.name].hourlyRate){
+        e.payProfile=_savedProfiles[e.name];
+      }
+    });
     store.setJ(K.employees,emps);
   }
   store.set(K.adminHash,DEFAULT_HASH);
@@ -5878,6 +5892,13 @@ function calcCAWithholding(annualGross, filing, allowances) {
 
 function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats) {
   var profile = emp.payProfile || {};
+  // Fall back to the dedicated pay-profile backup key if the main profile was wiped by a sync/re-seed
+  if (!profile.hourlyRate) {
+    var backupProfiles = store.getJ('jtl_payprofiles', {});
+    if (backupProfiles[emp.name] && backupProfiles[emp.name].hourlyRate) {
+      profile = backupProfiles[emp.name];
+    }
+  }
   var role    = emp.role || 'phlebotomist';
   var r2 = function(n) { return Math.round(n * 100) / 100; };
   // Courier: mileage tracking only — no wages, no deductions
@@ -5925,11 +5946,13 @@ function renderPaycheck(result, fromStr, toStr) {
     var hoursNote = (result.hoursWorked > 0)
       ? '<p style="font-size:14px;font-weight:700;color:#111827;margin:6px 0 2px;">'+fmtHrs(result.hoursWorked)+' logged this period</p>'
       : '<p style="font-size:12px;color:#9ca3af;margin:6px 0 2px;">No completed sessions in this period</p>';
+    var warningLine = result.notInRoster
+      ? '<p class="text-xs mt-2" style="color:#dc2626;font-weight:600;">&#9888; Not in employee roster — re-add under Employees tab to assign a pay rate.</p>'
+      : '<p class="text-xs mt-2" style="color:#dc2626;font-weight:600;">&#9888; No hourly rate on file — go to Employees &#8594; Pay Profile to set it.</p>';
     return '<div class="rcard" style="text-align:center;padding:20px;border-left:4px solid #f97316;">'
       +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
       +hoursNote
-      +'<p class="text-xs mt-2" style="color:#dc2626;font-weight:600;">&#9888; Not in employee roster — no pay profile found.</p>'
-      +'<p class="text-xs mt-1" style="color:#9ca3af;">Re-add this employee under the Employees tab to assign a pay rate.</p>'
+      +warningLine
       +'</div>';
   }
   var filingLabel = {single:'Single',mfj:'Married Filing Jointly',hoh:'Head of Household'};
@@ -6116,7 +6139,7 @@ function runPayroll() {
   Object.keys(unrosteredNames).sort().forEach(function(name) {
     if (empFilter && name !== empFilter) return;
     var stats = buildSessMap(name);
-    var result = { empName: name, noProfile: true, grossWages: 0, netPay: 0,
+    var result = { empName: name, noProfile: true, notInRoster: true, grossWages: 0, netPay: 0,
                    hoursWorked: stats.totalHours, totalMiles: stats.totalMiles };
     allResults.push(result);
     html += renderPaycheck(result, fromVal, toVal);
@@ -6321,6 +6344,10 @@ function savePayProfile() {
     mileageRate:   parseFloat(document.getElementById('ppMileage').value) || 0
   };
   store.setJ(K.employees, emps);
+  // Backup the pay profile to a separate key so it survives employee list re-seeds or sync overwrites
+  var profiles = store.getJ('jtl_payprofiles', {});
+  profiles[_ppEmpName] = emp.payProfile;
+  store.setJ('jtl_payprofiles', profiles);
   pushEmployeeToFirebase(emp);
   closePayProfile();
   renderEmployeeList();
