@@ -60,6 +60,25 @@ video{object-fit:cover;transform:scaleX(-1);}
 .acc-body.open{display:block;}
 .acc-arrow{transition:transform .2s;color:#9ca3af;font-size:12px;}
 .acc-arrow.open{transform:rotate(180deg);}
+/* ── calendar record view ─── */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#e5e7eb;border-radius:10px;overflow:hidden;}
+.cal-dow{background:#f9fafb;text-align:center;font-size:11px;font-weight:700;color:#6b7280;padding:6px 2px;text-transform:uppercase;letter-spacing:.05em;}
+.cal-cell{background:#fff;min-height:80px;padding:6px 6px 4px;position:relative;cursor:default;transition:background .1s;}
+.cal-cell[role=button]{cursor:pointer;}
+.cal-cell[role=button]:hover{background:#f0f9ff;}
+.cal-cell.out-month{background:#f9fafb;}
+.cal-cell.today{box-shadow:inset 0 0 0 2px #3b82f6;}
+.cal-cell.has-pending{box-shadow:inset 0 0 0 2px #f59e0b;}
+.cal-date-num{font-size:12px;font-weight:700;color:#374151;line-height:1;}
+.cal-date-num.today-num{background:#3b82f6;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;}
+.cal-emp-pill{font-size:10px;font-weight:700;color:#fff;border-radius:4px;padding:2px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;line-height:1.4;}
+.cal-fac{font-size:9px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.cal-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:flex-end;justify-content:center;}
+.cal-modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:620px;max-height:82vh;overflow-y:auto;}
+.cal-modal-hdr{position:sticky;top:0;background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 16px 12px;display:flex;align-items:center;justify-content:space-between;z-index:1;}
+.view-toggle{display:inline-flex;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;}
+.view-toggle button{font-size:12px;font-weight:600;padding:5px 14px;background:#fff;color:#6b7280;border:none;cursor:pointer;transition:background .15s,color .15s;}
+.view-toggle button.active{background:#1a2b8c;color:#fff;}
 .photo-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid rgba(0,0,0,.1);transition:transform .15s,border-color .15s;}
 .photo-thumb:hover{transform:scale(1.08);border-color:#60a5fa;}
 #photoLightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
@@ -608,11 +627,20 @@ video{object-fit:cover;transform:scaleX(-1);}
           <p class="text-sm font-semibold" style="color:#374151;">Timesheet — by Date</p>
           <div class="flex items-center gap-3">
             <button onclick="refreshFromCloud()" class="text-xs font-semibold" style="color:#059669;background:none;border:none;cursor:pointer;">&#8635; Sync</button>
-            <button onclick="expandAllDays()" class="text-xs" style="color:#1d4ed8;background:none;border:none;cursor:pointer;">Expand all</button>
+            <div class="view-toggle">
+              <button id="vt-cal" onclick="switchRecordView('calendar')" class="active">Calendar</button>
+              <button id="vt-list" onclick="switchRecordView('list')">List</button>
+            </div>
             <button onclick="openManualEntry()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#43; Add Entry</button>
           </div>
         </div>
-        <div id="tsAccordion"></div>
+        <div id="calMonthNav" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <button onclick="calPrevMonth()" style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px 14px;cursor:pointer;font-size:18px;color:#374151;line-height:1;">&#8249;</button>
+          <span id="calMonthLabel" style="font-size:14px;font-weight:700;color:#111827;"></span>
+          <button onclick="calNextMonth()" style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px 14px;cursor:pointer;font-size:18px;color:#374151;line-height:1;">&#8250;</button>
+        </div>
+        <div id="tsCalendar"></div>
+        <div id="tsAccordion" style="display:none;"></div>
       </div>
       <div class="rcard">
         <div class="flex items-center justify-between mb-3">
@@ -2936,6 +2964,7 @@ function _renderTablesImpl() {
     });
   }
   document.getElementById('tsAccordion').innerHTML=accHtml;
+  if(_calView==='calendar') renderCalendar();
 
   // Async-load all photo thumbnails now that the DOM is ready
   photoLoads.forEach(function(pl){
@@ -3406,6 +3435,248 @@ function deleteAllDayEntries(tsList) {
   logAdminAction('DELETE_DAY', tsList.length + ' entries removed for ' + (targets[0] ? targets[0].name : 'employee'));
   toast('Day log deleted (' + tsList.length + ' entries removed)');
   renderTables();
+}
+
+/* ── Calendar record view ───────────────────────────────── */
+var _calView='calendar';
+var _calYear=new Date().getFullYear();
+var _calMonth=new Date().getMonth();
+var _calPhotoLoads=[];
+var CAL_COLORS=['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316','#6366f1','#14b8a6'];
+
+function getEmpCalColor(name){
+  var emps=store.getJ(K.employees,[]);
+  var idx=emps.findIndex(function(e){return e.name===name;});
+  if(idx<0){var h=0;for(var i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))&0x3ff;idx=h;}
+  return CAL_COLORS[Math.abs(idx)%CAL_COLORS.length];
+}
+
+function switchRecordView(v){
+  _calView=v;
+  var isCal=(v==='calendar');
+  document.getElementById('vt-cal').classList.toggle('active',isCal);
+  document.getElementById('vt-list').classList.toggle('active',!isCal);
+  document.getElementById('calMonthNav').style.display=isCal?'flex':'none';
+  document.getElementById('tsCalendar').style.display=isCal?'block':'none';
+  document.getElementById('tsAccordion').style.display=isCal?'none':'block';
+  if(isCal) renderCalendar();
+}
+
+function calPrevMonth(){_calMonth--;if(_calMonth<0){_calMonth=11;_calYear--;}renderCalendar();}
+function calNextMonth(){_calMonth++;if(_calMonth>11){_calMonth=0;_calYear++;}renderCalendar();}
+
+function renderCalendar(){
+  var ts=store.getJ(K.timesheet,[]);
+  var byDate={};
+  ts.forEach(function(r){
+    var d=new Date(r.ts);
+    if(d.getFullYear()===_calYear&&d.getMonth()===_calMonth){
+      var key=d.toDateString();
+      if(!byDate[key]) byDate[key]={entries:[],names:{},facs:{},hasPending:false};
+      byDate[key].entries.push(r);
+      byDate[key].names[r.name]=true;
+      if(r.type==='in'&&r.facilities) r.facilities.forEach(function(f){if(f) byDate[key].facs[f]=true;});
+      if(r.type==='in'&&r.approval==='pending') byDate[key].hasPending=true;
+    }
+  });
+  var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calMonthLabel').textContent=MONTHS[_calMonth]+' '+_calYear;
+  var todayStr=new Date().toDateString();
+  var firstDow=new Date(_calYear,_calMonth,1).getDay();
+  var daysInMonth=new Date(_calYear,_calMonth+1,0).getDate();
+  var prevMonthDays=new Date(_calYear,_calMonth,0).getDate();
+  var totalCells=Math.ceil((firstDow+daysInMonth)/7)*7;
+  var html='<div class="cal-grid">';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){html+='<div class="cal-dow">'+d+'</div>';});
+  for(var i=0;i<totalCells;i++){
+    var dayNum,mo,yr,isCurMo;
+    if(i<firstDow){dayNum=prevMonthDays-firstDow+1+i;mo=_calMonth-1;yr=_calYear;if(mo<0){mo=11;yr--;}isCurMo=false;}
+    else if(i-firstDow<daysInMonth){dayNum=i-firstDow+1;mo=_calMonth;yr=_calYear;isCurMo=true;}
+    else{dayNum=i-firstDow-daysInMonth+1;mo=_calMonth+1;yr=_calYear;if(mo>11){mo=0;yr++;}isCurMo=false;}
+    var cellDate=new Date(yr,mo,dayNum);
+    var dStr=cellDate.toDateString();
+    var isToday=(dStr===todayStr);
+    var data=isCurMo?byDate[dStr]:null;
+    var hasPending=!!(data&&data.hasPending);
+    var cls='cal-cell'+((!isCurMo)?' out-month':'')+(isToday?' today':'')+(hasPending?' has-pending':'');
+    var clickAttr=(isCurMo&&data)?' onclick="showCalDay(\''+dStr+'\')" role="button"':'';
+    html+='<div class="'+cls+'"'+clickAttr+'>';
+    if(isToday){
+      html+='<div style="margin-bottom:4px;"><span class="cal-date-num today-num">'+dayNum+'</span></div>';
+    } else {
+      html+='<span class="cal-date-num" style="display:block;margin-bottom:4px;">'+dayNum+'</span>';
+    }
+    if(data){
+      Object.keys(data.names).forEach(function(name){
+        var col=getEmpCalColor(name);
+        var first=name.split(' ')[0];
+        html+='<span class="cal-emp-pill" style="background:'+col+';">'+first+'</span>';
+      });
+      var facs=Object.keys(data.facs);
+      if(facs.length) html+='<div class="cal-fac">'+facs[0]+(facs.length>1?' +'+(facs.length-1):'')+'</div>';
+      if(hasPending) html+='<div style="font-size:9px;font-weight:700;color:#d97706;margin-top:2px;">&#9679; Pending</div>';
+    }
+    html+='</div>';
+  }
+  html+='</div>';
+  document.getElementById('tsCalendar').innerHTML=html;
+}
+
+function showCalDay(dateStr){
+  var ts=store.getJ(K.timesheet,[]);
+  var dayEntries=ts.filter(function(r){return new Date(r.ts).toDateString()===dateStr;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+  if(!dayEntries.length) return;
+  var dateLabel=new Date(dateStr).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  var empGroups={};
+  dayEntries.forEach(function(e){if(!empGroups[e.name]) empGroups[e.name]=[];empGroups[e.name].push(e);});
+  _calPhotoLoads=[];
+  var cardsHtml='';
+  Object.keys(empGroups).forEach(function(name){
+    var raw=empGroups[name];
+    var emp=raw.map(function(e){return Object.assign({},e,{_d:new Date(e.ts)});}).sort(function(a,b){return a._d-b._d;});
+    var allIns=emp.filter(function(e){return e.type==='in';});
+    var clockInE=allIns.length?allIns[allIns.length-1]:null;
+    var clockOutE=null;
+    emp.forEach(function(e){if(e.type==='out'&&clockInE&&e._d>clockInE._d) clockOutE=e;});
+    if(!clockInE&&!clockOutE) emp.forEach(function(e){if(e.type==='out') clockOutE=e;});
+    var pendingEntry=null;
+    allIns.forEach(function(e){if(e.approval==='pending') pendingEntry=e;});
+    var sessions=buildSessions(emp);
+    var sess=sessions.length?sessions[sessions.length-1]:null;
+    var isPending=!!pendingEntry;
+    var isApproved=!!(clockInE&&clockInE.approval==='approved'&&!pendingEntry);
+    var isDenied=!!(clockInE&&clockInE.approval==='denied'&&!pendingEntry);
+    var isManualOnly=!!(clockInE&&clockInE.manualEntry&&!clockOutE);
+    var isStillIn=!!(clockInE&&!clockOutE&&!isManualOnly);
+    var isMissingClockIn=!clockInE&&!!clockOutE;
+    var totalDayNetMs=sessions.reduce(function(acc,s){return acc+s.netMs;},0);
+    var hoursVal=isStillIn?Math.max(0,(Date.now()-clockInE._d)/3600000)+totalDayNetMs/3600000:(sessions.length?totalDayNetMs/3600000:null);
+    var hoursStr=hoursVal!==null?fmtHrs(hoursVal):'—';
+    var breakCount=sess?sess.breaks.length:0;
+    var mealCount=sess?sess.mealTaken:0;
+    var milesVal=sess?sess.mileage:(clockInE&&clockInE.mileage!=null?clockInE.mileage:null);
+    if(!milesVal&&clockOutE&&clockOutE.mileage!=null) milesVal=clockOutE.mileage;
+    var facStr=(clockInE&&clockInE.facilities&&clockInE.facilities.length)?clockInE.facilities.join(' · '):'';
+    var accentColor=isPending?'#f59e0b':isMissingClockIn?'#f97316':isManualOnly?'#f97316':isApproved&&isStillIn?'#22c55e':isApproved?'#9ca3af':isDenied?'#ef4444':'#9ca3af';
+    var cardBg=isPending?'#fff':isMissingClockIn?'#fff7ed':isManualOnly?'#fff7ed':isApproved&&isStillIn?'#f0fdf4':isApproved?'#f9fafb':isDenied?'#fff5f5':'#f9fafb';
+    var statusBadge='';
+    if(isPending) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fef3c7;color:#92400e;letter-spacing:.04em;">&#9679; PENDING</span>';
+    else if(isMissingClockIn) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#ffedd5;color:#c2410c;letter-spacing:.04em;">&#9888; MISSING CLOCK-IN</span>';
+    else if(isManualOnly) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#ffedd5;color:#c2410c;letter-spacing:.04em;">&#9888; MISSING CLOCK-OUT</span>';
+    else if(isApproved&&isStillIn) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#dcfce7;color:#15803d;letter-spacing:.04em;">&#9679; ON SHIFT</span>';
+    else if(isApproved) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#f3f4f6;color:#6b7280;letter-spacing:.04em;">&#10003; DONE</span>';
+    else if(isDenied) statusBadge='<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;background:#fee2e2;color:#dc2626;letter-spacing:.04em;">&#10005; DENIED</span>';
+    var timeFmt={hour:'numeric',minute:'2-digit',hour12:true};
+    var inTime=clockInE?clockInE._d.toLocaleTimeString('en-US',timeFmt):'—';
+    var outTime=clockOutE?clockOutE._d.toLocaleTimeString('en-US',timeFmt):(isStillIn?'Active':'—');
+    var empColor=getEmpCalColor(name);
+    var photoPlaceholder='<div style="width:44px;height:44px;border-radius:8px;background:#f3f4f6;border:1.5px dashed #e5e7eb;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>';
+    var inPhotoBlock=photoPlaceholder,outPhotoBlock=photoPlaceholder;
+    if(clockInE&&clockInE.hasPhoto){
+      var pid0='cmi-'+String(clockInE.ts).replace(/[:.]/g,'');
+      var st0=String(clockInE.ts).replace(/'/g,'');
+      var sc0=name.replace(/'/g,"\\'")+' — Clock In';
+      inPhotoBlock='<img id="'+pid0+'" src="" onclick="showThumbPhoto(\''+st0+'\',\''+sc0+'\')" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:2px solid #86efac;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;">';
+      _calPhotoLoads.push({ts:clockInE.ts,id:pid0});
+    }
+    if(clockOutE&&clockOutE.hasPhoto){
+      var pid1='cmo-'+String(clockOutE.ts).replace(/[:.]/g,'');
+      var st1=String(clockOutE.ts).replace(/'/g,'');
+      var sc1=name.replace(/'/g,"\\'")+' — Clock Out';
+      outPhotoBlock='<img id="'+pid1+'" src="" onclick="showThumbPhoto(\''+st1+'\',\''+sc1+'\')" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:2px solid #fca5a5;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;">';
+      _calPhotoLoads.push({ts:clockOutE.ts,id:pid1});
+    }
+    var safeInTs2=(pendingEntry||clockInE)?String((pendingEntry||clockInE).ts).replace(/'/g,''):'';
+    var approvalBtns=isPending
+      ?'<button onclick="adminApproveEntry(\''+safeInTs2+'\');closeCalModal();" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#10003; Approve</button>'
+       +'<button onclick="adminDenyEntry(\''+safeInTs2+'\');closeCalModal();" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#10005; Deny</button>'
+      :'';
+    var safeName4map=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var liveLocBtn=(isApproved&&isStillIn&&!isManualOnly)
+      ?'<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;cursor:pointer;font-weight:700;">&#128205; Live</button>'
+      :'';
+    var editBtns='';
+    if(isMissingClockIn){
+      var sn4ci=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var ciD=clockOutE._d;
+      var ciDs=ciD.getFullYear()+'-'+String(ciD.getMonth()+1).padStart(2,'0')+'-'+String(ciD.getDate()).padStart(2,'0');
+      editBtns+='<button onclick="openQuickClockIn(\''+sn4ci+'\',\''+ciDs+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#43; Add Clock In</button> ';
+    }
+    raw.forEach(function(e){
+      var safeTs=String(e.ts).replace(/'/g,'');
+      var tl=TYPE_LABEL[e.type]||e.type;
+      var manualBadge=e.manualEntry?'<span style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span> ':'';
+      editBtns+=manualBadge;
+      editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:500;">Edit '+tl+'</button> ';
+      editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
+    });
+    var allTsJson=JSON.stringify(raw.map(function(e){return String(e.ts);})).replace(/"/g,'&quot;');
+    var deleteDayBtn='<button onclick="deleteAllDayEntries(JSON.parse(this.dataset.ts))" data-ts="'+allTsJson+'" style="font-size:9px;padding:2px 10px;border-radius:4px;background:#7f1d1d;color:#fef2f2;border:none;cursor:pointer;font-weight:700;">&#128465; Delete Day Log</button>';
+    var breakSummaryText=breakCount?breakCount+' break'+(breakCount!==1?'s':'')+(mealCount?' ('+mealCount+' meal)':''):'None';
+
+    cardsHtml+='<div style="background:'+cardBg+';border-radius:14px;border:1px solid rgba(0,0,0,.08);border-left:4px solid '+accentColor+';margin-bottom:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06);">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px 10px;">'
+      +'<p style="font-size:17px;font-weight:800;color:'+empColor+';letter-spacing:-.01em;margin:0;">'+name+'</p>'
+      +statusBadge
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(255,255,255,.72);border-top:1px solid rgba(0,0,0,.06);border-bottom:1px solid rgba(0,0,0,.06);">'
+      +inPhotoBlock
+      +'<div style="display:flex;flex-direction:column;align-items:flex-start;flex-shrink:0;">'
+      +'<span style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.07em;line-height:1;">IN</span>'
+      +'<span style="font-size:16px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums;line-height:1.3;">'+inTime+'</span>'
+      +'</div>'
+      +'<div style="flex:1;display:flex;align-items:center;justify-content:center;">'
+      +'<div style="height:2px;width:24px;background:linear-gradient(90deg,#c7d2fe,#1a2b8c);border-radius:2px;"></div>'
+      +'<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M1 7h11M8 3l4 4-4 4" stroke="#1a2b8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;">'
+      +'<span style="font-size:10px;font-weight:700;color:'+(clockOutE?'#dc2626':isStillIn?'#d97706':'#9ca3af')+';text-transform:uppercase;letter-spacing:.07em;line-height:1;">OUT</span>'
+      +'<span style="font-size:16px;font-weight:700;color:'+(isStillIn&&!clockOutE?'#d97706':'#111827')+';font-variant-numeric:tabular-nums;line-height:1.3;">'+outTime+'</span>'
+      +'</div>'
+      +outPhotoBlock
+      +'</div>'
+      +(facStr?'<div style="padding:6px 14px;border-bottom:1px solid rgba(0,0,0,.05);"><span style="font-size:12px;color:#6b7280;">&#128205; <strong style="color:#374151;">Location:</strong> '+facStr+'</span></div>':'')
+      +'<div style="padding:12px 14px 10px;text-align:center;background:rgba(0,0,0,.025);border-top:1px solid rgba(0,0,0,.06);">'
+      +'<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin:0 0 3px;">Total Hours Worked</p>'
+      +'<p style="font-size:28px;font-weight:900;color:#111827;letter-spacing:-.03em;line-height:1;margin:0 0 5px;">'+hoursStr+'</p>'
+      +(milesVal!=null?'<p style="font-size:12px;font-weight:600;color:#7c3aed;margin:0 0 4px;">Mileage: <strong>'+Number(milesVal).toFixed(1)+' mi</strong></p>':'')
+      +'<p style="font-size:12px;font-weight:600;color:#d97706;margin:0;">Breaks: <strong>'+breakSummaryText+'</strong></p>'
+      +'</div>'
+      +((approvalBtns||liveLocBtn)?'<div style="padding:8px 14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.05);">'+approvalBtns+liveLocBtn+'</div>':'')
+      +(editBtns?'<div style="padding:4px 14px 8px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'<span style="flex:1;"></span>'+deleteDayBtn+'</div>':'')
+      +'</div>';
+  });
+
+  var existing=document.getElementById('calDayModal');
+  if(existing) existing.remove();
+  var overlay=document.createElement('div');
+  overlay.id='calDayModal';
+  overlay.className='cal-modal-overlay';
+  overlay.onclick=function(e){if(e.target===overlay) closeCalModal();};
+  var empCount=Object.keys(empGroups).length;
+  overlay.innerHTML='<div class="cal-modal">'
+    +'<div class="cal-modal-hdr">'
+    +'<div>'
+    +'<p style="font-size:15px;font-weight:800;color:#111827;margin:0;">'+dateLabel+'</p>'
+    +'<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">'+dayEntries.length+' entr'+(dayEntries.length===1?'y':'ies')+' &middot; '+empCount+' employee'+(empCount===1?'':'s')+'</p>'
+    +'</div>'
+    +'<button onclick="closeCalModal()" style="background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:20px;color:#374151;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>'
+    +'</div>'
+    +'<div style="padding:12px 12px 8px;">'+cardsHtml+'</div>'
+    +'</div>';
+  document.body.appendChild(overlay);
+  _calPhotoLoads.forEach(function(pl){
+    loadPhoto(pl.ts,function(url){
+      if(!url) return;
+      var el=document.getElementById(pl.id);
+      if(el){el.src=url;el.style.opacity='1';}
+    });
+  });
+}
+
+function closeCalModal(){
+  var m=document.getElementById('calDayModal');
+  if(m) m.remove();
 }
 
 function toggleAcc(bodyId, arrowId) {
