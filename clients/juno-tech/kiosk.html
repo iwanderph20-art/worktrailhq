@@ -2665,7 +2665,7 @@ function _renderTablesImpl() {
 
       var bodyId='acc-body-'+idx;
       var arrowId='acc-arrow-'+idx;
-      var autoOpen=(idx===0||isToday||hasPending);
+      var autoOpen=hasPending;
 
       accHtml += '<div style="border-bottom:1px solid rgba(0,0,0,.06);">'
         +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')">'
