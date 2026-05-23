@@ -6738,6 +6738,28 @@ function printPayroll() {
       // Table
       +'<table style="width:100%;border-collapse:collapse;">'
       +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+fmtHrs(r.hoursWorked)+' worked @ $'+r.hourlyRate.toFixed(2)+'/hr</td></tr>'
+      // Shift detail rows
+      +(function(){
+        var _mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var _tf={hour:'numeric',minute:'2-digit',hour12:true};
+        var rows='';
+        (r.sessions||[]).forEach(function(s){
+          if(!s.inTs||!s.outTs) return;
+          var dt=new Date(s.inTs);
+          var dateStr=_mos[dt.getMonth()]+' '+dt.getDate()+', '+dt.getFullYear();
+          var inStr=new Date(s.inTs).toLocaleTimeString('en-US',_tf);
+          var outStr=new Date(s.outTs).toLocaleTimeString('en-US',_tf);
+          var hrs=(new Date(s.outTs)-new Date(s.inTs))/3600000;
+          rows+='<tr>'
+            +'<td style="padding:4px 14px 4px 22px;font-size:11px;color:#374151;border-bottom:1px solid #f3f4f6;">'+dateStr+'&nbsp;&nbsp;'+inStr+' → '+outStr+'</td>'
+            +'<td style="padding:4px 14px;font-size:11px;font-weight:600;color:#374151;text-align:right;border-bottom:1px solid #f3f4f6;">'+fmtHrs(hrs)+'</td>'
+            +'</tr>';
+        });
+        if(!rows) return '';
+        return '<tr style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#eef2ff;">'
+          +'<td colspan="2" style="padding:5px 14px 3px;font-size:9px;font-weight:700;color:#4f46e5;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid #e0e7ff;">Shift Detail</td>'
+          +'</tr>'+rows;
+      })()
       + pRow('WAGES EARNED', fmt$(r.grossWages), '#111827', true)
       + pRow('F.I.C.A. TAX WITHHOLDING', '– '+fmt$(r.fica), '#b91c1c')
       + pRow('MEDICARE TAX WITHHOLDING', '– '+fmt$(r.medicare), '#b91c1c')
