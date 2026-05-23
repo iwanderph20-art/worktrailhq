@@ -5989,12 +5989,41 @@ function clearOldRecords() {
     });
     store.setJ(K.employees,emps);
   }
-  // One-time cleanup: remove Hans Duran completely (courier role retired — phlebotomists only)
+  // One-time cleanup: remove Hans Duran from local storage
   (function(){
     var cleaned=store.getJ(K.employees,[]).filter(function(e){return e.name!=='Hans Duran';});
     store.setJ(K.employees,cleaned);
     var tsClean=store.getJ(K.timesheet,[]).filter(function(e){return e.name!=='Hans Duran';});
     store.setJ(K.timesheet,tsClean);
+  })();
+  // One-time Firebase purge: permanently delete all Hans Duran timesheet entries from Firebase
+  // (local cleanup above already removed him from localStorage; this ensures sync never restores him)
+  (function hansFbPurge(){
+    if (!fbCfg.url) return;
+    if (store.getJ('jtl_hans_fb_purged', false)) return;
+    fetch(fbCfg.url+'/jtl/timesheet.json')
+      .then(function(r){ return r.json(); }).catch(function(){ return null; })
+      .then(function(raw){
+        if (!raw || typeof raw !== 'object') { store.setJ('jtl_hans_fb_purged', true); return; }
+        var entries = Array.isArray(raw) ? raw : Object.values(raw);
+        var hans = entries.filter(function(e){ return e && e.name === 'Hans Duran'; });
+        var deleted = store.getJ(K.deletedTs, []);
+        hans.forEach(function(e){
+          var tsStr = String(e.ts);
+          if (deleted.indexOf(tsStr) < 0) deleted.push(tsStr);
+          // Mark deleted in Firebase so every device honours it on sync
+          fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(e.ts)+'.json',{
+            method:'PUT', body:JSON.stringify({ts:tsStr, deletedAt:new Date().toISOString()}),
+            headers:{'Content-Type':'application/json'}
+          }).catch(function(){});
+          // Remove from Firebase timesheet
+          fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(e.ts)+'.json',{method:'DELETE'}).catch(function(){});
+        });
+        store.setJ(K.deletedTs, deleted);
+        store.setJ('jtl_hans_fb_purged', true);
+      });
+    // Also remove Hans from Firebase employees node
+    fetch(fbCfg.url+'/jtl/employees/hans-duran.json',{method:'DELETE'}).catch(function(){});
   })();
 
   store.set(K.adminHash,DEFAULT_HASH);
@@ -6326,7 +6355,8 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
     hoursWorked: hoursWorked, hourlyRate: rate, grossWages: grossWages,
     fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
     totalDeductions: totalDeductions,
-    totalMiles: totalMiles, netPay: netPay, filing: filing, noProfile: false
+    totalMiles: totalMiles, netPay: netPay, filing: filing, noProfile: false,
+    sessions: (extraStats && extraStats.sessions) || []
   };
 }
 
@@ -6397,9 +6427,33 @@ function renderPaycheck(result, fromStr, toStr) {
       +'<p class="text-xs mt-2" style="color:#9ca3af;">No hours recorded in this period.</p>'
       +'</div>';
   }
+  // Build per-session breakdown (shown as collapsible under Hours Worked)
+  var sessBreakdown = '';
+  if (result.sessions && result.sessions.length) {
+    var _mos = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var _tf  = {hour:'numeric',minute:'2-digit',hour12:true};
+    var _rows = '';
+    result.sessions.forEach(function(s) {
+      if (!s.inTs || !s.outTs) return;
+      var dt = new Date(s.inTs);
+      var hrs = (new Date(s.outTs) - new Date(s.inTs)) / 3600000;
+      _rows += '<div style="display:flex;justify-content:space-between;font-size:11px;color:#374151;padding:2px 0;border-bottom:1px solid #f3f4f6;">'
+        +'<span>'+_mos[dt.getMonth()]+' '+dt.getDate()
+        +' &nbsp;'+new Date(s.inTs).toLocaleTimeString('en-US',_tf)
+        +' → '+new Date(s.outTs).toLocaleTimeString('en-US',_tf)+'</span>'
+        +'<span style="font-weight:600;">'+fmtHrs(hrs)+'</span>'
+        +'</div>';
+    });
+    if (_rows) {
+      var _cnt = result.sessions.filter(function(s){return s.inTs&&s.outTs;}).length;
+      sessBreakdown = '<details style="margin:-2px 0 4px;"><summary style="font-size:11px;color:#9ca3af;cursor:pointer;padding:2px 0;list-style:none;outline:none;">&#9654; Session breakdown ('+_cnt+' shift'+ (_cnt===1?'':'s')+')</summary>'
+        +'<div style="margin-top:4px;padding:4px 0 2px;">'+_rows+'</div></details>';
+    }
+  }
   return '<div class="paycheck">'
     +header
     +'<div class="paycheck-row"><span>Hours Worked</span><span>'+fmtHrs(result.hoursWorked)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+    +sessBreakdown
     +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>F.I.C.A. TAX WITHHOLDING</span><span>– '+fmt$(result.fica)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>MEDICARE TAX WITHHOLDING</span><span>– '+fmt$(result.medicare)+'</span></div>'
