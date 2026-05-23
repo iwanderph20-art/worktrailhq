@@ -3444,11 +3444,9 @@ var _calMonth=new Date().getMonth();
 var _calPhotoLoads=[];
 var CAL_COLORS=['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316','#6366f1','#14b8a6'];
 
-function getEmpCalColor(name){
-  var emps=store.getJ(K.employees,[]);
-  var idx=emps.findIndex(function(e){return e.name===name;});
-  if(idx<0){var h=0;for(var i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))&0x3ff;idx=h;}
-  return CAL_COLORS[Math.abs(idx)%CAL_COLORS.length];
+function getFacCalColor(fac){
+  var h=0;for(var i=0;i<fac.length;i++)h=(h*31+fac.charCodeAt(i))&0x3ff;
+  return CAL_COLORS[h%CAL_COLORS.length];
 }
 
 function switchRecordView(v){
@@ -3508,12 +3506,15 @@ function renderCalendar(){
     }
     if(data){
       Object.keys(data.names).forEach(function(name){
-        var col=getEmpCalColor(name);
         var first=name.split(' ')[0];
-        html+='<span class="cal-emp-pill" style="background:'+col+';">'+first+'</span>';
+        html+='<span class="cal-emp-pill" style="background:#1a2b8c;">'+first+'</span>';
       });
       var facs=Object.keys(data.facs);
-      if(facs.length) html+='<div class="cal-fac">'+facs[0]+(facs.length>1?' +'+(facs.length-1):'')+'</div>';
+      facs.slice(0,2).forEach(function(f){
+        var fc=getFacCalColor(f);
+        html+='<div class="cal-fac" style="color:'+fc+';font-weight:700;">'+f+'</div>';
+      });
+      if(facs.length>2) html+='<div class="cal-fac">+'+(facs.length-2)+' more</div>';
       if(hasPending) html+='<div style="font-size:9px;font-weight:700;color:#d97706;margin-top:2px;">&#9679; Pending</div>';
     }
     html+='</div>';
@@ -3569,7 +3570,7 @@ function showCalDay(dateStr){
     var timeFmt={hour:'numeric',minute:'2-digit',hour12:true};
     var inTime=clockInE?clockInE._d.toLocaleTimeString('en-US',timeFmt):'—';
     var outTime=clockOutE?clockOutE._d.toLocaleTimeString('en-US',timeFmt):(isStillIn?'Active':'—');
-    var empColor=getEmpCalColor(name);
+    var empColor='#111827';
     var photoPlaceholder='<div style="width:44px;height:44px;border-radius:8px;background:#f3f4f6;border:1.5px dashed #e5e7eb;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>';
     var inPhotoBlock=photoPlaceholder,outPhotoBlock=photoPlaceholder;
     if(clockInE&&clockInE.hasPhoto){
@@ -4423,7 +4424,6 @@ var KNOWN_FACILITIES = [
 var EMP_FACILITY = {
   'Enrique Blanco': 'Juno Tech Lab',
   'Krys':           'Juno Tech Lab',
-  'Hans':           'Juno Tech Lab',
   'Cristina':       'Leisure Garden',
   'Julissa':        'Leisure Garden',
   'Mylyn':          'Leisure Garden',
@@ -5863,7 +5863,18 @@ function clearOldRecords() {
     if(hash&&hash.indexOf('#emp=')===0){
       var empData=JSON.parse(atob(hash.slice(5)));
       if(empData&&empData.length>0){
-        store.setJ(K.employees,empData);
+        // Merge incoming data with existing — always preserve any local payProfile
+        var existingEmps=store.getJ(K.employees,[]);
+        var localByName={};
+        existingEmps.forEach(function(e){localByName[e.name]=e;});
+        var merged=empData.map(function(e){
+          var local=localByName[e.name];
+          if(local&&local.payProfile&&local.payProfile.hourlyRate&&(!e.payProfile||!e.payProfile.hourlyRate)){
+            e.payProfile=local.payProfile;
+          }
+          return e;
+        });
+        store.setJ(K.employees,merged);
         history.replaceState(null,'',window.location.pathname+window.location.search);
         toast('Employee codes loaded!');
       }
@@ -5875,8 +5886,7 @@ function clearOldRecords() {
   if(needsSeed){
     var DEFAULT_EMPLOYEES=[
       {name:'Krys Ellis',code:'1001',role:'phlebotomist'},
-      {name:'Enrique Blanco',code:'1002',role:'phlebotomist'},
-      {name:'Hans Duran',code:'1003',role:'courier'}
+      {name:'Enrique Blanco',code:'1002',role:'phlebotomist'}
     ];
     if(emps&&emps.length>0&&typeof emps[0]==='string'){
       emps=emps.map(function(name,i){ return {name:name,code:String(1001+i)}; });
@@ -5892,6 +5902,12 @@ function clearOldRecords() {
     });
     store.setJ(K.employees,emps);
   }
+  // One-time cleanup: remove Hans Duran (courier role retired — phlebotomists only)
+  (function(){
+    var cleaned=store.getJ(K.employees,[]).filter(function(e){return e.name!=='Hans Duran';});
+    store.setJ(K.employees,cleaned);
+  })();
+
   store.set(K.adminHash,DEFAULT_HASH);
   injectLogos(); fbInit(); renderFacilityPills();
   initPhotoDB(); // warm up IndexedDB for photos
