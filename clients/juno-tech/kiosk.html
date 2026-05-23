@@ -3666,6 +3666,34 @@ function showCalDay(dateStr, empFilter){
       +'<p style="font-size:12px;font-weight:600;color:#d97706;margin:0;">Breaks: <strong>'+breakSummaryText+'</strong></p>'
       +'</div>'
       +((approvalBtns||liveLocBtn)?'<div style="padding:8px 14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.05);">'+approvalBtns+liveLocBtn+'</div>':'')
+      +(function(){
+        var dIn=clockInE&&clockInE.device;
+        var dOut=clockOutE&&clockOutE.device;
+        var locLbl=clockInE&&clockInE.locationLabel;
+        var atLab=clockInE&&clockInE.locationAtLab;
+        if(!locLbl&&clockInE&&clockInE.location&&clockInE.location.lat){
+          var ll=locationLabel(clockInE.location.lat,clockInE.location.lng,name);
+          locLbl=ll.text;atLab=ll.atLab;
+        }
+        if(!dIn&&!dOut&&!locLbl) return '';
+        var firstName=name.split(' ')[0];
+        var allEmpEntries=store.getJ(K.timesheet,[]).filter(function(e){return e.name===name&&e.device;});
+        var deviceUseCount=function(d){var sig=d.type+'|'+d.os+'|'+d.browser;return allEmpEntries.filter(function(e){return e.device&&(e.device.type+'|'+e.device.os+'|'+e.device.browser)===sig;}).length;};
+        var deviceLabel=function(d){var hw=d.type==='Mobile'?'Phone':d.type==='Tablet'?'Tablet':'Laptop';return (deviceUseCount(d)>=3?firstName+"'s "+hw:hw)+' · '+d.os+' · '+d.browser;};
+        var icon=function(d){return d.type==='Mobile'?'📱':d.type==='Tablet'?'⬜':'💻';};
+        var fmt=function(d){return icon(d)+' '+deviceLabel(d);};
+        var sameDevice=dIn&&dOut&&dIn.type===dOut.type&&dIn.os===dOut.os&&dIn.browser===dOut.browser;
+        var parts=[];
+        if(locLbl){
+          var isWrong=locLbl.indexOf('⚠')===0;
+          var locColor=atLab?'#15803d':isWrong?'#991b1b':'#b45309';
+          var locBg=atLab?'#dcfce7':isWrong?'#fee2e2':'#fef3c7';
+          parts.push('<span style="background:'+locBg+';color:'+locColor+';font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;">📍 '+locLbl+'</span>');
+        }
+        if(sameDevice){parts.push('<span style="color:#6b7280;font-size:11px;">'+fmt(dIn)+'</span>');}
+        else{if(dIn)parts.push('<span style="color:#6b7280;font-size:11px;">IN: '+fmt(dIn)+'</span>');if(dOut)parts.push('<span style="color:#6b7280;font-size:11px;">OUT: '+fmt(dOut)+'</span>');}
+        return parts.length?'<div style="padding:5px 14px 7px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(0,0,0,.04);">'+parts.join('')+'</div>':'';
+      })()
       +(editBtns?'<div style="padding:4px 14px 8px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(0,0,0,.04);">'+editBtns+'<span style="flex:1;"></span>'+deleteDayBtn+'</div>':'')
       +'</div>';
   });
@@ -5927,10 +5955,12 @@ function clearOldRecords() {
     });
     store.setJ(K.employees,emps);
   }
-  // One-time cleanup: remove Hans Duran (courier role retired — phlebotomists only)
+  // One-time cleanup: remove Hans Duran completely (courier role retired — phlebotomists only)
   (function(){
     var cleaned=store.getJ(K.employees,[]).filter(function(e){return e.name!=='Hans Duran';});
     store.setJ(K.employees,cleaned);
+    var tsClean=store.getJ(K.timesheet,[]).filter(function(e){return e.name!=='Hans Duran';});
+    store.setJ(K.timesheet,tsClean);
   })();
 
   store.set(K.adminHash,DEFAULT_HASH);
@@ -6464,6 +6494,7 @@ function runPayroll() {
     if (!rosteredNames[e.name]) unrosteredNames[e.name] = true;
   });
   Object.keys(unrosteredNames).sort().forEach(function(name) {
+    if (name === 'Hans Duran') return; // permanently removed
     if (empFilter && name !== empFilter) return;
     var stats = buildSessMap(name);
     var result = { empName: name, noProfile: true, notInRoster: true, grossWages: 0, netPay: 0,
