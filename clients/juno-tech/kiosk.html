@@ -1732,9 +1732,10 @@ function submitClockInQuestions() {
   var trackMileage = qSelectedFacs.indexOf('Juno Tech Lab') >= 0 && qDroveMode === true;
   var note = (document.getElementById('qNote').value||'').trim();
 
-  // Geofence check for phlebotomists (not couriers)
-  var empRole = currentEmp ? (currentEmp.role || 'phlebotomist') : 'phlebotomist';
-  if (empRole !== 'courier' && currentLocation) {
+  // Geofence check — validate clock-in is at the employee's home base
+  // Phlebotomists (Krys, Enrique) must start at Juno Tech Lab regardless of which patient facility they selected.
+  // ALF staff (Mylyn, Cristina, Jose, Julissa) must start at Leisure Garden.
+  if (currentLocation) {
     var locInfo = locationLabel(currentLocation.lat, currentLocation.lng, currentEmp.name);
     if (!locInfo.atLab) {
       toast('Heads up: you appear to be clocking in ' + locInfo.text + '. Your log has been submitted.', 5000);
@@ -1743,8 +1744,8 @@ function submitClockInQuestions() {
 
   var entryTs = new Date().toISOString();
   var token   = genApprovalToken(entryTs);
-  // Store distance-from-lab on the entry so admin can see it in Records
-  var locMeta = (empRole !== 'courier' && currentLocation)
+  // Store home-base proximity on the entry so admin can see it in Records
+  var locMeta = currentLocation
     ? locationLabel(currentLocation.lat, currentLocation.lng, currentEmp.name)
     : null;
   var entry   = {
@@ -4486,7 +4487,10 @@ function distanceFromLab(lat, lng) {
   return haversineMiles(lat, lng, KNOWN_FACILITIES[0].lat, KNOWN_FACILITIES[0].lng);
 }
 function locationLabel(lat, lng, empName) {
-  var assigned = empName ? EMP_FACILITY[empName] : null;
+  // Try full name first, then first name as fallback (EMP_FACILITY uses first-name keys for some employees)
+  var assigned = empName
+    ? (EMP_FACILITY[empName] || EMP_FACILITY[empName.split(' ')[0]] || null)
+    : null;
   // Check all known facilities for proximity
   for (var i = 0; i < KNOWN_FACILITIES.length; i++) {
     var f = KNOWN_FACILITIES[i];
