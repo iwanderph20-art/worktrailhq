@@ -2505,22 +2505,36 @@ function syncEmployeesFromCloud(cb) {
             }
           });
           var finalEmps = Object.values(byName);
-          // Restore pay profiles from backup key for any employee whose profile was wiped by sync
           var backupProfiles = store.getJ('jtl_payprofiles', {});
-          finalEmps.forEach(function(emp) {
-            if ((!emp.payProfile || !emp.payProfile.hourlyRate) && backupProfiles[emp.name] && backupProfiles[emp.name].hourlyRate) {
-              emp.payProfile = backupProfiles[emp.name];
-            }
-          });
-          store.setJ(K.employees, finalEmps);
-          // Re-push any employees whose payProfile was preserved from local but missing in cloud
-          // This self-heals Firebase so future syncs on other devices also get the pay profile
-          finalEmps.forEach(function(emp) {
-            var cloudMatch = cloudEmps.find(function(c){ return c.code === emp.code; });
-            if (emp.payProfile && emp.payProfile.hourlyRate && cloudMatch && (!cloudMatch.payProfile || !cloudMatch.payProfile.hourlyRate)) {
-              pushEmployeeToFirebase(emp);
-            }
-          });
+          // Restore from local backup first, then fall back to Firebase payprofiles node
+          fetch(fbCfg.url+'/jtl/payprofiles.json')
+            .then(function(r){ return r.json(); }).catch(function(){ return null; })
+            .then(function(fbProfiles) {
+              finalEmps.forEach(function(emp) {
+                if (!emp.payProfile || !emp.payProfile.hourlyRate) {
+                  // 1st: local jtl_payprofiles backup
+                  if (backupProfiles[emp.name] && backupProfiles[emp.name].hourlyRate) {
+                    emp.payProfile = backupProfiles[emp.name];
+                  // 2nd: Firebase /jtl/payprofiles/ node (survives localStorage clears)
+                  } else if (fbProfiles) {
+                    var pk = empKey(emp.name);
+                    if (fbProfiles[pk] && fbProfiles[pk].hourlyRate) {
+                      emp.payProfile = fbProfiles[pk];
+                    }
+                  }
+                }
+              });
+              store.setJ(K.employees, finalEmps);
+              // Re-push to Firebase employee node if rate was recovered — self-heals for other devices
+              finalEmps.forEach(function(emp) {
+                var cloudMatch = cloudEmps.find(function(c){ return c.code === emp.code; });
+                if (emp.payProfile && emp.payProfile.hourlyRate && cloudMatch && (!cloudMatch.payProfile || !cloudMatch.payProfile.hourlyRate)) {
+                  pushEmployeeToFirebase(emp);
+                }
+              });
+              if(cb) cb();
+            });
+          return; // callback is called inside the payprofiles fetch above
         }
       }
       if(cb) cb();
@@ -2529,7 +2543,15 @@ function syncEmployeesFromCloud(cb) {
 }
 function pushAllEmployeesToCloud() {
   var emps = store.getJ(K.employees, []);
-  emps.forEach(function(e){ pushEmployeeToFirebase(e); });
+  var backup = store.getJ('jtl_payprofiles', {});
+  emps.forEach(function(e) {
+    // Always restore rate from local backup before pushing so we never
+    // overwrite a good Firebase rate with a rate-less local copy
+    if ((!e.payProfile || !e.payProfile.hourlyRate) && backup[e.name] && backup[e.name].hourlyRate) {
+      e = Object.assign({}, e, {payProfile: backup[e.name]});
+    }
+    pushEmployeeToFirebase(e);
+  });
 }
 
 /* ── employee management ────────────────── */
@@ -6443,12 +6465,19 @@ function runPayroll() {
 
   // Build sessions per employee
   function buildSessMap(empName) {
-    var entries = ts.filter(function(e){ return e.name === empName; })
+    var raw = ts.filter(function(e){ return e.name === empName; })
       .filter(function(e){
         var d = new Date(e.ts);
         return d >= fromDate && d <= toDate;
       })
       .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+    // Deduplicate: if two entries have the same type within 2 minutes of each other, keep only the first.
+    // This removes ghost duplicates left behind from edit/sync race conditions.
+    var seen = {}, entries = [];
+    raw.forEach(function(e) {
+      var bucket = e.type + '_' + Math.floor(new Date(e.ts)/120000); // 2-min bucket
+      if (!seen[bucket]) { seen[bucket] = true; entries.push(e); }
+    });
 
     var sessions = [], cur = null;
     entries.forEach(function(e) {
@@ -6722,11 +6751,19 @@ function savePayProfile() {
     mileageRate:   parseFloat(document.getElementById('ppMileage').value) || 0
   };
   store.setJ(K.employees, emps);
-  // Backup the pay profile to a separate key so it survives employee list re-seeds or sync overwrites
+  // Backup the pay profile locally so it survives employee list re-seeds or sync overwrites
   var profiles = store.getJ('jtl_payprofiles', {});
   profiles[_ppEmpName] = emp.payProfile;
   store.setJ('jtl_payprofiles', profiles);
   pushEmployeeToFirebase(emp);
+  // Also save to a dedicated Firebase payprofiles node — this is the ultimate source of truth
+  // and survives localStorage being cleared, new devices, or employee record overwrites
+  if (fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/payprofiles/'+empKey(_ppEmpName)+'.json', {
+      method:'PUT', body:JSON.stringify(emp.payProfile),
+      headers:{'Content-Type':'application/json'}
+    }).catch(function(){});
+  }
   closePayProfile();
   renderEmployeeList();
   toast('Pay profile saved for '+_ppEmpName);
