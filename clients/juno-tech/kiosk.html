@@ -3444,7 +3444,24 @@ var _calMonth=new Date().getMonth();
 var _calPhotoLoads=[];
 var CAL_COLORS=['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316','#6366f1','#14b8a6'];
 
+var FAC_COLOR_MAP={
+  'Juno Tech Lab':              '#10b981',
+  'Rosewood ALF':               '#ec4899',
+  'Leisure Garden ALF':         '#f59e0b',
+  'Springfield Manor ALF':      '#8b5cf6',
+  'FairOaks Manor ALF':         '#f97316',
+  'Amberkare Home Health':      '#ef4444',
+  'Anew Direction Adult Living':'#06b6d4',
+  'SDI Lab':                    '#3b82f6',
+  'Sunshine ALF':               '#84cc16',
+  'Golden ALF':                 '#eab308',
+  'Westside Manor':             '#14b8a6',
+  'Parview Manor':              '#6366f1',
+  'Gilmar Manor':               '#a855f7',
+  'Others':                     '#9ca3af'
+};
 function getFacCalColor(fac){
+  if(FAC_COLOR_MAP[fac]) return FAC_COLOR_MAP[fac];
   var h=0;for(var i=0;i<fac.length;i++)h=(h*31+fac.charCodeAt(i))&0x3ff;
   return CAL_COLORS[h%CAL_COLORS.length];
 }
@@ -3507,7 +3524,8 @@ function renderCalendar(){
     if(data){
       Object.keys(data.names).forEach(function(name){
         var first=name.split(' ')[0];
-        html+='<span class="cal-emp-pill" style="background:#1a2b8c;">'+first+'</span>';
+        var sn=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        html+='<span class="cal-emp-pill" style="background:#1a2b8c;cursor:pointer;" onclick="showCalDay(\''+dStr+'\',\''+sn+'\');event.stopPropagation();">'+first+'</span>';
       });
       var facs=Object.keys(data.facs);
       facs.slice(0,2).forEach(function(f){
@@ -3523,13 +3541,17 @@ function renderCalendar(){
   document.getElementById('tsCalendar').innerHTML=html;
 }
 
-function showCalDay(dateStr){
+function showCalDay(dateStr, empFilter){
   var ts=store.getJ(K.timesheet,[]);
   var dayEntries=ts.filter(function(r){return new Date(r.ts).toDateString()===dateStr;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
   if(!dayEntries.length) return;
   var dateLabel=new Date(dateStr).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   var empGroups={};
   dayEntries.forEach(function(e){if(!empGroups[e.name]) empGroups[e.name]=[];empGroups[e.name].push(e);});
+  // If a specific employee pill was clicked, show only that person
+  if(empFilter && empGroups[empFilter]){
+    var filtered={};filtered[empFilter]=empGroups[empFilter];empGroups=filtered;
+  }
   _calPhotoLoads=[];
   var cardsHtml='';
   Object.keys(empGroups).forEach(function(name){
@@ -3655,11 +3677,14 @@ function showCalDay(dateStr){
   overlay.className='cal-modal-overlay';
   overlay.onclick=function(e){if(e.target===overlay) closeCalModal();};
   var empCount=Object.keys(empGroups).length;
+  var modalSubtitle=empFilter
+    ?'<span style="background:#1a2b8c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;">'+empFilter+'</span>'
+    :(dayEntries.length+' entr'+(dayEntries.length===1?'y':'ies')+' &middot; '+empCount+' employee'+(empCount===1?'':'s'));
   overlay.innerHTML='<div class="cal-modal">'
     +'<div class="cal-modal-hdr">'
     +'<div>'
     +'<p style="font-size:15px;font-weight:800;color:#111827;margin:0;">'+dateLabel+'</p>'
-    +'<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">'+dayEntries.length+' entr'+(dayEntries.length===1?'y':'ies')+' &middot; '+empCount+' employee'+(empCount===1?'':'s')+'</p>'
+    +'<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">'+modalSubtitle+'</p>'
     +'</div>'
     +'<button onclick="closeCalModal()" style="background:#f3f4f6;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:20px;color:#374151;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>'
     +'</div>'
