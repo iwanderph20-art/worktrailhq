@@ -3241,6 +3241,7 @@ function saveEditEntry() {
 }
 /* ── Manual Log Entry ────────────────────── */
 var _manualMode = 'single'; // 'single' or 'shift'
+var _manualSaving = false;  // double-submit guard
 function setManualMode(mode) {
   _manualMode = mode;
   var isSingle = mode === 'single';
@@ -3316,10 +3317,12 @@ function makeUniqueTs(baseDate, existingArr) {
   return d.toISOString();
 }
 function saveManualEntry() {
+  if (_manualSaving) { toast('Save in progress — please wait…'); return; }
+  _manualSaving = true;
   var empName = document.getElementById('manualEmpName').value.trim();
   var note    = document.getElementById('manualNote').value.trim();
-  if (!empName) { toast('Select an employee'); return; }
-  if (!note)    { toast('A reason is required for manual entries'); return; }
+  if (!empName) { toast('Select an employee'); _manualSaving = false; return; }
+  if (!note)    { toast('A reason is required for manual entries'); _manualSaving = false; return; }
 
   var emps = store.getJ(K.employees, []);
   var emp  = emps.filter(function(e){ return e.name === empName; })[0] || {};
@@ -3334,14 +3337,14 @@ function saveManualEntry() {
     var outDt = document.getElementById('manualOutDatetime').value;
     var facVal = document.getElementById('manualFacility').value;
     var facList = facVal ? [facVal] : [];
-    if (!inDt)  { toast('Select a clock-in time'); return; }
-    if (!outDt) { toast('Select a clock-out time'); return; }
+    if (!inDt)  { toast('Select a clock-in time'); _manualSaving = false; return; }
+    if (!outDt) { toast('Select a clock-out time'); _manualSaving = false; return; }
     var inTs  = new Date(inDt);
     var outTs = new Date(outDt);
-    if (outTs <= inTs) { toast('Clock-out must be after clock-in'); return; }
+    if (outTs <= inTs) { toast('Clock-out must be after clock-in'); _manualSaving = false; return; }
     // Warn if spanning calendar days — entries will appear on separate day rows
     if (inTs.toDateString() !== outTs.toDateString()) {
-      if (!confirm('Clock-in and clock-out are on different calendar days (' + inTs.toLocaleDateString() + ' and ' + outTs.toLocaleDateString() + '). They will appear on separate day rows in Records. Continue?')) return;
+      if (!confirm('Clock-in and clock-out are on different calendar days (' + inTs.toLocaleDateString() + ' and ' + outTs.toLocaleDateString() + '). They will appear on separate day rows in Records. Continue?')) { _manualSaving = false; return; }
     }
     var inEntry = {
       ts: makeUniqueTs(inTs, arr), name: empName, type: 'in', note: note,
@@ -3368,7 +3371,7 @@ function saveManualEntry() {
     // Single entry
     var type  = document.getElementById('manualType').value;
     var rawDt = document.getElementById('manualDatetime').value;
-    if (!rawDt) { toast('Select a date and time'); return; }
+    if (!rawDt) { toast('Select a date and time'); _manualSaving = false; return; }
     var entry = {
       ts:          makeUniqueTs(new Date(rawDt), arr),
       name:        empName, type: type, note: note,
@@ -3387,6 +3390,7 @@ function saveManualEntry() {
     renderTables();
     toast('Manual entry added for '+empName);
   }
+  _manualSaving = false;
   updateStorageUsage();
 }
 
@@ -4282,6 +4286,27 @@ function syncFromCloud(cb) {
           .filter(function(e){ // deduplicate by ts — keep first occurrence (earliest sort)
             if (seenTs[String(e.ts)]) return false;
             seenTs[String(e.ts)] = true; return true;
+          })
+          // Minute-level dedup: same employee + type + same minute → duplicate.
+          // Keeps the earliest entry, auto-deletes the later one from Firebase + marks deletedTs.
+          // This cleans up double-submitted manual entries without any admin action.
+          .filter(function(e){
+            var minKey = (e.name||'')+'|'+(e.type||'')+'|'+Math.floor(new Date(e.ts)/60000);
+            if (seenTs[minKey]) {
+              var tsStr = String(e.ts);
+              if (fbCfg.url) {
+                fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(e.ts)+'.json',{method:'DELETE'}).catch(function(){});
+                fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(e.ts)+'.json',{
+                  method:'PUT', body:JSON.stringify({ts:tsStr, deletedAt:new Date().toISOString()}),
+                  headers:{'Content-Type':'application/json'}
+                }).catch(function(){});
+              }
+              var del = store.getJ(K.deletedTs,[]);
+              if (del.indexOf(tsStr)<0){ del.push(tsStr); store.setJ(K.deletedTs,del); }
+              return false;
+            }
+            seenTs[minKey] = true;
+            return true;
           });
         // Step 2b: fetch /jtl/approvals/ and merge into entries — approvals node always wins
         // This ensures an approval made on any device survives a re-sync even if the
