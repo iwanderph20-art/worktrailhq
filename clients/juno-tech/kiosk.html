@@ -5996,38 +5996,41 @@ function clearOldRecords() {
     var tsClean=store.getJ(K.timesheet,[]).filter(function(e){return e.name!=='Hans Duran';});
     store.setJ(K.timesheet,tsClean);
   })();
-  // One-time Firebase purge: permanently delete all Hans Duran timesheet entries from Firebase
-  // (local cleanup above already removed him from localStorage; this ensures sync never restores him)
+  store.set(K.adminHash,DEFAULT_HASH);
+  injectLogos(); fbInit(); renderFacilityPills();
+  // One-time Firebase purge: permanently delete all Hans Duran timesheet entries.
+  // Must run AFTER fbInit() so fbCfg.url is populated.
   (function hansFbPurge(){
     if (!fbCfg.url) return;
     if (store.getJ('jtl_hans_fb_purged', false)) return;
+    store.setJ('jtl_hans_fb_purged', true); // set flag immediately so concurrent calls don't double-fire
     fetch(fbCfg.url+'/jtl/timesheet.json')
       .then(function(r){ return r.json(); }).catch(function(){ return null; })
       .then(function(raw){
-        if (!raw || typeof raw !== 'object') { store.setJ('jtl_hans_fb_purged', true); return; }
+        if (!raw || typeof raw !== 'object') return;
         var entries = Array.isArray(raw) ? raw : Object.values(raw);
         var hans = entries.filter(function(e){ return e && e.name === 'Hans Duran'; });
         var deleted = store.getJ(K.deletedTs, []);
         hans.forEach(function(e){
           var tsStr = String(e.ts);
           if (deleted.indexOf(tsStr) < 0) deleted.push(tsStr);
-          // Mark deleted in Firebase so every device honours it on sync
           fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(e.ts)+'.json',{
             method:'PUT', body:JSON.stringify({ts:tsStr, deletedAt:new Date().toISOString()}),
             headers:{'Content-Type':'application/json'}
           }).catch(function(){});
-          // Remove from Firebase timesheet
           fetch(fbCfg.url+'/jtl/timesheet/'+tsToKey(e.ts)+'.json',{method:'DELETE'}).catch(function(){});
         });
         store.setJ(K.deletedTs, deleted);
-        store.setJ('jtl_hans_fb_purged', true);
+        if (hans.length) {
+          // Force a local re-render so Hans disappears from Records immediately
+          var tsClean = store.getJ(K.timesheet,[]).filter(function(e){ return e.name !== 'Hans Duran'; });
+          store.setJ(K.timesheet, tsClean);
+          renderTables();
+        }
       });
-    // Also remove Hans from Firebase employees node
+    // Remove Hans from Firebase employees node
     fetch(fbCfg.url+'/jtl/employees/hans-duran.json',{method:'DELETE'}).catch(function(){});
   })();
-
-  store.set(K.adminHash,DEFAULT_HASH);
-  injectLogos(); fbInit(); renderFacilityPills();
   initPhotoDB(); // warm up IndexedDB for photos
   updateStorageUsage();
 
@@ -6446,8 +6449,9 @@ function renderPaycheck(result, fromStr, toStr) {
     });
     if (_rows) {
       var _cnt = result.sessions.filter(function(s){return s.inTs&&s.outTs;}).length;
-      sessBreakdown = '<details style="margin:-2px 0 4px;"><summary style="font-size:11px;color:#9ca3af;cursor:pointer;padding:2px 0;list-style:none;outline:none;">&#9654; Session breakdown ('+_cnt+' shift'+ (_cnt===1?'':'s')+')</summary>'
-        +'<div style="margin-top:4px;padding:4px 0 2px;">'+_rows+'</div></details>';
+      sessBreakdown = '<div style="margin:2px 0 8px;border-top:1px solid #f3f4f6;padding-top:4px;">'
+        +'<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin:0 0 4px;">Shifts ('+ _cnt+')</p>'
+        +_rows+'</div>';
     }
   }
   return '<div class="paycheck">'
