@@ -6428,6 +6428,11 @@ function runPayroll() {
 
   if (!fromVal || !toVal) { toast('Select a pay period first'); return; }
 
+  // Always sync from Firebase first so edits/deletions are reflected before computing
+  out.style.display = '';
+  out.innerHTML = '<p style="text-align:center;color:#6b7280;padding:24px;font-size:13px;">&#8635; Syncing latest timesheet data…</p>';
+
+  function _compute() {
   var fromDate = new Date(fromVal+'T00:00:00');
   var toDate   = new Date(toVal+'T23:59:59');
   var periodDays = Math.round((toDate - fromDate) / 86400000) + 1;
@@ -6552,6 +6557,9 @@ function runPayroll() {
   _printPayrollData = { results: allResults, fromVal: fromVal, toVal: toVal };
   document.getElementById('payrollPrintBtn').style.display = '';
   logAdminAction('payroll_run', 'Period: '+fromVal+' to '+toVal+(empFilter?' ('+empFilter+')':''));
+  } // end _compute
+
+  if (fbCfg.url) { syncFromCloud(_compute); } else { _compute(); }
 }
 
 var _printPayrollData = null;
