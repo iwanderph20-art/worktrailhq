@@ -3190,9 +3190,17 @@ function saveEditEntry() {
   var newTs = updatedEntry.ts;
   if (dtChanged) {
     fbDeleteEntry('timesheet', origTs);
+    // Mark origTs as deleted so the 30s auto-sync never resurrects the old entry.
+    // Mirror exactly what deleteEntry() does — add to local list AND push to Firebase /deletedTs/.
     var deleted = store.getJ(K.deletedTs,[]);
-    var idx = deleted.indexOf(String(origTs));
-    if(idx>=0){ deleted.splice(idx,1); store.setJ(K.deletedTs,deleted); }
+    if (deleted.indexOf(String(origTs)) < 0) { deleted.push(String(origTs)); store.setJ(K.deletedTs, deleted); }
+    if (fbCfg.url) {
+      fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(origTs)+'.json', {
+        method:'PUT',
+        body: JSON.stringify({ts:String(origTs), deletedAt:new Date().toISOString()}),
+        headers:{'Content-Type':'application/json'}
+      }).catch(function(){});
+    }
   }
   fbPut('timesheet', newTs, updatedEntry);
   // Save newly-uploaded photo to IndexedDB
