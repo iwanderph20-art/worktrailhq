@@ -6800,6 +6800,36 @@ function printPayroll() {
       +'</div>';
   });
 
+  // Compute totals across all printed employees
+  var _totGross = 0, _totDed = 0, _totMile = 0, _totNet = 0, _empCount = 0;
+  d.results.forEach(function(r) {
+    if (r.noProfile || !r.grossWages) return;
+    _totGross += r.grossWages      || 0;
+    _totDed   += r.totalDeductions || 0;
+    _totMile  += r.mileageReimb    || 0;
+    _totNet   += r.netPay          || 0;
+    _empCount++;
+  });
+
+  var totalsBlock = '';
+  if (_empCount > 1) {
+    totalsBlock = '<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;border:2px solid #1a2b8c;border-radius:10px;overflow:hidden;margin-top:8px;page-break-inside:avoid;">'
+      +'<div style="background:#1a2b8c;padding:12px 18px;">'
+      +'<p style="margin:0;font-size:13px;font-weight:800;color:#fff;letter-spacing:.04em;">TOTAL PAYROLL SUMMARY</p>'
+      +'<p style="margin:2px 0 0;font-size:10px;color:#a5b4fc;">'+_empCount+' employees &nbsp;·&nbsp; Pay Period: '+d.fromVal+' – '+d.toVal+'</p>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;">'
+      + pRow('Total Gross Wages',              fmt$(_totGross), '#111827', false, '#f8fafc')
+      + pRow('Total Deductions',               '– '+fmt$(_totDed), '#b91c1c', false, '#f8fafc')
+      +(_totMile > 0 ? pRow('Total Mileage Reimbursements', '+ '+fmt$(_totMile), '#065f46', false, '#f8fafc') : '')
+      +'<tr style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#1a2b8c;">'
+      +'<td style="padding:13px 18px;font-size:15px;font-weight:900;color:#fff;">TOTAL AMOUNT TO PAY</td>'
+      +'<td style="padding:13px 18px;font-size:15px;font-weight:900;color:#fff;text-align:right;">'+fmt$(_totNet)+'</td>'
+      +'</tr>'
+      +'</table>'
+      +'</div>';
+  }
+
   pa.innerHTML = '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px;max-width:680px;margin:0 auto;">'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #1a2b8c;">'
     +'<div>'
@@ -6810,6 +6840,7 @@ function printPayroll() {
     +'<p style="margin:0;font-size:11px;color:#9ca3af;">Generated: '+new Date().toLocaleDateString()+'</p>'
     +'</div>'
     + cards
+    + totalsBlock
     +'</div>';
 
   window.print();
