@@ -2859,6 +2859,12 @@ function _renderTablesImpl() {
           var ciDateStr = ciDate.getFullYear()+'-'+String(ciDate.getMonth()+1).padStart(2,'0')+'-'+String(ciDate.getDate()).padStart(2,'0');
           editBtns += '<button onclick="openQuickClockIn(\''+safeName4ci+'\',\''+ciDateStr+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#43; Add Clock In</button> ';
         }
+        if (isStillIn && clockInE) {
+          var safeName4co = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          var coDate = clockInE._d;
+          var coDateStr = coDate.getFullYear()+'-'+String(coDate.getMonth()+1).padStart(2,'0')+'-'+String(coDate.getDate()).padStart(2,'0');
+          editBtns += '<button onclick="openQuickClockOut(\''+safeName4co+'\',\''+coDateStr+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#43; Add Clock Out</button> ';
+        }
         raw.forEach(function(e){
           var safeTs=String(e.ts).replace(/'/g,'');
           var tl=TYPE_LABEL[e.type]||e.type;
@@ -3306,6 +3312,17 @@ function openQuickClockIn(empName, dateStr) {
   document.getElementById('manualType').value = 'in';
   if (dateStr) document.getElementById('manualDatetime').value = dateStr + 'T08:00';
 }
+function openQuickClockOut(empName, dateStr) {
+  openManualEntry();
+  document.getElementById('manualEmpName').value = empName;
+  setManualMode('single');
+  document.getElementById('manualType').value = 'out';
+  // Default to current time on the clock-in date
+  var now = new Date();
+  var pad = function(n){ return n < 10 ? '0'+n : ''+n; };
+  var timeStr = pad(now.getHours())+':'+pad(now.getMinutes());
+  if (dateStr) document.getElementById('manualDatetime').value = dateStr + 'T' + timeStr;
+}
 // Return a unique ISO timestamp: if baseDate's ms already exists in existingArr OR deletedTs, bump by 1ms.
 // Prevents Firebase key collisions AND avoids reusing a deleted timestamp that syncFromCloud would filter out.
 function makeUniqueTs(baseDate, existingArr) {
@@ -3659,6 +3676,12 @@ function showCalDay(dateStr, empFilter){
       var ciD=clockOutE._d;
       var ciDs=ciD.getFullYear()+'-'+String(ciD.getMonth()+1).padStart(2,'0')+'-'+String(ciD.getDate()).padStart(2,'0');
       editBtns+='<button onclick="openQuickClockIn(\''+sn4ci+'\',\''+ciDs+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#43; Add Clock In</button> ';
+    }
+    if(isStillIn && clockInE){
+      var sn4co=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var coD=clockInE._d;
+      var coDs=coD.getFullYear()+'-'+String(coD.getMonth()+1).padStart(2,'0')+'-'+String(coD.getDate()).padStart(2,'0');
+      editBtns+='<button onclick="openQuickClockOut(\''+sn4co+'\',\''+coDs+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#43; Add Clock Out</button> ';
     }
     raw.forEach(function(e){
       var safeTs=String(e.ts).replace(/'/g,'');
