@@ -4990,6 +4990,10 @@ var REST2_HARD_HRS = 6 + 15/60;   // mandatory cutoff at 6h 15m
 var SHIFT_WARN_HRS = 7.5;         // wrap-up alarm at 7h 30m
 var SHIFT_MAX_HRS  = 8.0;         // hard shift limit — must clock out
 
+// ── Master break enforcement switch ──────────────────────────────
+// Set to true to re-enable all break alerts, compliance checks, and clock-out gate.
+var BREAKS_ENABLED = false;
+
 // Employees exempt from break notifications (names must match exactly as entered)
 var BREAK_EXEMPT = ['Mylyn', 'Jose', 'Julissa', 'Cristina'];
 function _isBreakExempt() {
@@ -5083,6 +5087,7 @@ function _clearBreakAlertTimers() {
   _breakAlertTimers = [];
 }
 function scheduleBreakAlerts(clockInTs) {
+  if (!BREAKS_ENABLED) return;
   if (_isBreakExempt()) return; // exempt employee — no break alerts
   _clearBreakAlertTimers();
   var now  = Date.now();
@@ -5234,6 +5239,7 @@ function stopBreakCheck() {
   _restDelayed = false; _restDelayPhase  = 0;
 }
 function checkBreakCompliance() {
+  if (!BREAKS_ENABLED) { var a=document.getElementById('breakAlert'); if(a) a.style.display='none'; return; }
   if(!currentEmp || (clockState !== 'in' && clockState !== 'pending')) return;
   if (_isBreakExempt()) return; // exempt employee — no break alerts
   var entries = store.getJ(K.timesheet,[])
@@ -5396,6 +5402,7 @@ function delayRestBreak() {
 
 /* ── Clock-out gate: block if shift > 6h with no meal break ── */
 function _checkClockOutBreakGate() {
+  if (!BREAKS_ENABLED) return true; // breaks disabled — allow clock-out freely
   if (!currentEmp) return true;
   var tsArr = store.getJ(K.timesheet, []).filter(function(e){ return e.name === currentEmp.name; })
     .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
