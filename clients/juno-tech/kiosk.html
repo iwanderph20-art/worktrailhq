@@ -617,6 +617,14 @@ video{object-fit:cover;transform:scaleX(-1);}
         </div>
         <p class="text-xs mt-2" style="color:#9ca3af;">Leave code blank to auto-generate.</p>
       </div>
+      <!-- Code Audit -->
+      <div class="rcard">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-semibold" style="color:#374151;">Code Audit</p>
+          <button onclick="runCodeAudit()" class="tap px-3 py-2 rounded-lg text-xs font-semibold" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#128270; Check All Codes</button>
+        </div>
+        <div id="codeAuditOut"></div>
+      </div>
       <div id="empList" class="space-y-2"></div>
     </div>
 
@@ -2660,6 +2668,44 @@ function renderEmployeeList() {
       + '</div>';
   });
   c.innerHTML=html;
+}
+
+function runCodeAudit() {
+  var out = document.getElementById('codeAuditOut');
+  out.innerHTML = '<p style="font-size:12px;color:#6b7280;padding:6px 0;">Syncing from Firebase…</p>';
+  syncEmployeesFromCloud(function() {
+    var emps = store.getJ(K.employees, []);
+    if (!emps.length) { out.innerHTML = '<p style="font-size:12px;color:#9ca3af;">No employees found.</p>'; return; }
+
+    // Check for duplicate codes
+    var codeCounts = {};
+    emps.forEach(function(e){ codeCounts[e.code] = (codeCounts[e.code]||0)+1; });
+
+    var rows = emps.map(function(e) {
+      var issues = [];
+      if (!e.code || e.code.length !== 4 || !/^\d{4}$/.test(e.code)) issues.push('invalid code format');
+      if (codeCounts[e.code] > 1) issues.push('duplicate code');
+      var ok = issues.length === 0;
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;margin-bottom:4px;background:'+(ok?'#f0fdf4':'#fff7ed')+';border:1px solid '+(ok?'#bbf7d0':'#fed7aa')+';">'
+        +'<div>'
+        +'<span style="font-size:12px;font-weight:600;color:#111827;">'+e.name+'</span>'
+        +'<span style="font-size:11px;font-family:monospace;color:#1d4ed8;margin-left:8px;">'+e.code+'</span>'
+        +(issues.length?'<span style="font-size:10px;color:#c2410c;margin-left:8px;">⚠ '+issues.join(', ')+'</span>':'')
+        +'</div>'
+        +'<span style="font-size:12px;">'+(ok?'✅':'❌')+'</span>'
+        +'</div>';
+    }).join('');
+
+    var dupeCount = emps.filter(function(e){ return codeCounts[e.code]>1; }).length;
+    var badCount  = emps.filter(function(e){ return !e.code||!/^\d{4}$/.test(e.code); }).length;
+    var allOk     = dupeCount===0 && badCount===0;
+
+    var summary = '<div style="padding:8px 10px;border-radius:8px;margin-bottom:8px;font-size:12px;font-weight:700;background:'+(allOk?'#dcfce7':'#fee2e2')+';color:'+(allOk?'#14532d':'#991b1b')+'">'
+      +(allOk ? '✅ All '+emps.length+' employees have valid, unique codes — logins OK' : '❌ Issues found: '+(dupeCount?' '+dupeCount+' duplicate code(s)':'')+(badCount?' '+badCount+' invalid code(s)':''))
+      +'</div>';
+
+    out.innerHTML = summary + rows;
+  });
 }
 
 /* ── records tab ─────────────────────────── */
