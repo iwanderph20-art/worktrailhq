@@ -3412,19 +3412,42 @@ function saveEditMiles() {
 function _saveMiles(val) {
   var inTs = document.getElementById('editMilesInTs').value;
   var records = store.getJ(K.timesheet, []);
-  var found = false;
+  var clockInEntry = null, clockOutEntry = null;
+
+  // Find clock-in entry
   records.forEach(function(r) {
-    if (String(r.ts) === String(inTs)) {
-      r.mileage = val; // null = cleared, number = set
-      found = true;
+    if (String(r.ts) === String(inTs)) clockInEntry = r;
+  });
+  if (!clockInEntry) { toast('Entry not found'); return; }
+
+  // Find the matching clock-out entry (next 'out' for same employee after this clock-in)
+  var inTime = new Date(inTs).getTime();
+  var empName = clockInEntry.name;
+  var bestOutDiff = Infinity;
+  records.forEach(function(r) {
+    if (r.name === empName && r.type === 'out') {
+      var diff = new Date(r.ts).getTime() - inTime;
+      if (diff > 0 && diff < bestOutDiff) { bestOutDiff = diff; clockOutEntry = r; }
     }
   });
-  if (!found) { toast('Entry not found'); return; }
+
+  // Update clock-in entry
+  clockInEntry.mileage = val;
+
+  // Update clock-out entry too — payroll gives clock-out priority, so this is what counts
+  if (clockOutEntry) clockOutEntry.mileage = val;
+
   store.setJ(K.timesheet, records);
-  // Push to Firebase
-  var entry = records.filter(function(r){ return String(r.ts) === String(inTs); })[0];
-  if (entry && fbCfg.url) fbPut('timesheet', inTs, entry);
-  logAdminAction('EDIT_MILES', (entry ? entry.name : '?') + ' — mileage ' + (val != null ? 'set to ' + val.toFixed(1) + ' mi' : 'cleared') + ' for clock-in at ' + new Date(inTs).toLocaleString());
+
+  // Push both to Firebase
+  if (fbCfg.url) {
+    fbPut('timesheet', clockInEntry.ts, clockInEntry);
+    if (clockOutEntry) fbPut('timesheet', clockOutEntry.ts, clockOutEntry);
+  }
+
+  logAdminAction('EDIT_MILES', empName + ' — mileage '
+    + (val != null ? 'set to ' + val.toFixed(1) + ' mi' : 'cleared')
+    + ' for session starting ' + new Date(inTs).toLocaleString());
   closeEditMiles();
   renderTables();
   toast(val != null ? 'Mileage updated: ' + val.toFixed(1) + ' mi' : 'Mileage cleared');
