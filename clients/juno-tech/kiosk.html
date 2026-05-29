@@ -6567,14 +6567,17 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   var fedWith         = r2(grossWages * 0.08);
   var stateWith       = r2(grossWages * 0.04);
   var totalDeductions = r2(fica + medicare + fedWith + stateWith);
-  var netPay          = r2(grossWages - totalDeductions); // miles excluded from pay
+  var mileageReimb    = r2(totalMileageReimb || 0);
+  var netPay          = r2(grossWages - totalDeductions + mileageReimb);
 
   return {
     empName: emp.name, role: 'phlebotomist',
     hoursWorked: hoursWorked, hourlyRate: rate, grossWages: grossWages,
     fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
     totalDeductions: totalDeductions,
-    totalMiles: totalMiles, netPay: netPay, filing: filing, noProfile: false,
+    totalMiles: totalMiles, mileageReimb: mileageReimb,
+    mileRate: (totalMiles > 0 ? r2(mileageReimb / totalMiles) : 0),
+    netPay: netPay, filing: filing, noProfile: false,
     sessions: (extraStats && extraStats.sessions) || []
   };
 }
@@ -6603,8 +6606,8 @@ function renderPaycheck(result, fromStr, toStr) {
     +(result.role === 'courier' ? ' &nbsp;|&nbsp; Courier' : (result.filing ? ' &nbsp;|&nbsp; '+filingLabel[result.filing] : ''))+'</p>'
     +'</div>';
 
-  var milesInfoRow = (result.totalMiles > 0)
-    ? '<div class="paycheck-row" style="color:#6b7280;font-size:11px;"><span>&#128663; Miles Driven (info only — not included in pay)</span><span>'+result.totalMiles.toFixed(1)+' mi</span></div>'
+  var milesInfoRow = (result.totalMiles > 0 && result.mileageReimb > 0)
+    ? '<div class="paycheck-row reimb"><span>&#128663; MILEAGE REIMBURSEMENT ('+result.totalMiles.toFixed(1)+' mi)</span><span>+ '+fmt$(result.mileageReimb)+'</span></div>'
     : '';
 
   // Courier: mileage log only — no wage computation
@@ -6825,17 +6828,18 @@ function runPayroll() {
   // ── Summary block (shown at top) ──────────────────────────
   var summaryBlock = '';
   if (allResults.length > 1) {
-    var totalGross = allResults.reduce(function(s,r){ return s+(r.grossWages||0); }, 0);
-    var totalNet   = allResults.reduce(function(s,r){ return s+(r.netPay||0); }, 0);
-    var totalDed   = allResults.reduce(function(s,r){ return s+(r.totalDeductions||0); }, 0);
-    var totalMi    = allResults.reduce(function(s,r){ return s+(r.totalMiles||0); }, 0);
+    var totalGross  = allResults.reduce(function(s,r){ return s+(r.grossWages||0); }, 0);
+    var totalNet    = allResults.reduce(function(s,r){ return s+(r.netPay||0); }, 0);
+    var totalDed    = allResults.reduce(function(s,r){ return s+(r.totalDeductions||0); }, 0);
+    var totalMi     = allResults.reduce(function(s,r){ return s+(r.totalMiles||0); }, 0);
+    var totalMiReim = allResults.reduce(function(s,r){ return s+(r.mileageReimb||0); }, 0);
     summaryBlock =
       '<div class="rcard" style="background:#1a2b8c;color:#fff;padding:18px 20px;margin-bottom:4px;">'
       +'<p class="text-xs font-bold mb-1" style="opacity:.6;text-transform:uppercase;letter-spacing:.08em;">Payroll Summary</p>'
       +'<p class="text-xs mb-3" style="opacity:.55;">'+fromVal+' – '+toVal+' &nbsp;·&nbsp; '+allResults.length+' employee'+(allResults.length!==1?'s':'')+'</p>'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span style="opacity:.8;">Total Gross Wages</span><span style="font-weight:700;">'+fmt$(totalGross)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span style="opacity:.8;">Total Deductions</span><span>– '+fmt$(totalDed)+'</span></div>'
-      +(totalMi>0?'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;opacity:.65;"><span>&#128663; Total Miles (info only)</span><span>'+totalMi.toFixed(1)+' mi</span></div>':'')
+      +(totalMiReim>0?'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span style="opacity:.8;">&#128663; Total Mileage Reimbursement'+(totalMi>0?' ('+totalMi.toFixed(1)+' mi)':'')+'</span><span>+ '+fmt$(totalMiReim)+'</span></div>':'')
       +'<div style="display:flex;justify-content:space-between;font-size:18px;font-weight:900;border-top:1px solid rgba(255,255,255,.2);padding-top:12px;margin-top:6px;"><span>Total Payroll Cost</span><span>'+fmt$(totalNet)+'</span></div>'
       +'</div>';
   }
