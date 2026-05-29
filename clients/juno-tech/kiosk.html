@@ -6691,19 +6691,18 @@ function runPayroll() {
     return {totalHours: totalHours, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb, mileageDetails: mileageDetails, sessions: sessions};
   }
 
-  var html = '<div style="margin-bottom:10px;"><p class="text-xs font-semibold" style="color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Pay Period: '+fromVal+' – '+toVal+' ('+periodDays+' days)</p></div>';
   var allResults = [];
+  var empCards = '';
 
   emps.forEach(function(emp) {
     var stats = buildSessMap(emp.name);
     var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays, stats);
     if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
     allResults.push(result);
-    html += renderPaycheck(result, fromVal, toVal);
+    empCards += renderPaycheck(result, fromVal, toVal);
   });
 
   // Also include employees who have timesheet entries in this period but are missing from the roster.
-  // This prevents staff from silently disappearing from payroll if they were removed from Employees.
   var rosteredNames = {};
   emps.forEach(function(e){ rosteredNames[e.name] = true; });
   var unrosteredNames = {};
@@ -6714,29 +6713,40 @@ function runPayroll() {
     if (!rosteredNames[e.name]) unrosteredNames[e.name] = true;
   });
   Object.keys(unrosteredNames).sort().forEach(function(name) {
-    if (name === 'Hans Duran') return; // permanently removed
+    if (name === 'Hans Duran') return;
     if (empFilter && name !== empFilter) return;
     var stats = buildSessMap(name);
     var result = { empName: name, noProfile: true, notInRoster: true, grossWages: 0, netPay: 0,
                    hoursWorked: stats.totalHours, totalMiles: stats.totalMiles };
     allResults.push(result);
-    html += renderPaycheck(result, fromVal, toVal);
+    empCards += renderPaycheck(result, fromVal, toVal);
   });
 
-  // Summary row
+  // ── Summary block (shown at top) ──────────────────────────
+  var summaryBlock = '';
   if (allResults.length > 1) {
     var totalGross = allResults.reduce(function(s,r){ return s+(r.grossWages||0); }, 0);
     var totalNet   = allResults.reduce(function(s,r){ return s+(r.netPay||0); }, 0);
     var totalDed   = allResults.reduce(function(s,r){ return s+(r.totalDeductions||0); }, 0);
-    var totalMi = allResults.reduce(function(s,r){ return s+(r.totalMiles||0); }, 0);
-    html += '<div class="rcard" style="background:#1a2b8c;color:#fff;padding:16px 18px;">'
-      +'<p class="text-xs font-bold mb-3" style="opacity:.7;text-transform:uppercase;letter-spacing:.08em;">Payroll Summary — All Employees</p>'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Gross Wages</span><span style="font-weight:700;">'+fmt$(totalGross)+'</span></div>'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span>Total Deductions</span><span>– '+fmt$(totalDed)+'</span></div>'
-      +(totalMi>0?'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;opacity:.75;"><span>&#128663; Total Miles (info only)</span><span>'+totalMi.toFixed(1)+' mi</span></div>':'')
-      +'<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;border-top:1px solid rgba(255,255,255,.2);padding-top:10px;margin-top:4px;"><span>Total Payroll Cost</span><span>'+fmt$(totalNet)+'</span></div>'
+    var totalMi    = allResults.reduce(function(s,r){ return s+(r.totalMiles||0); }, 0);
+    summaryBlock =
+      '<div class="rcard" style="background:#1a2b8c;color:#fff;padding:18px 20px;margin-bottom:4px;">'
+      +'<p class="text-xs font-bold mb-1" style="opacity:.6;text-transform:uppercase;letter-spacing:.08em;">Payroll Summary</p>'
+      +'<p class="text-xs mb-3" style="opacity:.55;">'+fromVal+' – '+toVal+' &nbsp;·&nbsp; '+allResults.length+' employee'+(allResults.length!==1?'s':'')+'</p>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span style="opacity:.8;">Total Gross Wages</span><span style="font-weight:700;">'+fmt$(totalGross)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span style="opacity:.8;">Total Deductions</span><span>– '+fmt$(totalDed)+'</span></div>'
+      +(totalMi>0?'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;opacity:.65;"><span>&#128663; Total Miles (info only)</span><span>'+totalMi.toFixed(1)+' mi</span></div>':'')
+      +'<div style="display:flex;justify-content:space-between;font-size:18px;font-weight:900;border-top:1px solid rgba(255,255,255,.2);padding-top:12px;margin-top:6px;"><span>Total Payroll Cost</span><span>'+fmt$(totalNet)+'</span></div>'
       +'</div>';
   }
+
+  // ── Section header for individual cards ──────────────────
+  var cardsHeader = '<div style="margin:18px 0 10px;display:flex;align-items:center;gap:10px;">'
+    +'<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;">Individual Paychecks</span>'
+    +'<div style="flex:1;height:1px;background:#e5e7eb;"></div>'
+    +'</div>';
+
+  var html = summaryBlock + cardsHeader + empCards;
 
   // Save payroll run to Firebase
   if (fbCfg.url) {
