@@ -6488,15 +6488,11 @@ var IRS_MILEAGE_2026 = 0.725; // IRS standard mileage rate 2026 (kept for refere
 
 // CMS-CA 2026 Travel Reimbursement (HCPCS)
 function calcCMSMileage(rtMiles, isMultiStop) {
+  // IRS 2026 standard mileage rate: $0.725/mile (non-taxable reimbursement)
   rtMiles = rtMiles || 0;
-  if (rtMiles <= 20.0 && !isMultiStop) {
-    // P9604 — flat rate for short single-location trips
-    return { hcpcs: 'P9604', unitRate: 11.34, finalUnits: 2.0, total: Math.round(2.0 * 11.34 * 100) / 100 };
-  } else {
-    // P9603 — per-mile rate for long or multi-stop trips
-    var finalUnits = rtMiles < 100 ? Math.round(rtMiles * 10) / 10 : Math.round(rtMiles);
-    return { hcpcs: 'P9603', unitRate: 1.25, finalUnits: finalUnits, total: Math.round(finalUnits * 1.25 * 100) / 100 };
-  }
+  var rate = IRS_MILEAGE_2026; // 0.725
+  var total = Math.round(rtMiles * rate * 100) / 100;
+  return { hcpcs: 'IRS2026', unitRate: rate, finalUnits: rtMiles, total: total };
 }
 var SS_WAGE_BASE_2026 = 176100; // OASDI wage base 2026 (est.)
 var FED_ALLOWANCE_2026 = 4300; // federal withholding allowance value 2026
