@@ -2667,20 +2667,25 @@ function renderEmployeeList() {
     var safeCode = emp.code.replace(/"/g,'&quot;');
     var role    = emp.role || 'phlebotomist';
     var p       = emp.payProfile || {};
-    var rate    = parseFloat(p.hourlyRate) || null;
+    var rate       = parseFloat(p.hourlyRate) || null;
+    var weeklyRate = parseFloat(p.weeklyRate) || null;
     var filing  = p.filingStatus || null;
     var fedEx   = parseInt(p.fedAllowances) || 0;
     var caEx    = parseInt(p.caAllowances)  || 0;
     var filingLabel = {single:'Single', mfj:'Married Filing Jointly', hoh:'Head of Household'}[filing] || 'Single';
-    var roleLabel = role === 'courier' ? 'Courier' : 'Phlebotomist';
-    var roleBg    = role === 'courier' ? '#fef9c3' : '#eff6ff';
-    var roleColor = role === 'courier' ? '#92400e' : '#1d4ed8';
+    var roleLabel = role === 'courier' ? 'Courier' : role === 'logistics' ? 'Logistics Partner' : 'Phlebotomist';
+    var roleBg    = role === 'courier' ? '#fef9c3' : role === 'logistics' ? '#f0fdf4' : '#eff6ff';
+    var roleColor = role === 'courier' ? '#92400e' : role === 'logistics' ? '#15803d' : '#1d4ed8';
 
     // Inline profile summary
     var summaryHtml = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;">';
     summaryHtml += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+roleBg+';color:'+roleColor+';">'+roleLabel+'</span>';
     if (role === 'courier') {
       summaryHtml += '<span style="font-size:11px;color:#6b7280;">Mileage tracking only — CMS-CA 2026 rate</span>';
+    } else if (role === 'logistics' && weeklyRate) {
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Weekly Rate</span> $'+weeklyRate.toFixed(2)+'/wk</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Filing</span> '+filingLabel+'</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Fed/CA</span> '+fedEx+'/'+caEx+'</span>';
     } else if (rate) {
       summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Rate</span> $'+rate.toFixed(2)+'/hr</span>';
       summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Filing</span> '+filingLabel+'</span>';
