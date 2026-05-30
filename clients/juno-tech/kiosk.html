@@ -2530,7 +2530,7 @@ function syncEmployeesFromCloud(cb) {
               // Merge: take cloud values for all fields, but never lose a payProfile
               // that exists locally but isn't yet in Firebase (e.g. if the push is still
               // in-flight or the employee was created from a different device session).
-              var pay = (e.payProfile && e.payProfile.hourlyRate) ? e.payProfile : (existing.payProfile || e.payProfile);
+              var pay = (e.payProfile && (e.payProfile.hourlyRate || e.payProfile.weeklyRate)) ? e.payProfile : (existing.payProfile || e.payProfile);
               merged[e.code] = Object.assign({}, existing, e);
               if (pay) merged[e.code].payProfile = pay;
             } else {
@@ -2553,8 +2553,8 @@ function syncEmployeesFromCloud(cb) {
               if (newIsCloud && !currentIsCloud) { byName[key] = e; return; }
               if (currentIsCloud && !newIsCloud) return;
               // Both from cloud or both local — prefer whichever has a real hourly rate
-              var existingRate = (byName[key].payProfile && byName[key].payProfile.hourlyRate) || 0;
-              var newRate = (e.payProfile && e.payProfile.hourlyRate) || 0;
+              var existingRate = (byName[key].payProfile && (byName[key].payProfile.hourlyRate || byName[key].payProfile.weeklyRate)) || 0;
+              var newRate = (e.payProfile && (e.payProfile.hourlyRate || e.payProfile.weeklyRate)) || 0;
               if (newRate > 0 && existingRate === 0) byName[key] = e;
             }
           });
@@ -2565,14 +2565,14 @@ function syncEmployeesFromCloud(cb) {
             .then(function(r){ return r.json(); }).catch(function(){ return null; })
             .then(function(fbProfiles) {
               finalEmps.forEach(function(emp) {
-                if (!emp.payProfile || !emp.payProfile.hourlyRate) {
+                if (!emp.payProfile || (!emp.payProfile.hourlyRate && !emp.payProfile.weeklyRate)) {
                   // 1st: local jtl_payprofiles backup
-                  if (backupProfiles[emp.name] && backupProfiles[emp.name].hourlyRate) {
+                  if (backupProfiles[emp.name] && (backupProfiles[emp.name].hourlyRate || backupProfiles[emp.name].weeklyRate)) {
                     emp.payProfile = backupProfiles[emp.name];
                   // 2nd: Firebase /jtl/payprofiles/ node (survives localStorage clears)
                   } else if (fbProfiles) {
                     var pk = empKey(emp.name);
-                    if (fbProfiles[pk] && fbProfiles[pk].hourlyRate) {
+                    if (fbProfiles[pk] && (fbProfiles[pk].hourlyRate || fbProfiles[pk].weeklyRate)) {
                       emp.payProfile = fbProfiles[pk];
                     }
                   }
@@ -2582,7 +2582,7 @@ function syncEmployeesFromCloud(cb) {
               // Re-push to Firebase employee node if rate was recovered — self-heals for other devices
               finalEmps.forEach(function(emp) {
                 var cloudMatch = cloudEmps.find(function(c){ return c.code === emp.code; });
-                if (emp.payProfile && emp.payProfile.hourlyRate && cloudMatch && (!cloudMatch.payProfile || !cloudMatch.payProfile.hourlyRate)) {
+                if (emp.payProfile && (emp.payProfile.hourlyRate || emp.payProfile.weeklyRate) && cloudMatch && (!cloudMatch.payProfile || (!cloudMatch.payProfile.hourlyRate && !cloudMatch.payProfile.weeklyRate))) {
                   pushEmployeeToFirebase(emp);
                 }
               });
@@ -2601,7 +2601,7 @@ function pushAllEmployeesToCloud() {
   emps.forEach(function(e) {
     // Always restore rate from local backup before pushing so we never
     // overwrite a good Firebase rate with a rate-less local copy
-    if ((!e.payProfile || !e.payProfile.hourlyRate) && backup[e.name] && backup[e.name].hourlyRate) {
+    if ((!e.payProfile || (!e.payProfile.hourlyRate && !e.payProfile.weeklyRate)) && backup[e.name] && (backup[e.name].hourlyRate || backup[e.name].weeklyRate)) {
       e = Object.assign({}, e, {payProfile: backup[e.name]});
     }
     pushEmployeeToFirebase(e);
@@ -6182,7 +6182,7 @@ function clearOldRecords() {
         existingEmps.forEach(function(e){localByName[e.name]=e;});
         var merged=empData.map(function(e){
           var local=localByName[e.name];
-          if(local&&local.payProfile&&local.payProfile.hourlyRate&&(!e.payProfile||!e.payProfile.hourlyRate)){
+          if(local&&local.payProfile&&(local.payProfile.hourlyRate||local.payProfile.weeklyRate)&&(!e.payProfile||(!e.payProfile.hourlyRate&&!e.payProfile.weeklyRate))){
             e.payProfile=local.payProfile;
           }
           return e;
@@ -6209,7 +6209,7 @@ function clearOldRecords() {
     // Restore any pay profiles from the backup key that were lost during re-seed
     var _savedProfiles=store.getJ('jtl_payprofiles',{});
     emps.forEach(function(e){
-      if((!e.payProfile||!e.payProfile.hourlyRate)&&_savedProfiles[e.name]&&_savedProfiles[e.name].hourlyRate){
+      if((!e.payProfile||(!e.payProfile.hourlyRate&&!e.payProfile.weeklyRate))&&_savedProfiles[e.name]&&(_savedProfiles[e.name].hourlyRate||_savedProfiles[e.name].weeklyRate)){
         e.payProfile=_savedProfiles[e.name];
       }
     });
@@ -6545,9 +6545,9 @@ function calcCAWithholding(annualGross, filing, allowances) {
 function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats) {
   var profile = emp.payProfile || {};
   // Fall back to the dedicated pay-profile backup key if the main profile was wiped by a sync/re-seed
-  if (!profile.hourlyRate) {
+  if (!profile.hourlyRate && !profile.weeklyRate) {
     var backupProfiles = store.getJ('jtl_payprofiles', {});
-    if (backupProfiles[emp.name] && backupProfiles[emp.name].hourlyRate) {
+    if (backupProfiles[emp.name] && (backupProfiles[emp.name].hourlyRate || backupProfiles[emp.name].weeklyRate)) {
       profile = backupProfiles[emp.name];
     }
   }
