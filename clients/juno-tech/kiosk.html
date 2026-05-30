@@ -854,7 +854,14 @@ video{object-fit:cover;transform:scaleX(-1);}
         <select id="ppRole" onchange="togglePayProfileFields()" class="inp inp-dk sel w-full">
           <option value="phlebotomist">Phlebotomist</option>
           <option value="courier">Courier</option>
+          <option value="logistics">Logistics Partner</option>
         </select>
+      </div>
+      <div id="ppWeeklyFields" style="display:none;">
+        <div>
+          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Fixed Weekly Rate (USD)</p>
+          <input id="ppWeeklyRate" type="number" min="0" step="0.01" placeholder="e.g. 1000.00" class="inp inp-dk w-full">
+        </div>
       </div>
       <div id="ppWageFields">
         <div class="space-y-3">
@@ -6549,10 +6556,34 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
     };
   }
 
-  var rate    = parseFloat(profile.hourlyRate) || 0;
+  var rate       = parseFloat(profile.hourlyRate) || 0;
+  var weeklyRate = parseFloat(profile.weeklyRate) || 0;
   var filing  = profile.filingStatus || 'single';
   var fedEx   = parseInt(profile.fedAllowances) || 0;
   var caEx    = parseInt(profile.caAllowances) || 0;
+
+  if (role === 'logistics') {
+    if (!weeklyRate) return {empName: emp.name, role: 'logistics', noProfile: true, grossWages: 0, totalMiles: totalMiles, netPay: 0};
+    var weeks       = r2((periodDays || 7) / 7);
+    var grossWages  = r2(weeklyRate * weeks);
+    var fica        = r2(grossWages * 0.062);
+    var medicare    = r2(grossWages * 0.0145);
+    var fedWith     = r2(grossWages * 0.08);
+    var stateWith   = r2(grossWages * 0.04);
+    var totalDeductions = r2(fica + medicare + fedWith + stateWith);
+    var mileageReimb    = r2(totalMileageReimb || 0);
+    var netPay          = r2(grossWages - totalDeductions + mileageReimb);
+    return {
+      empName: emp.name, role: 'logistics',
+      hoursWorked: 0, weeklyRate: weeklyRate, grossWages: grossWages,
+      fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
+      totalDeductions: totalDeductions,
+      totalMiles: totalMiles, mileageReimb: mileageReimb,
+      mileRate: (totalMiles > 0 ? r2(mileageReimb / totalMiles) : 0),
+      netPay: netPay, filing: filing, noProfile: false,
+      sessions: (extraStats && extraStats.sessions) || []
+    };
+  }
 
   if (!rate) return {empName: emp.name, noProfile: true, grossWages: 0, totalMiles: totalMiles, netPay: 0};
 
@@ -6587,7 +6618,7 @@ function renderPaycheck(result, fromStr, toStr) {
       : '<p style="font-size:12px;color:#9ca3af;margin:6px 0 2px;">No completed sessions in this period</p>';
     var warningLine = result.notInRoster
       ? '<p class="text-xs mt-2" style="color:#dc2626;font-weight:600;">&#9888; Not in employee roster — re-add under Employees tab to assign a pay rate.</p>'
-      : '<p class="text-xs mt-2" style="color:#dc2626;font-weight:600;">&#9888; No hourly rate on file — go to Employees &#8594; Pay Profile to set it.</p>';
+      : '<p class="text-xs mt-2" style="color:#dc2626;font-weight:600;">&#9888; '+(result.role==='logistics' ? 'No weekly rate on file' : 'No hourly rate on file')+' — go to Employees &#8594; Pay Profile to set it.</p>';
     return '<div class="rcard" style="text-align:center;padding:20px;border-left:4px solid #f97316;">'
       +'<p class="font-semibold text-sm" style="color:#374151;">'+result.empName+'</p>'
       +hoursNote
@@ -6671,7 +6702,10 @@ function renderPaycheck(result, fromStr, toStr) {
   }
   return '<div class="paycheck">'
     +header
-    +'<div class="paycheck-row"><span>Hours Worked</span><span>'+fmtHrs(result.hoursWorked)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+    +(result.role === 'logistics'
+    ? '<div class="paycheck-row"><span>Fixed Weekly Rate</span><span>'+fmt$(result.weeklyRate)+'/wk</span></div>'
+    : '<div class="paycheck-row"><span>Hours Worked</span><span>'+fmtHrs(result.hoursWorked)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+  )
     +sessBreakdown
     +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>F.I.C.A. TAX WITHHOLDING</span><span>– '+fmt$(result.fica)+'</span></div>'
@@ -6963,7 +6997,7 @@ function printPayroll() {
       +'</div>'
       // Table
       +'<table style="width:100%;border-collapse:collapse;">'
-      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+fmtHrs(r.hoursWorked)+' worked @ $'+r.hourlyRate.toFixed(2)+'/hr</td></tr>'
+      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+(r.role==='logistics' ? 'Fixed Weekly Rate: $'+(r.weeklyRate||0).toFixed(2)+'/wk' : fmtHrs(r.hoursWorked)+' worked @ $'+(r.hourlyRate||0).toFixed(2)+'/hr')+'</td></tr>'
       // Shift detail rows
       +(function(){
         var _mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -7074,8 +7108,9 @@ function printPayroll() {
 var _ppEmpName = '';
 function togglePayProfileFields() {
   var role = document.getElementById('ppRole').value;
-  document.getElementById('ppWageFields').style.display   = role === 'courier' ? 'none' : '';
-  document.getElementById('ppCourierNote').style.display  = role === 'courier' ? '' : 'none';
+  document.getElementById('ppWageFields').style.display    = (role === 'courier' || role === 'logistics') ? 'none' : '';
+  document.getElementById('ppWeeklyFields').style.display  = role === 'logistics' ? '' : 'none';
+  document.getElementById('ppCourierNote').style.display   = role === 'courier' ? '' : 'none';
 }
 function openPayProfile(empName) {
   _ppEmpName = empName;
@@ -7085,9 +7120,10 @@ function openPayProfile(empName) {
   var profile = emp.payProfile || {};
   var role = emp.role || 'phlebotomist';
   document.getElementById('ppEmpName').textContent = empName;
-  document.getElementById('ppRole').value    = role;
-  document.getElementById('ppRate').value    = profile.hourlyRate || '';
-  document.getElementById('ppFiling').value  = profile.filingStatus || 'single';
+  document.getElementById('ppRole').value        = role;
+  document.getElementById('ppRate').value        = profile.hourlyRate || '';
+  document.getElementById('ppWeeklyRate').value  = profile.weeklyRate || '';
+  document.getElementById('ppFiling').value      = profile.filingStatus || 'single';
   document.getElementById('ppFedEx').value   = profile.fedAllowances || '';
   document.getElementById('ppStateEx').value = profile.caAllowances || '';
   document.getElementById('ppMileage').value = profile.mileageRate || '';
@@ -7104,7 +7140,8 @@ function savePayProfile() {
   var role = document.getElementById('ppRole').value || 'phlebotomist';
   emp.role = role;
   emp.payProfile = {
-    hourlyRate:    role === 'courier' ? 0 : (parseFloat(document.getElementById('ppRate').value) || 0),
+    hourlyRate:    (role === 'courier' || role === 'logistics') ? 0 : (parseFloat(document.getElementById('ppRate').value) || 0),
+    weeklyRate:    role === 'logistics' ? (parseFloat(document.getElementById('ppWeeklyRate').value) || 0) : 0,
     filingStatus:  document.getElementById('ppFiling').value || 'single',
     fedAllowances: parseInt(document.getElementById('ppFedEx').value) || 0,
     caAllowances:  parseInt(document.getElementById('ppStateEx').value) || 0,
