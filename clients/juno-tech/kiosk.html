@@ -3295,11 +3295,15 @@ function openEditEntry(ts) {
     if (otherEl) otherEl.value = '';
   }
   renderEditFacilityPills();
+  // Pause auto-sync while edit modal is open to prevent a mid-edit sync from overwriting
+  stopRecordsAutoRefresh();
   document.getElementById('editEntryWrap').style.display = 'flex';
 }
 function closeEditEntry() {
   document.getElementById('editEntryWrap').style.display = 'none';
   clearPhotoField('editPhotoFile','editPhotoPreview','editPhotoClearBtn');
+  // Resume auto-sync now that edit modal is closed
+  if (fbCfg && fbCfg.url) startRecordsAutoRefresh();
 }
 function saveEditEntry() {
   var origTs = document.getElementById('editOrigTs').value;
@@ -3399,8 +3403,14 @@ function saveEditEntry() {
     })(origTs, newTs);
   }
   logAdminAction('EDIT', oldDesc+' → type:'+newType+(dtChanged?', time:'+new Date(rawDt).toLocaleString():'')+(newNote?' note:'+newNote:'')+(clearingMileage?' [mileage cleared]':''));
-  closeEditEntry(); renderTables(); toast('Entry updated');
+  closeEditEntry(); renderTables(); renderCalendar(); toast('Entry updated');
   updateStorageUsage();
+  // After a short delay, re-sync from Firebase to confirm the PUT was received
+  if (fbCfg && fbCfg.url) {
+    setTimeout(function() {
+      syncFromCloud(function() { renderTables(); renderCalendar(); });
+    }, 2000);
+  }
 }
 /* ── Manual Log Entry ────────────────────── */
 var _manualMode = 'single'; // 'single' or 'shift'
