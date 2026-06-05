@@ -802,6 +802,12 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-xs" style="color:#9ca3af;">Mileage reimbursement uses IRS 2026 rate: $0.725/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
       </div>
 
+      <div class="rcard space-y-2">
+        <p class="text-sm font-semibold" style="color:#374151;">Exclude from this Payroll</p>
+        <p class="text-xs" style="color:#6b7280;">Check any employee to leave them out of this pay period's calculation.</p>
+        <div id="payrollExcludeList" class="space-y-2 mt-1"></div>
+      </div>
+
       <div id="payrollOut"></div>
       <div id="payrollPrintBtn" style="display:none;" class="no-print">
         <button onclick="printPayroll()" class="tap w-full py-3 rounded-xl font-semibold text-sm"
@@ -987,6 +993,11 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button type="button" id="editPhotoClearBtn" onclick="clearPhotoField('editPhotoFile','editPhotoPreview','editPhotoClearBtn')" style="display:none;font-size:11px;padding:5px 10px;border-radius:8px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">&#10005; Remove</button>
         </div>
         <img id="editPhotoPreview" src="" style="display:none;width:72px;height:72px;border-radius:10px;object-fit:cover;margin-top:6px;border:2px solid #93c5fd;">
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Facility / Location</label>
+        <div id="editFacPills" class="flex flex-wrap gap-2 mt-2"></div>
+        <input id="editFacOther" type="text" placeholder="Describe other location…" class="inp mt-2" style="font-size:13px;display:none;">
       </div>
       <input type="hidden" id="editOrigTs">
       <button onclick="saveEditEntry()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-2"
@@ -2505,7 +2516,7 @@ function switchTab(name) {
     else { renderEmployeeList(); }
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
-  if (name==='payroll')   { populatePayEmpFilter(); }
+  if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); }
   // (map tab removed — map is now a modal via seeEmpOnMap())
 }
 
@@ -3256,6 +3267,28 @@ function _renderTablesImpl() {
 }
 
 /* ── edit/delete entries ─────────────────── */
+var editSelectedFacilities = [];
+function renderEditFacilityPills() {
+  var container = document.getElementById('editFacPills');
+  if (!container) return;
+  container.innerHTML = '';
+  FACILITIES.forEach(function(f) {
+    var sel = editSelectedFacilities.indexOf(f) >= 0;
+    var span = document.createElement('span');
+    span.className = 'fac-pill' + (sel ? ' sel' : '');
+    span.textContent = f;
+    span.onclick = (function(name){ return function(){
+      var idx = editSelectedFacilities.indexOf(name);
+      if (idx >= 0) { editSelectedFacilities.splice(idx, 1); this.classList.remove('sel'); }
+      else { editSelectedFacilities.push(name); this.classList.add('sel'); }
+      var other = document.getElementById('editFacOther');
+      if (other) other.style.display = editSelectedFacilities.indexOf('Others') >= 0 ? '' : 'none';
+    }; })(f);
+    container.appendChild(span);
+  });
+  var other = document.getElementById('editFacOther');
+  if (other) other.style.display = editSelectedFacilities.indexOf('Others') >= 0 ? '' : 'none';
+}
 function openEditEntry(ts) {
   var records = store.getJ(K.timesheet, []);
   var entry = null;
@@ -3272,6 +3305,19 @@ function openEditEntry(ts) {
   var hasMileageField = (entry.type === 'in' || entry.type === 'out');
   document.getElementById('editMileageRow').style.display = hasMileageField ? '' : 'none';
   document.getElementById('editMileage').value = (hasMileageField && entry.mileage != null) ? entry.mileage : '';
+  // Load facilities
+  var storedFacs = entry.facilities || [];
+  var knownFacs = storedFacs.filter(function(f){ return FACILITIES.indexOf(f) >= 0; });
+  var otherFacs = storedFacs.filter(function(f){ return FACILITIES.indexOf(f) < 0; });
+  editSelectedFacilities = knownFacs.slice();
+  var otherEl = document.getElementById('editFacOther');
+  if (otherFacs.length) {
+    editSelectedFacilities.push('Others');
+    if (otherEl) otherEl.value = otherFacs.join(', ');
+  } else {
+    if (otherEl) otherEl.value = '';
+  }
+  renderEditFacilityPills();
   // Show employee's existing photo (read-only)
   var empPhotoWrap = document.getElementById('editEmpPhotoWrap');
   var empPhotoNone = document.getElementById('editEmpPhotoNone');
@@ -3299,6 +3345,8 @@ function openEditEntry(ts) {
       if (clearBtn) clearBtn.style.display = '';
     }
   });
+  // Pause auto-sync while edit modal is open to prevent a mid-edit sync from overwriting
+  stopRecordsAutoRefresh();
   document.getElementById('editEntryWrap').style.display = 'flex';
 }
 function closeEditEntry() {
@@ -3308,6 +3356,8 @@ function closeEditEntry() {
   var empPhotoNone = document.getElementById('editEmpPhotoNone');
   if (empPhotoWrap) empPhotoWrap.style.display = 'none';
   if (empPhotoNone) empPhotoNone.style.display = '';
+  // Resume auto-sync now that edit modal is closed
+  if (fbCfg && fbCfg.url) startRecordsAutoRefresh();
 }
 function saveEditEntry() {
   var origTs = document.getElementById('editOrigTs').value;
@@ -3353,7 +3403,14 @@ function saveEditEntry() {
       if (r.type === 'in' || r.type === 'out') {
         r.mileage = (newMileage !== null && !isNaN(newMileage)) ? newMileage : null;
       }
-      if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately; never overwrites employee photo
+      if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately under admin_{ts}; never overwrites employee photo
+      // Save updated facilities
+      var facList = editSelectedFacilities.filter(function(f){ return f !== 'Others'; });
+      var otherFacEl = document.getElementById('editFacOther');
+      if (editSelectedFacilities.indexOf('Others') >= 0 && otherFacEl && otherFacEl.value.trim()) {
+        facList.push(otherFacEl.value.trim());
+      }
+      r.facilities = facList;
       found = true; updatedEntry = r;
     }
   });
@@ -3404,8 +3461,14 @@ function saveEditEntry() {
     })(origTs, newTs);
   }
   logAdminAction('EDIT', oldDesc+' → type:'+newType+(dtChanged?', time:'+new Date(rawDt).toLocaleString():'')+(newNote?' note:'+newNote:'')+(clearingMileage?' [mileage cleared]':''));
-  closeEditEntry(); renderTables(); toast('Entry updated');
+  closeEditEntry(); renderTables(); renderCalendar(); toast('Entry updated');
   updateStorageUsage();
+  // After a short delay, re-sync from Firebase to confirm the PUT was received
+  if (fbCfg && fbCfg.url) {
+    setTimeout(function() {
+      syncFromCloud(function() { renderTables(); renderCalendar(); });
+    }, 2000);
+  }
 }
 /* ── Manual Log Entry ────────────────────── */
 var _manualMode = 'single'; // 'single' or 'shift'
@@ -6809,6 +6872,28 @@ function togglePeriod2(show) {
   if (!show) { document.getElementById('payFrom2').value = ''; document.getElementById('payTo2').value = ''; }
 }
 
+function renderPayrollExcludeList() {
+  var emps = store.getJ(K.employees, []);
+  var container = document.getElementById('payrollExcludeList');
+  if (!container) return;
+  var html = '';
+  emps.forEach(function(emp) {
+    var cbId = 'payExcl_' + emp.code;
+    html += '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;">'
+      + '<input type="checkbox" id="'+cbId+'" value="'+emp.name.replace(/"/g,'&quot;')+'" style="width:16px;height:16px;accent-color:#dc2626;cursor:pointer;">'
+      + '<span style="font-size:13px;font-weight:600;color:#111827;">'+emp.name+'</span>'
+      + (emp.department ? '<span style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:2px 8px;border-radius:99px;">'+emp.department+'</span>' : '')
+      + '</label>';
+  });
+  container.innerHTML = html || '<p style="font-size:13px;color:#9ca3af;">No employees.</p>';
+}
+function getPayrollExcluded() {
+  var excluded = [];
+  var boxes = document.querySelectorAll('#payrollExcludeList input[type=checkbox]');
+  boxes.forEach(function(cb){ if (cb.checked) excluded.push(cb.value); });
+  return excluded;
+}
+
 function setPayRange(mode) {
   var now = new Date();
   var from, to = new Date(now);
@@ -6867,7 +6952,9 @@ function runPayroll() {
 
   var ts   = store.getJ(K.timesheet, []);
   var emps = store.getJ(K.employees, []);
+  var payExcluded = getPayrollExcluded();
   if (empFilter) emps = emps.filter(function(e){ return e.name === empFilter; });
+  if (payExcluded.length) emps = emps.filter(function(e){ return payExcluded.indexOf(e.name) < 0; });
 
   // Build sessions per employee
   function buildSessMap(empName) {
