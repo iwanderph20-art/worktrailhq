@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>if(location.protocol==='http:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1')location.replace('https:'+location.href.substring(location.protocol.length));</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Juno Tech Laboratory — Kiosk</title>
@@ -971,13 +972,21 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-xs mt-1" style="color:#9ca3af;">Leave blank or clear to remove mileage from this entry.</p>
       </div>
       <div>
-        <label class="text-xs font-semibold" style="color:#6b7280;">Photo <span style="font-weight:400;color:#9ca3af;">(optional — replaces existing)</span></label>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Employee Photo</label>
+        <div id="editEmpPhotoWrap" style="margin-top:4px;display:none;align-items:center;gap:8px;">
+          <img id="editEmpPhotoPreview" src="" style="width:72px;height:72px;border-radius:10px;object-fit:cover;border:2px solid #86efac;cursor:pointer;" onclick="showThumbPhoto(_editEmpPhotoTs,'Employee Photo')">
+          <span style="font-size:11px;color:#6b7280;">Taken by employee — cannot be removed</span>
+        </div>
+        <p id="editEmpPhotoNone" style="font-size:11px;color:#9ca3af;margin-top:4px;">No employee photo on this entry.</p>
+      </div>
+      <div>
+        <label class="text-xs font-semibold" style="color:#6b7280;">Admin Photo <span style="font-weight:400;color:#9ca3af;">(added alongside employee photo)</span></label>
         <div style="margin-top:4px;display:flex;gap:8px;align-items:center;">
           <input id="editPhotoFile" type="file" accept="image/*" style="display:none;" onchange="compressAndSetPhoto(this,'editPhotoPreview','editPhotoClearBtn')">
-          <button type="button" onclick="document.getElementById('editPhotoFile').click()" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:600;">&#128247; Attach Photo</button>
+          <button type="button" onclick="document.getElementById('editPhotoFile').click()" style="font-size:11px;padding:5px 12px;border-radius:8px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:600;">&#128247; Attach Admin Photo</button>
           <button type="button" id="editPhotoClearBtn" onclick="clearPhotoField('editPhotoFile','editPhotoPreview','editPhotoClearBtn')" style="display:none;font-size:11px;padding:5px 10px;border-radius:8px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">&#10005; Remove</button>
         </div>
-        <img id="editPhotoPreview" src="" style="display:none;width:72px;height:72px;border-radius:10px;object-fit:cover;margin-top:6px;border:2px solid #86efac;">
+        <img id="editPhotoPreview" src="" style="display:none;width:72px;height:72px;border-radius:10px;object-fit:cover;margin-top:6px;border:2px solid #93c5fd;">
       </div>
       <input type="hidden" id="editOrigTs">
       <button onclick="saveEditEntry()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-2"
@@ -2926,6 +2935,13 @@ function _renderTablesImpl() {
         } else {
           inPhotoBlock=photoPlaceholder;
         }
+        if(clockInE&&clockInE.adminPhoto){
+          var adminInId='thia-'+String(clockInE.ts).replace(/[:.]/g,'');
+          var safeATs0=String(clockInE.ts).replace(/'/g,'');
+          inPhotoBlock+='<img id="'+adminInId+'" src="" title="Admin photo (clock-in)" onclick="showThumbPhoto(\'admin_'+safeATs0+'\',\'Admin Photo — '+name.replace(/'/g,"\\'")+' Clock In\')"'
+            +' style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:2px solid #93c5fd;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;align-self:flex-end;" title="Admin photo">';
+          photoLoads.push({ts:'admin_'+clockInE.ts,id:adminInId});
+        }
         if(clockOutE&&clockOutE.hasPhoto){
           outPhotoId='tho-'+String(clockOutE.ts).replace(/[:.]/g,'');
           var safeTs1=String(clockOutE.ts).replace(/'/g,'');
@@ -2935,6 +2951,13 @@ function _renderTablesImpl() {
           photoLoads.push({ts:clockOutE.ts,id:outPhotoId});
         } else {
           outPhotoBlock=photoPlaceholder;
+        }
+        if(clockOutE&&clockOutE.adminPhoto){
+          var adminOutId='thoa-'+String(clockOutE.ts).replace(/[:.]/g,'');
+          var safeATs1=String(clockOutE.ts).replace(/'/g,'');
+          outPhotoBlock+='<img id="'+adminOutId+'" src="" title="Admin photo (clock-out)" onclick="showThumbPhoto(\'admin_'+safeATs1+'\',\'Admin Photo — '+name.replace(/'/g,"\\'")+' Clock Out\')"'
+            +' style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:2px solid #93c5fd;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;align-self:flex-end;">';
+          photoLoads.push({ts:'admin_'+clockOutE.ts,id:adminOutId});
         }
 
         // Action buttons — approve/deny target the PENDING entry, not necessarily clockInE
@@ -3249,11 +3272,42 @@ function openEditEntry(ts) {
   var hasMileageField = (entry.type === 'in' || entry.type === 'out');
   document.getElementById('editMileageRow').style.display = hasMileageField ? '' : 'none';
   document.getElementById('editMileage').value = (hasMileageField && entry.mileage != null) ? entry.mileage : '';
+  // Show employee's existing photo (read-only)
+  var empPhotoWrap = document.getElementById('editEmpPhotoWrap');
+  var empPhotoNone = document.getElementById('editEmpPhotoNone');
+  var empPhotoImg  = document.getElementById('editEmpPhotoPreview');
+  window._editEmpPhotoTs = ts;
+  empPhotoWrap.style.display = 'none';
+  empPhotoNone.style.display = '';
+  if (entry.hasPhoto) {
+    loadPhoto(ts, function(url) {
+      if (url) {
+        empPhotoImg.src = url;
+        empPhotoWrap.style.display = 'flex';
+        empPhotoNone.style.display = 'none';
+      }
+    });
+  }
+  // Pre-load any existing admin photo
+  clearPhotoField('editPhotoFile','editPhotoPreview','editPhotoClearBtn');
+  loadPhoto('admin_'+ts, function(url) {
+    if (url) {
+      var preview = document.getElementById('editPhotoPreview');
+      var clearBtn = document.getElementById('editPhotoClearBtn');
+      preview.src = url;
+      preview.style.display = '';
+      if (clearBtn) clearBtn.style.display = '';
+    }
+  });
   document.getElementById('editEntryWrap').style.display = 'flex';
 }
 function closeEditEntry() {
   document.getElementById('editEntryWrap').style.display = 'none';
   clearPhotoField('editPhotoFile','editPhotoPreview','editPhotoClearBtn');
+  var empPhotoWrap = document.getElementById('editEmpPhotoWrap');
+  var empPhotoNone = document.getElementById('editEmpPhotoNone');
+  if (empPhotoWrap) empPhotoWrap.style.display = 'none';
+  if (empPhotoNone) empPhotoNone.style.display = '';
 }
 function saveEditEntry() {
   var origTs = document.getElementById('editOrigTs').value;
@@ -3299,7 +3353,7 @@ function saveEditEntry() {
       if (r.type === 'in' || r.type === 'out') {
         r.mileage = (newMileage !== null && !isNaN(newMileage)) ? newMileage : null;
       }
-      if (editPhotoUrl) { r.hasPhoto = true; r.photo = editPhotoUrl; }
+      if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately; never overwrites employee photo
       found = true; updatedEntry = r;
     }
   });
@@ -3335,13 +3389,17 @@ function saveEditEntry() {
     }
   }
   fbPut('timesheet', newTs, updatedEntry);
-  // Save newly-uploaded photo to IndexedDB
-  if (editPhotoUrl) savePhoto(newTs, editPhotoUrl);
-  // Migrate existing photo in IndexedDB from old ts key to new ts key so it doesn't disappear after a time edit
-  if (dtChanged && !editPhotoUrl) {
+  // Save admin photo under separate key — never overwrites employee photo
+  if (editPhotoUrl) savePhoto('admin_'+newTs, editPhotoUrl);
+  // Migrate employee photo to new ts key if time was changed
+  if (dtChanged) {
     (function(oTs, nTs){
       loadPhoto(oTs, function(url) {
         if (url) { savePhoto(nTs, url); deletePhoto(oTs); }
+      });
+      // Also migrate admin photo if it exists
+      loadPhoto('admin_'+oTs, function(url) {
+        if (url) { savePhoto('admin_'+nTs, url); deletePhoto('admin_'+oTs); }
       });
     })(origTs, newTs);
   }
@@ -3824,12 +3882,24 @@ function showCalDay(dateStr, empFilter){
       inPhotoBlock='<img id="'+pid0+'" src="" onclick="showThumbPhoto(\''+st0+'\',\''+sc0+'\')" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:2px solid #86efac;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;">';
       _calPhotoLoads.push({ts:clockInE.ts,id:pid0});
     }
+    if(clockInE&&clockInE.adminPhoto){
+      var apid0='cmia-'+String(clockInE.ts).replace(/[:.]/g,'');
+      var ast0=String(clockInE.ts).replace(/'/g,'');
+      inPhotoBlock+='<img id="'+apid0+'" src="" onclick="showThumbPhoto(\'admin_'+ast0+'\',\'Admin Photo — '+name.replace(/'/g,"\\'")+' Clock In\')" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid #93c5fd;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;align-self:flex-end;">';
+      _calPhotoLoads.push({ts:'admin_'+clockInE.ts,id:apid0});
+    }
     if(clockOutE&&clockOutE.hasPhoto){
       var pid1='cmo-'+String(clockOutE.ts).replace(/[:.]/g,'');
       var st1=String(clockOutE.ts).replace(/'/g,'');
       var sc1=name.replace(/'/g,"\\'")+' — Clock Out';
       outPhotoBlock='<img id="'+pid1+'" src="" onclick="showThumbPhoto(\''+st1+'\',\''+sc1+'\')" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:2px solid #fca5a5;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;">';
       _calPhotoLoads.push({ts:clockOutE.ts,id:pid1});
+    }
+    if(clockOutE&&clockOutE.adminPhoto){
+      var apid1='cmoa-'+String(clockOutE.ts).replace(/[:.]/g,'');
+      var ast1=String(clockOutE.ts).replace(/'/g,'');
+      outPhotoBlock+='<img id="'+apid1+'" src="" onclick="showThumbPhoto(\'admin_'+ast1+'\',\'Admin Photo — '+name.replace(/'/g,"\\'")+' Clock Out\')" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid #93c5fd;cursor:pointer;flex-shrink:0;opacity:.35;transition:opacity .25s;align-self:flex-end;">';
+      _calPhotoLoads.push({ts:'admin_'+clockOutE.ts,id:apid1});
     }
     var safeInTs2=(pendingEntry||clockInE)?String((pendingEntry||clockInE).ts).replace(/'/g,''):'';
     var approvalBtns=isPending
