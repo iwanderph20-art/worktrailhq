@@ -779,7 +779,7 @@ video{object-fit:cover;transform:scaleX(-1);}
             style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">+ Add / Edit Location</button>
         </div>
         <p class="text-xs mb-3" style="color:#9ca3af;">Pins show the registered address for each facility. Click a pin or a row below to zoom in.</p>
-        <div id="facilityMapEl" style="width:100%;height:420px;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;background:#f3f4f6;"></div>
+        <div id="facilityMapEl" style="width:100%;height:78vh;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;background:#f3f4f6;"></div>
         <p id="facilityMapStatus" class="text-xs mt-2" style="color:#9ca3af;display:none;"></p>
       </div>
       <!-- Facility list -->
@@ -3867,8 +3867,9 @@ var FAC_COLOR_MAP={
   'Sunshine ALF':               '#84cc16',
   'Golden ALF':                 '#eab308',
   'Westside Manor':             '#14b8a6',
-  'Parview Manor':              '#6366f1',
+  'Parkview Manor':              '#6366f1',
   'Gilmar Manor':               '#a855f7',
+  'LADMC':                      '#0f766e',
   'Others':                     '#9ca3af'
 };
 function getFacCalColor(fac){
@@ -4824,7 +4825,7 @@ var FACILITIES = [
   'Leisure Garden ALF','Springfield Manor ALF','FairOaks Manor ALF',
   'Rosewood ALF','SDI Lab','Sunshine ALF','Juno Tech Lab',
   'Amberkare Home Health','Golden ALF',
-  'Anew Direction Adult Living','Westside Manor','Parview Manor','Gilmar Manor','Others'
+  'Anew Direction Adult Living','Westside Manor','Parkview Manor','Gilmar Manor','LADMC','Others'
 ];
 var selectedFacilities = [];
 function renderFacilityPills() {
@@ -7442,8 +7443,9 @@ var FAC_DEFAULTS = {
   'Long Beach Residential':     { lat: 33.7790410, lng: -118.1435680, label: '4201 E 10th St, Long Beach, CA 90804' },
   'Sunshine ALF':               { lat: 33.9134639, lng: -118.2154356, label: '3141 Euclid Ave, Lynwood, CA 90262' },
   'SDI Lab':                    { lat: 33.7483366, lng: -117.8351838, label: '2204 E 4th St, Santa Ana, CA 92705' },
+  'LADMC':                      { lat: 34.0694226, lng: -118.2636071, label: '1711 W Temple St, Los Angeles, CA 90026' },
   'Gilmar Manor':               { lat: 34.1865699, lng: -118.4629632, label: '15152 Victory Blvd, Van Nuys, CA 91411' },
-  'Parview Manor':              { lat: 34.0906900, lng: -118.1731900, label: '5055 Novgorod Street, Los Angeles, CA 90032' },
+  'Parkview Manor':              { lat: 34.0906900, lng: -118.1731900, label: '5055 Novgorod Street, Los Angeles, CA 90032' },
   'Westside Manor':             { lat: 34.0397537, lng: -118.3448404, label: '4836 W Washington Blvd Ste 133, Los Angeles, CA 90016' }
 };
 
