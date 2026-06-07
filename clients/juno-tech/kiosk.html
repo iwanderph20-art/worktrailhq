@@ -108,6 +108,8 @@ video{object-fit:cover;transform:scaleX(-1);}
 .compliance-fail{color:#dc2626;font-weight:700;}
 #liveMap{height:420px;border-radius:16px;z-index:1;overflow:hidden;}
 .leaflet-container{border-radius:16px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+.fac-tooltip{background:#111827;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.25);white-space:nowrap;}
+.fac-tooltip.leaflet-tooltip-top::before{border-top-color:#111827;}
 .loc-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:99px;font-weight:500;}
 .loc-pill.getting{background:#f3f4f6;color:#9ca3af;}
 .loc-pill.found{background:#dcfce7;color:#15803d;}
@@ -7524,7 +7526,8 @@ function renderFacilityMapPins() {
       +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;font-size:11px;color:#1a2b8c;font-weight:600;">Open in Google Maps &#8599;</a>'
       +'<br><button onclick="openAddFacilityModal(\''+name.replace(/'/g,"\\'")+'\')" style="margin-top:6px;font-size:10px;padding:3px 10px;border-radius:6px;background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;font-weight:600;">Edit Location</button>'
       +'</div>';
-    var mk = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(_facMap).bindPopup(popup);
+    var mk = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(_facMap).bindPopup(popup)
+      .bindTooltip(name, { permanent:false, direction:'top', offset:[0,-22], className:'fac-tooltip' });
     _facMarkers[name] = mk;
     bounds.push([loc.lat, loc.lng]);
   });
