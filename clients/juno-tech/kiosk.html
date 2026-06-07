@@ -602,6 +602,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button class="atab" id="tab-records"   onclick="switchTab('records')">Records</button>
       <button class="atab" id="tab-payroll"   onclick="switchTab('payroll')">Payroll</button>
       <button class="atab" id="tab-settings"  onclick="switchTab('settings')">Settings</button>
+      <button class="atab" id="tab-facilitymap" onclick="switchTab('facilitymap')">&#128205; Facility Map</button>
     </div>
   </div>
   <div class="max-w-4xl mx-auto px-4 py-6">
@@ -766,6 +767,72 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-sm font-semibold mb-2" style="color:#374151;">Danger Zone</p>
         <button onclick="clearAllData()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
           style="background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);cursor:pointer;">Clear All Data</button>
+      </div>
+    </div>
+
+    <!-- Facility Map tab -->
+    <div id="pane-facilitymap" class="apane">
+      <div class="rcard" style="padding:16px 20px 12px;">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <p class="text-sm font-semibold" style="color:#374151;">Facility Locations</p>
+          <button onclick="openAddFacilityModal()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
+            style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">+ Add / Edit Location</button>
+        </div>
+        <p class="text-xs mb-3" style="color:#9ca3af;">Pins show the registered address for each facility. Click a pin or a row below to zoom in.</p>
+        <div id="facilityMapEl" style="width:100%;height:420px;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;background:#f3f4f6;"></div>
+        <p id="facilityMapStatus" class="text-xs mt-2" style="color:#9ca3af;display:none;"></p>
+      </div>
+      <!-- Facility list -->
+      <div class="rcard" style="padding:0;">
+        <div style="padding:14px 20px 10px;border-bottom:1px solid #f3f4f6;">
+          <p class="text-sm font-semibold" style="color:#374151;">All Facilities</p>
+        </div>
+        <div id="facilityListRows" style="max-height:340px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Facility Map: Add/Edit Location Modal -->
+    <div id="facilityEditModal" class="m-wrap">
+      <div class="m-bg" onclick="closeFacilityEditModal()"></div>
+      <div class="glass" style="position:relative;z-index:1;border-radius:20px;padding:24px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;">
+        <p class="font-semibold mb-4" style="color:#111827;font-size:16px;">&#128205; Set Facility Location</p>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-semibold block mb-1" style="color:#6b7280;">Facility</label>
+            <select id="facEditSelect" class="inp sel" style="color:#111827;"></select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold block mb-1" style="color:#6b7280;">Address Search</label>
+            <div class="flex gap-2">
+              <input id="facEditAddress" type="text" placeholder="e.g. 123 Main St, Los Angeles, CA" class="inp" style="flex:1;">
+              <button onclick="geocodeFacilityAddress()" class="tap px-4 py-2 rounded-xl font-semibold text-sm"
+                style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;white-space:nowrap;">Search</button>
+            </div>
+            <p class="text-xs mt-1" style="color:#9ca3af;">Or enter coordinates directly below.</p>
+          </div>
+          <div class="flex gap-2">
+            <div style="flex:1;">
+              <label class="text-xs font-semibold block mb-1" style="color:#6b7280;">Latitude</label>
+              <input id="facEditLat" type="number" step="any" placeholder="e.g. 33.888" class="inp">
+            </div>
+            <div style="flex:1;">
+              <label class="text-xs font-semibold block mb-1" style="color:#6b7280;">Longitude</label>
+              <input id="facEditLng" type="number" step="any" placeholder="e.g. -118.244" class="inp">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold block mb-1" style="color:#6b7280;">Address Label <span style="color:#d1d5db;font-weight:400;">(optional)</span></label>
+            <input id="facEditLabel" type="text" placeholder="e.g. 1234 Elm Street, Compton, CA 90221" class="inp">
+          </div>
+        </div>
+        <div class="flex gap-2 mt-5">
+          <button onclick="saveFacilityLocation()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+            style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save Location</button>
+          <button onclick="removeFacilityLocation()" class="tap px-4 py-3 rounded-xl font-semibold text-sm"
+            style="background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.2);cursor:pointer;">Remove</button>
+          <button onclick="closeFacilityEditModal()" class="tap px-4 py-3 rounded-xl font-semibold text-sm"
+            style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">Cancel</button>
+        </div>
       </div>
     </div>
 
@@ -2517,6 +2584,7 @@ function switchTab(name) {
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
   if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); }
+  if (name==='facilitymap') { loadLeaflet(function(){ initFacilityMap(); }); }
   // (map tab removed — map is now a modal via seeEmpOnMap())
 }
 
@@ -7356,6 +7424,242 @@ function savePayProfile() {
   renderEmployeeList();
   toast('Pay profile saved for '+_ppEmpName);
   logAdminAction('pay_profile_update', _ppEmpName);
+}
+
+/* ── Facility Map ─────────────────────────── */
+var _facMap = null;
+var _facMarkers = {};
+var FAC_LOC_KEY = 'jtl_facility_locations';
+
+// Pre-seeded facility coordinates (admin can override via Edit)
+var FAC_DEFAULTS = {
+  'Juno Tech Lab':              { lat: 33.8884074, lng: -118.2445339, label: 'Juno Tech Lab, Compton, CA' },
+  'Leisure Garden ALF':         { lat: 34.6914363, lng: -118.1569600, label: 'Leisure Garden ALF, Lancaster, CA' },
+  'Rosewood ALF':               { lat: 34.0785172, lng: -118.2970551, label: '433 N Kenmore Ave, Los Angeles, CA 90004' },
+  'FairOaks Manor ALF':         { lat: 34.1044562, lng: -118.2003746, label: '5035 Echo Street, Los Angeles, CA 90042' },
+  'Springfield Manor ALF':      { lat: 34.0799000, lng: -118.0838000, label: '2526 New Ave, Rosemead, CA 91770' },
+  'Anew Direction Adult Living': { lat: 33.7232230, lng: -118.2878790, label: '2300 S Pacific Ave, San Pedro, CA 90731' },
+  'Long Beach Residential':     { lat: 33.7790410, lng: -118.1435680, label: '4201 E 10th St, Long Beach, CA 90804' },
+  'Sunshine ALF':               { lat: 33.9134639, lng: -118.2154356, label: '3141 Euclid Ave, Lynwood, CA 90262' },
+  'SDI Lab':                    { lat: 33.7483366, lng: -117.8351838, label: '2204 E 4th St, Santa Ana, CA 92705' },
+  'Gilmar Manor':               { lat: 34.1865699, lng: -118.4629632, label: '15152 Victory Blvd, Van Nuys, CA 91411' },
+  'Parview Manor':              { lat: 34.0906900, lng: -118.1731900, label: '5055 Novgorod Street, Los Angeles, CA 90032' },
+  'Westside Manor':             { lat: 34.0397537, lng: -118.3448404, label: '4836 W Washington Blvd Ste 133, Los Angeles, CA 90016' }
+};
+
+// Lab facilities that use a flask icon instead of initials
+var FAC_LAB_ICON = { 'Juno Tech Lab': true, 'SDI Lab': true };
+
+// Colors sourced from FAC_COLOR_MAP so map pins match Records/calendar colors
+var FAC_COLOR_EXPLICIT = FAC_COLOR_MAP || {};
+
+function getFacilityLocations() {
+  try {
+    var stored = JSON.parse(localStorage.getItem(FAC_LOC_KEY) || 'null');
+    // Merge defaults into stored so newly added defaults always appear
+    return Object.assign({}, FAC_DEFAULTS, stored || {});
+  }
+  catch(e) { return Object.assign({}, FAC_DEFAULTS); }
+}
+function saveFacilityLocations(obj) {
+  localStorage.setItem(FAC_LOC_KEY, JSON.stringify(obj));
+}
+
+function initFacilityMap() {
+  var mapEl = document.getElementById('facilityMapEl');
+  if (!mapEl) return;
+  if (!_facMap) {
+    _facMap = L.map('facilityMapEl').setView([33.95, -118.24], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(_facMap);
+  }
+  setTimeout(function(){ _facMap.invalidateSize(); }, 120);
+  renderFacilityMapPins();
+  renderFacilityListRows();
+}
+
+var FAC_PIN_COLORS = [
+  '#1a2b8c','#059669','#dc2626','#d97706','#7c3aed','#0891b2',
+  '#be185d','#65a30d','#ea580c','#2563eb','#db2777','#16a34a'
+];
+function facPinColor(name) {
+  if (FAC_COLOR_EXPLICIT && FAC_COLOR_EXPLICIT[name]) return FAC_COLOR_EXPLICIT[name];
+  var idx = 0;
+  for (var i = 0; i < name.length; i++) idx = (idx * 31 + name.charCodeAt(i)) & 0xff;
+  return FAC_PIN_COLORS[idx % FAC_PIN_COLORS.length];
+}
+
+function renderFacilityMapPins() {
+  if (!_facMap) return;
+  // Clear old markers
+  Object.keys(_facMarkers).forEach(function(k){ _facMap.removeLayer(_facMarkers[k]); });
+  _facMarkers = {};
+  var locs = getFacilityLocations();
+  var bounds = [];
+  Object.keys(locs).forEach(function(name) {
+    var loc = locs[name];
+    if (!loc || !loc.lat || !loc.lng) return;
+    var color = facPinColor(name);
+    var isLab = !!(FAC_LAB_ICON && FAC_LAB_ICON[name]);
+    var initials = name.split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
+    var pinInner = isLab
+      ? '<span style="font-size:18px;line-height:1;">&#x1F9EA;</span>'
+      : '<span style="font-size:11px;font-weight:800;color:#fff;letter-spacing:-.5px;">'+initials+'</span>';
+    var markerHtml = '<div style="background:'+color+';width:38px;height:38px;border-radius:50%;border:3px solid #fff;'
+      +'box-shadow:0 3px 12px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;">'+pinInner+'</div>';
+    var icon = L.divIcon({ html: markerHtml, className:'', iconSize:[38,38], iconAnchor:[19,19], popupAnchor:[0,-22] });
+    var addressLine = loc.label ? '<p style="margin:0 0 6px;font-size:11px;color:#6b7280;">'+loc.label+'</p>' : '';
+    var popupAvatar = isLab
+      ? '<div style="width:32px;height:32px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">&#x1F9EA;</div>'
+      : '<div style="width:32px;height:32px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">'+initials+'</div>';
+    var popup = '<div style="font-family:-apple-system,sans-serif;min-width:190px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+      +popupAvatar
+      +'<p style="margin:0;font-weight:700;font-size:14px;color:#111827;">'+name+'</p></div>'
+      +addressLine
+      +'<a href="https://www.google.com/maps?q='+loc.lat+','+loc.lng+'" target="_blank" style="display:inline-block;font-size:11px;color:#1a2b8c;font-weight:600;">Open in Google Maps &#8599;</a>'
+      +'<br><button onclick="openAddFacilityModal(\''+name.replace(/'/g,"\\'")+'\')" style="margin-top:6px;font-size:10px;padding:3px 10px;border-radius:6px;background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;font-weight:600;">Edit Location</button>'
+      +'</div>';
+    var mk = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(_facMap).bindPopup(popup);
+    _facMarkers[name] = mk;
+    bounds.push([loc.lat, loc.lng]);
+  });
+  if (bounds.length) {
+    try { _facMap.fitBounds(bounds, { padding:[40,40], maxZoom:13 }); } catch(e){}
+  }
+}
+
+function renderFacilityListRows() {
+  var container = document.getElementById('facilityListRows');
+  if (!container) return;
+  var locs = getFacilityLocations();
+  var allFacs = (typeof FACILITIES !== 'undefined' ? FACILITIES : []).filter(function(f){ return f !== 'Others'; });
+  var html = '';
+  allFacs.forEach(function(name) {
+    var loc = locs[name];
+    var hasLoc = !!(loc && loc.lat && loc.lng);
+    var color = facPinColor(name);
+    var initials = name.split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
+    var isLab2 = !!(FAC_LAB_ICON && FAC_LAB_ICON[name]);
+    var avatarInner = isLab2
+      ? '<span style="font-size:16px;line-height:1;">&#x1F9EA;</span>'
+      : '<span style="font-weight:800;color:'+(hasLoc?'#fff':'#9ca3af')+';font-size:10px;">'+initials+'</span>';
+    var badge = hasLoc
+      ? '<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:#dcfce7;color:#15803d;font-weight:700;">&#10003; Mapped</span>'
+      : '<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:#f3f4f6;color:#9ca3af;font-weight:600;">No location</span>';
+    var addrText = (hasLoc && loc.label) ? '<p style="margin:0;font-size:11px;color:#9ca3af;">'+loc.label+'</p>' : '';
+    var safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid #f3f4f6;cursor:pointer;" onclick="flyToFacility(\''+safeName+'\')">'
+      +'<div style="width:34px;height:34px;border-radius:50%;background:'+(hasLoc?color:'#e5e7eb')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+avatarInner+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<p style="margin:0;font-size:13px;font-weight:700;color:#111827;">'+name+'</p>'
+      +addrText+'</div>'
+      +badge
+      +'<button onclick="event.stopPropagation();openAddFacilityModal(\''+safeName+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;font-weight:600;flex-shrink:0;">Edit</button>'
+      +'</div>';
+  });
+  container.innerHTML = html || '<p style="padding:16px 20px;color:#9ca3af;font-size:13px;">No facilities configured.</p>';
+}
+
+function flyToFacility(name) {
+  var mk = _facMarkers[name];
+  if (mk) {
+    _facMap.flyTo(mk.getLatLng(), 15, { animate:true, duration:1 });
+    mk.openPopup();
+  } else {
+    toast(name + ' has no location set yet');
+  }
+}
+
+function openAddFacilityModal(prefill) {
+  var modal = document.getElementById('facilityEditModal');
+  if (!modal) return;
+  // Populate select
+  var sel = document.getElementById('facEditSelect');
+  if (sel) {
+    sel.innerHTML = '';
+    var allFacs = (typeof FACILITIES !== 'undefined' ? FACILITIES : []).filter(function(f){ return f !== 'Others'; });
+    allFacs.forEach(function(f){
+      var opt = document.createElement('option');
+      opt.value = f; opt.textContent = f;
+      sel.appendChild(opt);
+    });
+    if (prefill) sel.value = prefill;
+  }
+  // Pre-fill fields if location exists
+  var locs = getFacilityLocations();
+  var chosen = prefill || (sel ? sel.value : '');
+  var loc = locs[chosen];
+  document.getElementById('facEditLat').value   = loc ? (loc.lat||'') : '';
+  document.getElementById('facEditLng').value   = loc ? (loc.lng||'') : '';
+  document.getElementById('facEditLabel').value = loc ? (loc.label||'') : '';
+  document.getElementById('facEditAddress').value = '';
+  sel && sel.addEventListener('change', function(){
+    var l = getFacilityLocations()[this.value];
+    document.getElementById('facEditLat').value   = l ? (l.lat||'') : '';
+    document.getElementById('facEditLng').value   = l ? (l.lng||'') : '';
+    document.getElementById('facEditLabel').value = l ? (l.label||'') : '';
+  }, { once:false });
+  modal.classList.add('open');
+}
+
+function closeFacilityEditModal() {
+  var modal = document.getElementById('facilityEditModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function geocodeFacilityAddress() {
+  var addr = (document.getElementById('facEditAddress').value||'').trim();
+  if (!addr) { toast('Enter an address to search'); return; }
+  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr);
+  var statusEl = document.getElementById('facilityMapStatus');
+  toast('Searching address…');
+  fetch(url, { headers:{ 'Accept-Language':'en' } })
+    .then(function(r){ return r.json(); })
+    .then(function(results){
+      if (!results || !results.length) { toast('Address not found — try a more specific address'); return; }
+      var r = results[0];
+      document.getElementById('facEditLat').value = parseFloat(r.lat).toFixed(6);
+      document.getElementById('facEditLng').value = parseFloat(r.lon).toFixed(6);
+      if (!document.getElementById('facEditLabel').value) {
+        document.getElementById('facEditLabel').value = r.display_name ? r.display_name.split(',').slice(0,3).join(',').trim() : '';
+      }
+      toast('Address found! Review and save.');
+    })
+    .catch(function(){ toast('Geocoding failed — check connection'); });
+}
+
+function saveFacilityLocation() {
+  var sel   = document.getElementById('facEditSelect');
+  var name  = sel ? sel.value : '';
+  var lat   = parseFloat(document.getElementById('facEditLat').value);
+  var lng   = parseFloat(document.getElementById('facEditLng').value);
+  var label = (document.getElementById('facEditLabel').value||'').trim();
+  if (!name) { toast('Select a facility'); return; }
+  if (isNaN(lat) || isNaN(lng)) { toast('Enter valid latitude and longitude'); return; }
+  var locs = getFacilityLocations();
+  locs[name] = { lat:lat, lng:lng, label:label };
+  saveFacilityLocations(locs);
+  closeFacilityEditModal();
+  renderFacilityMapPins();
+  renderFacilityListRows();
+  toast('Location saved for '+name);
+}
+
+function removeFacilityLocation() {
+  var sel  = document.getElementById('facEditSelect');
+  var name = sel ? sel.value : '';
+  if (!name) return;
+  if (!confirm('Remove location for "'+name+'"?')) return;
+  var locs = getFacilityLocations();
+  delete locs[name];
+  saveFacilityLocations(locs);
+  closeFacilityEditModal();
+  renderFacilityMapPins();
+  renderFacilityListRows();
+  toast('Location removed for '+name);
 }
 </script>
 </body>
