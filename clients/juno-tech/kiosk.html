@@ -607,7 +607,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button class="atab" id="tab-facilitymap" onclick="switchTab('facilitymap')">&#128205; Facility Map</button>
     </div>
   </div>
-  <div class="max-w-4xl mx-auto px-4 py-6">
+  <div id="adminPaneWrap" class="max-w-4xl mx-auto px-4 py-6">
 
     <!-- Employees tab -->
     <div id="pane-employees" class="apane active space-y-4">
@@ -773,53 +773,55 @@ video{object-fit:cover;transform:scaleX(-1);}
     </div>
 
     <!-- Facility Map tab -->
-    <div id="pane-facilitymap" class="apane">
-      <div class="rcard" style="padding:16px 20px 12px;">
-        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-          <p class="text-sm font-semibold" style="color:#374151;">Facility Locations</p>
-          <button onclick="openAddFacilityModal()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
-            style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">+ Add / Edit Location</button>
-        </div>
-        <p class="text-xs mb-3" style="color:#9ca3af;">Pins show the registered address for each facility. Click a pin or a row below to zoom in.</p>
-        <div id="facilityMapEl" style="width:100%;height:78vh;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;background:#f3f4f6;"></div>
-        <p id="facilityMapStatus" class="text-xs mt-2" style="color:#9ca3af;display:none;"></p>
-      </div>
-      <!-- Directions planner -->
-      <div class="rcard" style="padding:0;overflow:hidden;">
-        <div style="padding:14px 20px 12px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:18px;">🗺️</span>
-            <p class="text-sm font-semibold" style="color:#374151;">Directions Planner</p>
+    <div id="pane-facilitymap" class="apane" style="padding:0;">
+      <!-- Full-bleed wrapper: sidebar + map side by side -->
+      <div style="display:flex;gap:0;height:calc(100vh - 112px);min-height:520px;">
+
+        <!-- LEFT: Directions sidebar -->
+        <div style="width:300px;min-width:260px;flex-shrink:0;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e5e7eb;overflow:hidden;">
+          <!-- Header -->
+          <div style="padding:14px 16px 10px;border-bottom:1px solid #f3f4f6;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:16px;">🗺️</span>
+                <p style="margin:0;font-size:13px;font-weight:700;color:#374151;">Directions</p>
+              </div>
+              <button onclick="openAddFacilityModal()" class="tap px-3 py-1 rounded-lg font-semibold"
+                style="font-size:10px;background:#1a2b8c;color:#fff;border:none;cursor:pointer;white-space:nowrap;">+ Edit Locations</button>
+            </div>
+            <!-- Travel mode -->
+            <div class="view-toggle" id="travelModeToggle" style="width:100%;">
+              <button class="active" onclick="setTravelMode('driving',this)" style="flex:1;">🚗 Drive</button>
+              <button onclick="setTravelMode('cycling',this)" style="flex:1;">🚲 Bike</button>
+              <button onclick="setTravelMode('walking',this)" style="flex:1;">🚶 Walk</button>
+            </div>
           </div>
-          <!-- Travel mode -->
-          <div class="view-toggle" id="travelModeToggle">
-            <button class="active" onclick="setTravelMode('driving',this)" title="Driving">🚗 Driving</button>
-            <button onclick="setTravelMode('cycling',this)" title="Cycling">🚲 Cycling</button>
-            <button onclick="setTravelMode('walking',this)" title="Walking">🚶 Walking</button>
-          </div>
-        </div>
-        <div style="padding:16px 20px;">
           <!-- Stop list -->
-          <div id="dirStopList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
-          <div class="flex gap-2 flex-wrap">
-            <button onclick="addDirStop()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
-              style="background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;">+ Add Stop</button>
-            <button onclick="calcRoute()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
-              style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#9654; Get Directions</button>
-            <button onclick="clearRoute()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
-              style="background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.2);cursor:pointer;">✕ Clear</button>
+          <div style="padding:12px 16px 8px;border-bottom:1px solid #f3f4f6;">
+            <div id="dirStopList" style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:6px;">
+              <button onclick="addDirStop()" class="tap px-3 py-2 rounded-lg font-semibold"
+                style="font-size:11px;background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;flex:1;">+ Stop</button>
+              <button onclick="calcRoute()" class="tap px-3 py-2 rounded-lg font-semibold"
+                style="font-size:11px;background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex:2;">▶ Get Directions</button>
+              <button onclick="clearRoute()" class="tap px-3 py-2 rounded-lg font-semibold"
+                style="font-size:11px;background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.2);cursor:pointer;">✕</button>
+            </div>
           </div>
-          <!-- Route summary -->
-          <div id="dirSummary" style="display:none;margin-top:16px;"></div>
+          <!-- Route summary (scrollable) -->
+          <div id="dirSummary" style="flex:1;overflow-y:auto;padding:12px 16px;display:none;"></div>
+          <!-- Facility list (shown when no route) -->
+          <div id="facSideList" style="flex:1;overflow-y:auto;"></div>
+        </div>
+
+        <!-- RIGHT: Map fills remaining space -->
+        <div style="flex:1;position:relative;min-width:0;">
+          <div id="facilityMapEl" style="width:100%;height:100%;background:#f3f4f6;"></div>
+          <p id="facilityMapStatus" style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:4px 12px;border-radius:99px;display:none;"></p>
         </div>
       </div>
-      <!-- Facility list -->
-      <div class="rcard" style="padding:0;">
-        <div style="padding:14px 20px 10px;border-bottom:1px solid #f3f4f6;">
-          <p class="text-sm font-semibold" style="color:#374151;">All Facilities</p>
-        </div>
-        <div id="facilityListRows" style="max-height:340px;overflow-y:auto;"></div>
-      </div>
+      <!-- facilityListRows kept as hidden alias for JS compatibility -->
+      <div id="facilityListRows" style="display:none;"></div>
     </div>
 
     <!-- Facility Map: Add/Edit Location Modal -->
@@ -2615,7 +2617,16 @@ function switchTab(name) {
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
   if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); }
-  if (name==='facilitymap') { loadLeaflet(function(){ initFacilityMap(); }); }
+  if (name==='facilitymap') {
+    // Break out of max-w-4xl for full-bleed map
+    var wrap = document.getElementById('adminPaneWrap');
+    if (wrap) { wrap.style.maxWidth='none'; wrap.style.padding='0'; wrap.style.margin='0'; }
+    loadLeaflet(function(){ initFacilityMap(); });
+  } else {
+    // Restore normal container for all other tabs
+    var wrap = document.getElementById('adminPaneWrap');
+    if (wrap) { wrap.style.maxWidth=''; wrap.style.padding=''; wrap.style.margin=''; }
+  }
   // (map tab removed — map is now a modal via seeEmpOnMap())
 }
 
@@ -7568,11 +7579,9 @@ function renderFacilityMapPins() {
 }
 
 function renderFacilityListRows() {
-  var container = document.getElementById('facilityListRows');
-  if (!container) return;
   var locs = getFacilityLocations();
   var allFacs = (typeof FACILITIES !== 'undefined' ? FACILITIES : []).filter(function(f){ return f !== 'Others'; });
-  var html = '';
+  var html = '<div style="padding:8px 12px 4px;"><p style="margin:0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">All Facilities</p></div>';
   allFacs.forEach(function(name) {
     var loc = locs[name];
     var hasLoc = !!(loc && loc.lat && loc.lng);
@@ -7580,23 +7589,30 @@ function renderFacilityListRows() {
     var initials = name.split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
     var isLab2 = !!(FAC_LAB_ICON && FAC_LAB_ICON[name]);
     var avatarInner = isLab2
-      ? '<span style="font-size:16px;line-height:1;">&#x1F9EA;</span>'
-      : '<span style="font-weight:800;color:'+(hasLoc?'#fff':'#9ca3af')+';font-size:10px;">'+initials+'</span>';
-    var badge = hasLoc
-      ? '<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:#dcfce7;color:#15803d;font-weight:700;">&#10003; Mapped</span>'
-      : '<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:#f3f4f6;color:#9ca3af;font-weight:600;">No location</span>';
-    var addrText = (hasLoc && loc.label) ? '<p style="margin:0;font-size:11px;color:#9ca3af;">'+loc.label+'</p>' : '';
+      ? '<span style="font-size:13px;line-height:1;">&#x1F9EA;</span>'
+      : '<span style="font-weight:800;color:'+(hasLoc?'#fff':'#9ca3af')+';font-size:9px;">'+initials+'</span>';
+    var dot = hasLoc
+      ? '<span style="width:6px;height:6px;border-radius:50%;background:#16a34a;flex-shrink:0;display:inline-block;"></span>'
+      : '<span style="width:6px;height:6px;border-radius:50%;background:#e5e7eb;flex-shrink:0;display:inline-block;"></span>';
     var safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid #f3f4f6;cursor:pointer;" onclick="flyToFacility(\''+safeName+'\')">'
-      +'<div style="width:34px;height:34px;border-radius:50%;background:'+(hasLoc?color:'#e5e7eb')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+avatarInner+'</div>'
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #f9fafb;cursor:pointer;transition:background .12s;" '
+      +'onmouseenter="this.style.background=\'#f9fafb\'" onmouseleave="this.style.background=\'\'" '
+      +'onclick="flyToFacility(\''+safeName+'\')">'
+      +'<div style="width:28px;height:28px;border-radius:50%;background:'+(hasLoc?color:'#e5e7eb')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+avatarInner+'</div>'
       +'<div style="flex:1;min-width:0;">'
-      +'<p style="margin:0;font-size:13px;font-weight:700;color:#111827;">'+name+'</p>'
-      +addrText+'</div>'
-      +badge
-      +'<button onclick="event.stopPropagation();openAddFacilityModal(\''+safeName+'\')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;font-weight:600;flex-shrink:0;">Edit</button>'
+      +'<p style="margin:0;font-size:12px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</p>'
+      +(hasLoc && loc.label ? '<p style="margin:0;font-size:10px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+loc.label+'</p>' : '')
+      +'</div>'+dot
+      +'<button onclick="event.stopPropagation();openAddFacilityModal(\''+safeName+'\')" '
+      +'style="font-size:9px;padding:3px 7px;border-radius:5px;background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;font-weight:600;flex-shrink:0;">Edit</button>'
       +'</div>';
   });
-  container.innerHTML = html || '<p style="padding:16px 20px;color:#9ca3af;font-size:13px;">No facilities configured.</p>';
+  // Write into sidebar list
+  var sideList = document.getElementById('facSideList');
+  if (sideList) sideList.innerHTML = html || '<p style="padding:12px;color:#9ca3af;font-size:12px;">No facilities configured.</p>';
+  // Keep hidden alias in sync (for any legacy references)
+  var legacy = document.getElementById('facilityListRows');
+  if (legacy) legacy.innerHTML = html;
 }
 
 function flyToFacility(name) {
@@ -7854,6 +7870,9 @@ function renderRouteSummary(route, waypoints) {
   });
   summaryEl.innerHTML = html;
   summaryEl.style.display = '';
+  // Hide facility list while route is showing
+  var sl = document.getElementById('facSideList');
+  if (sl) sl.style.display = 'none';
 }
 
 function buildGoogleMapsUrl(waypoints) {
@@ -7876,6 +7895,7 @@ function clearRoute() {
   window._dirStops = ['', ''];
   renderDirStops();
   var s = document.getElementById('dirSummary'); if(s){ s.style.display='none'; s.innerHTML=''; }
+  var sl = document.getElementById('facSideList'); if(sl) sl.style.display = '';
   if (_facMap) { renderFacilityMapPins(); try{_facMap.fitBounds(Object.values(_facMarkers).map(function(m){return m.getLatLng();}),{padding:[40,40],maxZoom:13});}catch(e){} }
 }
 
