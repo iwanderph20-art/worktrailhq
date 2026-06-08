@@ -784,6 +784,35 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div id="facilityMapEl" style="width:100%;height:78vh;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;background:#f3f4f6;"></div>
         <p id="facilityMapStatus" class="text-xs mt-2" style="color:#9ca3af;display:none;"></p>
       </div>
+      <!-- Directions planner -->
+      <div class="rcard" style="padding:0;overflow:hidden;">
+        <div style="padding:14px 20px 12px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:18px;">🗺️</span>
+            <p class="text-sm font-semibold" style="color:#374151;">Directions Planner</p>
+          </div>
+          <!-- Travel mode -->
+          <div class="view-toggle" id="travelModeToggle">
+            <button class="active" onclick="setTravelMode('driving',this)" title="Driving">🚗 Driving</button>
+            <button onclick="setTravelMode('cycling',this)" title="Cycling">🚲 Cycling</button>
+            <button onclick="setTravelMode('walking',this)" title="Walking">🚶 Walking</button>
+          </div>
+        </div>
+        <div style="padding:16px 20px;">
+          <!-- Stop list -->
+          <div id="dirStopList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="addDirStop()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
+              style="background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;">+ Add Stop</button>
+            <button onclick="calcRoute()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
+              style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#9654; Get Directions</button>
+            <button onclick="clearRoute()" class="tap px-4 py-2 rounded-lg font-semibold text-xs"
+              style="background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.2);cursor:pointer;">✕ Clear</button>
+          </div>
+          <!-- Route summary -->
+          <div id="dirSummary" style="display:none;margin-top:16px;"></div>
+        </div>
+      </div>
       <!-- Facility list -->
       <div class="rcard" style="padding:0;">
         <div style="padding:14px 20px 10px;border-bottom:1px solid #f3f4f6;">
@@ -7482,6 +7511,8 @@ function initFacilityMap() {
   setTimeout(function(){ _facMap.invalidateSize(); }, 120);
   renderFacilityMapPins();
   renderFacilityListRows();
+  window._dirStops = window._dirStops || ['', ''];
+  renderDirStops();
 }
 
 var FAC_PIN_COLORS = [
@@ -7651,6 +7682,201 @@ function saveFacilityLocation() {
   renderFacilityMapPins();
   renderFacilityListRows();
   toast('Location saved for '+name);
+}
+
+/* ── Directions Planner ──────────────────── */
+var _routeLayer    = null;   // GeoJSON layer on _facMap
+var _routeMarkers  = [];     // numbered waypoint markers
+var _travelMode    = 'driving';
+var OSRM_PROFILES  = { driving:'car', cycling:'bike', walking:'foot' };
+
+function setTravelMode(mode, btn) {
+  _travelMode = mode;
+  document.querySelectorAll('#travelModeToggle button').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+}
+
+function _dirStopOptions(selectedVal) {
+  var locs = getFacilityLocations();
+  var mapped = Object.keys(locs).filter(function(n){ return locs[n] && locs[n].lat; });
+  var opts = '<option value="">— Select facility —</option>';
+  mapped.forEach(function(n){
+    opts += '<option value="'+n+'"'+(n===selectedVal?' selected':'')+'>'+n+'</option>';
+  });
+  return opts;
+}
+
+function renderDirStops() {
+  var list = document.getElementById('dirStopList');
+  if (!list) return;
+  if (!window._dirStops || !window._dirStops.length) {
+    window._dirStops = ['', ''];  // start with 2 blank stops
+  }
+  var html = '';
+  window._dirStops.forEach(function(val, i) {
+    var isFirst = i === 0, isLast = i === window._dirStops.length - 1;
+    var label = isFirst ? '🟢 From' : (isLast ? '🔴 To' : '🔵 Stop '+(i));
+    var dotColor = isFirst ? '#16a34a' : (isLast ? '#dc2626' : '#3b82f6');
+    html += '<div style="display:flex;align-items:center;gap:8px;" data-stop-idx="'+i+'">'
+      +'<div style="width:10px;height:10px;border-radius:50%;background:'+dotColor+';flex-shrink:0;"></div>'
+      +'<select class="inp sel dir-stop-sel" data-idx="'+i+'" style="flex:1;color:#111827;font-size:13px;padding:9px 12px;">'
+      +_dirStopOptions(val)+'</select>'
+      +(window._dirStops.length > 2
+        ? '<button onclick="removeDirStop('+i+')" style="flex-shrink:0;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;padding:4px;" title="Remove stop">×</button>'
+        : '<div style="width:24px;flex-shrink:0;"></div>')
+      +'</div>';
+  });
+  list.innerHTML = html;
+  list.querySelectorAll('.dir-stop-sel').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+      window._dirStops[parseInt(this.dataset.idx)] = this.value;
+    });
+  });
+}
+
+function addDirStop() {
+  if (!window._dirStops) window._dirStops = ['',''];
+  // Insert before the last stop
+  window._dirStops.splice(window._dirStops.length - 1, 0, '');
+  renderDirStops();
+}
+
+function removeDirStop(idx) {
+  if (!window._dirStops || window._dirStops.length <= 2) return;
+  window._dirStops.splice(idx, 1);
+  renderDirStops();
+}
+
+function calcRoute() {
+  if (!window._dirStops || window._dirStops.filter(function(s){ return s; }).length < 2) {
+    toast('Select at least a From and To facility'); return;
+  }
+  var locs = getFacilityLocations();
+  var stops = window._dirStops.filter(function(s){ return s; });
+  var waypoints = [];
+  for (var i = 0; i < stops.length; i++) {
+    var loc = locs[stops[i]];
+    if (!loc || !loc.lat || !loc.lng) { toast(stops[i]+' has no location set'); return; }
+    waypoints.push({ name: stops[i], lat: loc.lat, lng: loc.lng });
+  }
+  var profile = OSRM_PROFILES[_travelMode] || 'car';
+  var coordStr = waypoints.map(function(w){ return w.lng+','+w.lat; }).join(';');
+  var url = 'https://router.project-osrm.org/route/v1/'+profile+'/'+coordStr
+    +'?overview=full&geometries=geojson&steps=false&annotations=false';
+  var summaryEl = document.getElementById('dirSummary');
+  if (summaryEl) { summaryEl.style.display=''; summaryEl.innerHTML='<p style="color:#9ca3af;font-size:13px;">Calculating route…</p>'; }
+  toast('Calculating route…');
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data || data.code !== 'Ok' || !data.routes || !data.routes.length) {
+        toast('Could not find route'); return;
+      }
+      var route = data.routes[0];
+      drawRouteOnMap(route, waypoints);
+      renderRouteSummary(route, waypoints);
+    })
+    .catch(function(){ toast('Routing failed — check connection'); });
+}
+
+function drawRouteOnMap(route, waypoints) {
+  if (!_facMap) return;
+  // Remove old route layer
+  if (_routeLayer) { _facMap.removeLayer(_routeLayer); _routeLayer = null; }
+  _routeMarkers.forEach(function(m){ _facMap.removeLayer(m); });
+  _routeMarkers = [];
+  // Draw route line
+  _routeLayer = L.geoJSON(route.geometry, {
+    style: { color:'#1a2b8c', weight:5, opacity:.85, dashArray: _travelMode==='walking'?'6,8':null }
+  }).addTo(_facMap);
+  // Add numbered waypoint markers
+  var colors = ['#16a34a','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#dc2626'];
+  waypoints.forEach(function(wp, i) {
+    var isLast = i === waypoints.length - 1;
+    var color = isLast ? '#dc2626' : (i === 0 ? '#16a34a' : colors[i % colors.length]);
+    var label = isLast ? '🏁' : (i+1).toString();
+    var html = '<div style="background:'+color+';color:#fff;width:28px;height:28px;border-radius:50%;'
+      +'border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;'
+      +'justify-content:center;font-size:11px;font-weight:800;">'+label+'</div>';
+    var icon = L.divIcon({ html:html, className:'', iconSize:[28,28], iconAnchor:[14,14], popupAnchor:[0,-16] });
+    var mk = L.marker([wp.lat, wp.lng], { icon:icon, zIndexOffset:1000 })
+      .addTo(_facMap)
+      .bindTooltip(wp.name, { permanent:false, direction:'top', offset:[0,-16], className:'fac-tooltip' });
+    _routeMarkers.push(mk);
+  });
+  // Fit map to route
+  try { _facMap.fitBounds(_routeLayer.getBounds(), { padding:[40,40] }); } catch(e){}
+}
+
+function renderRouteSummary(route, waypoints) {
+  var summaryEl = document.getElementById('dirSummary');
+  if (!summaryEl) return;
+  var totalDist  = route.distance;   // metres
+  var totalSecs  = route.duration;   // seconds
+  var legs       = route.legs || [];
+  function fmtDist(m) {
+    return m >= 1609 ? (m/1609.34).toFixed(1)+' mi' : Math.round(m)+' m';
+  }
+  function fmtTime(s) {
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+    if (h > 0) return h+'h '+m+'m';
+    return m < 1 ? 'under 1 min' : m+' min';
+  }
+  var modeIcon = { driving:'🚗', cycling:'🚲', walking:'🚶' }[_travelMode] || '🚗';
+  // Total banner
+  var html = '<div style="background:#1a2b8c;border-radius:12px;padding:14px 16px;color:#fff;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px;">'
+    +'<span style="font-size:22px;">'+modeIcon+'</span>'
+    +'<div><p style="margin:0;font-size:18px;font-weight:800;">'+fmtTime(totalSecs)+'</p>'
+    +'<p style="margin:0;font-size:12px;opacity:.8;">'+fmtDist(totalDist)+' total · '+waypoints.length+' stops</p></div>'
+    +'<a href="'+buildGoogleMapsUrl(waypoints)+'" target="_blank" style="margin-left:auto;background:rgba(255,255,255,.18);'
+    +'border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:7px 14px;font-size:11px;font-weight:700;color:#fff;text-decoration:none;white-space:nowrap;">Open in Google Maps &#8599;</a>'
+    +'</div>';
+  // Per-leg rows
+  legs.forEach(function(leg, i) {
+    var from = waypoints[i]   ? waypoints[i].name   : 'Stop '+(i+1);
+    var to   = waypoints[i+1] ? waypoints[i+1].name : 'Stop '+(i+2);
+    var fromColor = i === 0 ? '#16a34a' : '#3b82f6';
+    html += '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f3f4f6;">'
+      +'<div style="display:flex;flex-direction:column;align-items:center;padding-top:3px;gap:3px;flex-shrink:0;">'
+      +'<div style="width:10px;height:10px;border-radius:50%;background:'+fromColor+';"></div>'
+      +'<div style="width:2px;flex:1;min-height:16px;background:#e5e7eb;"></div>'
+      +'<div style="width:10px;height:10px;border-radius:50%;background:'+(i===legs.length-1?'#dc2626':'#3b82f6')+';"></div>'
+      +'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<p style="margin:0 0 1px;font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+from+'</p>'
+      +'<p style="margin:0 0 3px;font-size:11px;color:#9ca3af;">↓</p>'
+      +'<p style="margin:0;font-size:12px;color:#374151;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+to+'</p>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0;">'
+      +'<p style="margin:0;font-size:14px;font-weight:800;color:#111827;">'+fmtTime(leg.duration)+'</p>'
+      +'<p style="margin:0;font-size:11px;color:#9ca3af;">'+fmtDist(leg.distance)+'</p>'
+      +'</div></div>';
+  });
+  summaryEl.innerHTML = html;
+  summaryEl.style.display = '';
+}
+
+function buildGoogleMapsUrl(waypoints) {
+  if (!waypoints || waypoints.length < 2) return '#';
+  var origin = waypoints[0].lat+','+waypoints[0].lng;
+  var dest   = waypoints[waypoints.length-1].lat+','+waypoints[waypoints.length-1].lng;
+  var modeMap = { driving:'driving', cycling:'bicycling', walking:'walking' };
+  var gMode = modeMap[_travelMode] || 'driving';
+  var url = 'https://www.google.com/maps/dir/?api=1&origin='+origin+'&destination='+dest+'&travelmode='+gMode;
+  if (waypoints.length > 2) {
+    var wps = waypoints.slice(1,-1).map(function(w){ return w.lat+','+w.lng; }).join('|');
+    url += '&waypoints='+encodeURIComponent(wps);
+  }
+  return url;
+}
+
+function clearRoute() {
+  if (_routeLayer) { _facMap.removeLayer(_routeLayer); _routeLayer = null; }
+  _routeMarkers.forEach(function(m){ _facMap.removeLayer(m); }); _routeMarkers = [];
+  window._dirStops = ['', ''];
+  renderDirStops();
+  var s = document.getElementById('dirSummary'); if(s){ s.style.display='none'; s.innerHTML=''; }
+  if (_facMap) { renderFacilityMapPins(); try{_facMap.fitBounds(Object.values(_facMarkers).map(function(m){return m.getLatLng();}),{padding:[40,40],maxZoom:13});}catch(e){} }
 }
 
 function removeFacilityLocation() {
