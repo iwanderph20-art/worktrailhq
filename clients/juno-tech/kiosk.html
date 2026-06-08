@@ -7732,28 +7732,14 @@ function renderDirStops() {
   window._dirStops.forEach(function(val, i) {
     var isFirst = i === 0, isLast = i === window._dirStops.length - 1;
     var dotColor = isFirst ? '#16a34a' : (isLast ? '#dc2626' : '#3b82f6');
-    // Stop row
     html += '<div style="display:flex;align-items:center;gap:6px;">'
-      +'<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:0;">'
-      +'<div style="width:10px;height:10px;border-radius:50%;background:'+dotColor+';"></div>'
-      +'</div>'
+      +'<div style="width:10px;height:10px;border-radius:50%;background:'+dotColor+';flex-shrink:0;"></div>'
       +'<select class="inp sel dir-stop-sel" data-idx="'+i+'" style="flex:1;color:#111827;font-size:12px;padding:7px 10px;">'
       +_dirStopOptions(val)+'</select>'
       +(window._dirStops.length > 2
         ? '<button onclick="removeDirStop('+i+')" style="flex-shrink:0;background:none;border:none;cursor:pointer;color:#d1d5db;font-size:15px;line-height:1;padding:2px 4px;" title="Remove">×</button>'
         : '<div style="width:20px;flex-shrink:0;"></div>')
       +'</div>';
-    // "＋ insert after this stop" button — shown between every pair, NOT after the last stop
-    if (!isLast) {
-      html += '<div style="display:flex;align-items:center;gap:6px;padding:0 0 0 2px;">'
-        +'<div style="width:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;">'
-        +'<div style="width:1.5px;height:12px;background:#e5e7eb;"></div>'
-        +'</div>'
-        +'<button onclick="insertDirStopAfter('+i+')" '
-        +'style="font-size:10px;padding:2px 9px;border-radius:5px;background:#f0f9ff;color:#0891b2;border:1px dashed #bae6fd;cursor:pointer;font-weight:700;letter-spacing:.02em;" '
-        +'title="Insert stop here">＋ add stop here</button>'
-        +'</div>';
-    }
   });
   list.innerHTML = html;
   list.querySelectorAll('.dir-stop-sel').forEach(function(sel) {
@@ -7770,11 +7756,6 @@ function addDirStop() {
   renderDirStops();
 }
 
-function insertDirStopAfter(idx) {
-  if (!window._dirStops) window._dirStops = ['',''];
-  window._dirStops.splice(idx + 1, 0, '');
-  renderDirStops();
-}
 
 function removeDirStop(idx) {
   if (!window._dirStops || window._dirStops.length <= 2) return;
