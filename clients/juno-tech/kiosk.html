@@ -7751,8 +7751,8 @@ function renderDirStops() {
 
 function addDirStop() {
   if (!window._dirStops) window._dirStops = ['',''];
-  // Insert before the last stop (kept for the "+ Stop" button)
-  window._dirStops.splice(window._dirStops.length - 1, 0, '');
+  // Append after the last stop
+  window._dirStops.push('');
   renderDirStops();
 }
 
