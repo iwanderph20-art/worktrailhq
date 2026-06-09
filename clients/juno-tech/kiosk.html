@@ -4788,6 +4788,24 @@ function syncFromCloud(cb) {
               }
             }
           });
+          // Safety net: NEVER downgrade approved/denied → pending during a sync.
+          // If the local timesheet already has an entry marked approved or denied,
+          // that status wins — a slow/failed Firebase write cannot undo an admin decision.
+          var localTimesheetMap = {};
+          store.getJ(K.timesheet, []).forEach(function(e) {
+            if (e && e.ts && (e.approval === 'approved' || e.approval === 'denied')) {
+              localTimesheetMap[String(e.ts)] = e;
+            }
+          });
+          entries.forEach(function(e) {
+            var localE = localTimesheetMap[String(e.ts)];
+            if (localE && e.approval === 'pending') {
+              e.approval  = localE.approval;
+              if (localE.approvedAt) e.approvedAt = localE.approvedAt;
+              // Re-push the corrected entry to Firebase so it catches up
+              if (fbCfg.url) fbPut('timesheet', e.ts, e);
+            }
+          });
           // Preserve local-only entries that haven't landed in Firebase yet
           // (e.g. a manual entry saved 2 seconds ago when the 30s auto-refresh fires)
           // Only keep local entries that are NOT in deletedTs — legitimately deleted entries stay gone
@@ -5954,33 +5972,43 @@ function handleApprovalResult(ts, status) {
 
 /* Admin approve/deny from Records tab */
 function adminApproveEntry(ts) {
-  setApprovalStatus(ts,'approved');
-  var arr=store.getJ(K.timesheet,[]);
-  var approvedEntry=null;
-  var approvedAt=new Date().toISOString();
-  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='approved'; e.approvedAt=approvedAt; approvedEntry=e;}});
-  store.setJ(K.timesheet,arr);
-  // Only push to Firebase if we actually found the entry — never overwrite with empty object
-  if(approvedEntry) {
-    fbPut('timesheet',ts,approvedEntry);
-    fbPutState(approvedEntry.name,'in',ts);
+  var approvedAt = new Date().toISOString();
+  // 1. Write approval status to jtl_approvals + Firebase /approvals/ (source of truth for sync)
+  setApprovalStatus(ts, 'approved');
+  // 2. Update local timesheet immediately — this is the definitive local record
+  var arr = store.getJ(K.timesheet, []);
+  var approvedEntry = null;
+  arr.forEach(function(e) {
+    if (String(e.ts) === String(ts)) { e.approval = 'approved'; e.approvedAt = approvedAt; approvedEntry = e; }
+  });
+  store.setJ(K.timesheet, arr);
+  // 3. Push to Firebase with a one-time retry — ensures the timesheet node in Firebase
+  //    reflects 'approved' so future syncs on other devices get the right state
+  if (approvedEntry) {
+    var _pushApproved = function() { fbPut('timesheet', ts, approvedEntry); };
+    _pushApproved();
+    setTimeout(_pushApproved, 3000); // retry after 3s in case of a slow write
+    fbPutState(approvedEntry.name, 'in', ts);
   }
-  logAdminAction('APPROVE','Clock-in approved for entry at '+new Date(ts).toLocaleString());
-  renderTables(); toast('Clock-in approved');
+  logAdminAction('APPROVE', 'Clock-in approved for entry at ' + new Date(ts).toLocaleString());
+  renderTables(); toast('Clock-in approved ✓');
 }
 function adminDenyEntry(ts) {
-  if(!confirm('Deny this clock-in? The entry will be marked denied.')) return;
-  setApprovalStatus(ts,'denied');
-  var arr=store.getJ(K.timesheet,[]);
-  var deniedEntry=null;
-  arr.forEach(function(e){if(String(e.ts)===String(ts)){e.approval='denied'; deniedEntry=e;}});
-  store.setJ(K.timesheet,arr);
-  // Only push to Firebase if we actually found the entry — never overwrite with empty object
-  if(deniedEntry) {
-    fbPut('timesheet',ts,deniedEntry);
-    fbPutState(deniedEntry.name,'out',ts); // update cross-device state for staff
+  if (!confirm('Deny this clock-in? The entry will be marked denied.')) return;
+  setApprovalStatus(ts, 'denied');
+  var arr = store.getJ(K.timesheet, []);
+  var deniedEntry = null;
+  arr.forEach(function(e) {
+    if (String(e.ts) === String(ts)) { e.approval = 'denied'; deniedEntry = e; }
+  });
+  store.setJ(K.timesheet, arr);
+  if (deniedEntry) {
+    var _pushDenied = function() { fbPut('timesheet', ts, deniedEntry); };
+    _pushDenied();
+    setTimeout(_pushDenied, 3000); // retry
+    fbPutState(deniedEntry.name, 'out', ts);
   }
-  logAdminAction('DENY','Clock-in denied for entry at '+new Date(ts).toLocaleString());
+  logAdminAction('DENY', 'Clock-in denied for entry at ' + new Date(ts).toLocaleString());
   renderTables(); toast('Clock-in denied');
 }
 
