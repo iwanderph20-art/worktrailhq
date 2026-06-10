@@ -7885,7 +7885,7 @@ function renderRouteSummary(route, waypoints) {
   var arriveCard = '';
   if (arriveByVal) {
     var arriveMs  = new Date(arriveByVal).getTime();
-    var departMs  = arriveMs - (totalSecs * 1000);
+    var departMs  = arriveMs - (totalSecs * 1000) - (15 * 60 * 1000); // 15-min buffer
     var departDate = new Date(departMs);
     var arriveDate = new Date(arriveMs);
     function fmtDateTime(d) {
@@ -7894,7 +7894,7 @@ function renderRouteSummary(route, waypoints) {
     }
     var isLate = departMs < Date.now();
     departCard = '<div style="background:'+(isLate?'#fef2f2':'#f0fdf4')+';border:1.5px solid '+(isLate?'#fca5a5':'#86efac')+';border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
-      +'<p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:'+(isLate?'#dc2626':'#15803d')+';">🚦 '+(isLate?'Already passed — leave ASAP':'Leave origin by')+'</p>'
+      +'<p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:'+(isLate?'#dc2626':'#15803d')+';">🚦 '+(isLate?'Already passed — leave ASAP':'Leave origin by (incl. 15 min buffer)')+'</p>'
       +'<p style="margin:0;font-size:16px;font-weight:800;color:'+(isLate?'#dc2626':'#111827')+';">'+departDate.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})+'</p>'
       +'<p style="margin:2px 0 0;font-size:11px;color:#6b7280;">'+departDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</p>'
       +'</div>'
