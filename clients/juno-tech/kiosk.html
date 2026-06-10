@@ -799,6 +799,12 @@ video{object-fit:cover;transform:scaleX(-1);}
           <!-- Stop list -->
           <div style="padding:12px 16px 8px;border-bottom:1px solid #f3f4f6;">
             <div id="dirStopList" style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px;"></div>
+            <!-- Arrive-by picker -->
+            <div style="margin-bottom:8px;">
+              <label style="display:block;font-size:10px;font-weight:700;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;">🕐 Arrive by (optional)</label>
+              <input type="datetime-local" id="dirArriveBy"
+                style="width:100%;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:7px 10px;font-size:12px;color:#111827;outline:none;">
+            </div>
             <div style="display:flex;gap:6px;">
               <button onclick="addDirStop()" class="tap px-3 py-2 rounded-lg font-semibold"
                 style="font-size:11px;background:#f1f5f9;color:#374151;border:1px solid #e5e7eb;cursor:pointer;flex:1;">+ Stop</button>
@@ -7871,18 +7877,61 @@ function renderRouteSummary(route, waypoints) {
     return m < 1 ? 'under 1 min' : m+' min';
   }
   var modeIcon = { driving:'🚗', cycling:'🚲', walking:'🚶' }[_travelMode] || '🚗';
+
+  // Arrive-by / depart-by calculation
+  var arriveByEl = document.getElementById('dirArriveBy');
+  var arriveByVal = arriveByEl ? arriveByEl.value : '';
+  var departCard = '';
+  var arriveCard = '';
+  if (arriveByVal) {
+    var arriveMs  = new Date(arriveByVal).getTime();
+    var departMs  = arriveMs - (totalSecs * 1000);
+    var departDate = new Date(departMs);
+    var arriveDate = new Date(arriveMs);
+    function fmtDateTime(d) {
+      return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})
+        +' at '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+    }
+    var isLate = departMs < Date.now();
+    departCard = '<div style="background:'+(isLate?'#fef2f2':'#f0fdf4')+';border:1.5px solid '+(isLate?'#fca5a5':'#86efac')+';border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+      +'<p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:'+(isLate?'#dc2626':'#15803d')+';">🚦 '+(isLate?'Already passed — leave ASAP':'Leave origin by')+'</p>'
+      +'<p style="margin:0;font-size:16px;font-weight:800;color:'+(isLate?'#dc2626':'#111827')+';">'+departDate.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})+'</p>'
+      +'<p style="margin:2px 0 0;font-size:11px;color:#6b7280;">'+departDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</p>'
+      +'</div>'
+      +'<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:12px;padding:12px 14px;margin-bottom:10px;">'
+      +'<p style="margin:0 0 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0369a1;">📍 Arrive at destination by</p>'
+      +'<p style="margin:0;font-size:16px;font-weight:800;color:#111827;">'+arriveDate.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})+'</p>'
+      +'<p style="margin:2px 0 0;font-size:11px;color:#6b7280;">'+arriveDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+'</p>'
+      +'</div>';
+  }
+
   // Total banner
-  var html = '<div style="background:#1a2b8c;border-radius:12px;padding:14px 16px;color:#fff;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px;">'
-    +'<span style="font-size:22px;">'+modeIcon+'</span>'
-    +'<div><p style="margin:0;font-size:18px;font-weight:800;">'+fmtTime(totalSecs)+'</p>'
-    +'<p style="margin:0;font-size:12px;opacity:.8;">'+fmtDist(totalDist)+' total · '+waypoints.length+' stops</p></div>'
-    +'<a href="'+buildGoogleMapsUrl(waypoints)+'" target="_blank" style="margin-left:auto;background:rgba(255,255,255,.18);'
-    +'border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:7px 14px;font-size:11px;font-weight:700;color:#fff;text-decoration:none;white-space:nowrap;">Open in Google Maps &#8599;</a>'
+  var html = departCard
+    +'<div style="background:#1a2b8c;border-radius:12px;padding:12px 14px;color:#fff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+    +'<span style="font-size:20px;">'+modeIcon+'</span>'
+    +'<div style="flex:1;min-width:0;"><p style="margin:0;font-size:16px;font-weight:800;">'+fmtTime(totalSecs)+'</p>'
+    +'<p style="margin:0;font-size:11px;opacity:.8;">'+fmtDist(totalDist)+' · '+waypoints.length+' stops</p></div>'
+    +'<a href="'+buildGoogleMapsUrl(waypoints)+'" target="_blank" style="background:rgba(255,255,255,.18);'
+    +'border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 10px;font-size:10px;font-weight:700;color:#fff;text-decoration:none;white-space:nowrap;flex-shrink:0;">Maps &#8599;</a>'
     +'</div>';
+
   // Per-leg rows
   legs.forEach(function(leg, i) {
     var from = waypoints[i]   ? waypoints[i].name   : 'Stop '+(i+1);
     var to   = waypoints[i+1] ? waypoints[i+1].name : 'Stop '+(i+2);
+    // Compute per-leg times if arrive-by is set
+    var legTimeNote = '';
+    if (arriveByVal) {
+      // Work backwards: last leg arrives at arriveByVal, each prior leg departs accordingly
+      var secsToEnd = 0;
+      for (var j = i; j < legs.length; j++) secsToEnd += legs[j].duration;
+      var legArriveMs = new Date(arriveByVal).getTime() - (totalSecs - secsToEnd) * 1000 + leg.duration * 1000;
+      var legDepartMs = legArriveMs - leg.duration * 1000;
+      var legDepart = new Date(legDepartMs);
+      var legArrive = new Date(legArriveMs);
+      var fmt = function(d){ return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); };
+      legTimeNote = '<p style="margin:2px 0 0;font-size:10px;color:#6b7280;">'+fmt(legDepart)+' → '+fmt(legArrive)+'</p>';
+    }
     var fromColor = i === 0 ? '#16a34a' : '#3b82f6';
     html += '<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f3f4f6;">'
       +'<div style="display:flex;flex-direction:column;align-items:center;padding-top:3px;gap:3px;flex-shrink:0;">'
@@ -7894,6 +7943,7 @@ function renderRouteSummary(route, waypoints) {
       +'<p style="margin:0 0 1px;font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+from+'</p>'
       +'<p style="margin:0 0 3px;font-size:11px;color:#9ca3af;">↓</p>'
       +'<p style="margin:0;font-size:12px;color:#374151;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+to+'</p>'
+      +legTimeNote
       +'</div>'
       +'<div style="text-align:right;flex-shrink:0;">'
       +'<p style="margin:0;font-size:14px;font-weight:800;color:#111827;">'+fmtTime(leg.duration)+'</p>'
