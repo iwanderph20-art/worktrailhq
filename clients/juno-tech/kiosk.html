@@ -3640,10 +3640,12 @@ var _manualMode = 'single'; // 'single' or 'shift'
 var _manualSaving = false;  // double-submit guard
 var MANUAL_SPLIT_EMPS = ['Krys Ellis', 'Enrique Blanco'];
 function updateManualSplitVisibility() {
-  var emp = document.getElementById('manualEmpName').value;
-  var isShift = _manualMode === 'shift';
+  var emp = (document.getElementById('manualEmpName') || {}).value || '';
+  var shiftVisible = (document.getElementById('manualShiftFields') || {}).style;
+  var isShift = shiftVisible && shiftVisible.display !== 'none';
   var show = isShift && MANUAL_SPLIT_EMPS.indexOf(emp) >= 0;
-  document.getElementById('manualSplitRow').style.display = show ? '' : 'none';
+  var row = document.getElementById('manualSplitRow');
+  if (row) row.style.display = show ? '' : 'none';
 }
 function setManualMode(mode) {
   _manualMode = mode;
