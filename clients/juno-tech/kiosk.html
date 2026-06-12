@@ -986,8 +986,13 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
       <div id="ppWageFields">
         <div>
-          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Hourly Rate (USD)</p>
-          <input id="ppRate" type="number" min="0" step="0.01" placeholder="e.g. 18.50" class="inp inp-dk w-full">
+          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Draw Rate — Active Work (USD/hr)</p>
+          <input id="ppRate" type="number" min="0" step="0.01" placeholder="e.g. 24.00" class="inp inp-dk w-full">
+        </div>
+        <div style="margin-top:10px;">
+          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Travel Rate — Non-Productive Time (USD/hr)</p>
+          <input id="ppTravelRate" type="number" min="16.50" step="0.01" placeholder="16.50 (CA minimum)" class="inp inp-dk w-full">
+          <p class="text-xs mt-1" style="color:#9ca3af;">Must be ≥ $16.50/hr (CA minimum wage). Applies to travel to/from facility.</p>
         </div>
       </div>
       <div id="ppTaxFields">
@@ -1060,7 +1065,7 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div class="space-y-3">
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Type</label>
-        <select id="editType" class="inp w-full mt-1" style="color:#111827;" onchange="document.getElementById('editMileageRow').style.display=(this.value==='in'||this.value==='out')?'':'none';">
+        <select id="editType" class="inp w-full mt-1" style="color:#111827;" onchange="document.getElementById('editMileageRow').style.display=(this.value==='in'||this.value==='out')?'':'none';document.getElementById('editTimeSplitRow').style.display=(this.value==='in')?'':'none';">
           <option value="in">Clock In</option>
           <option value="out">Clock Out</option>
           <option value="break_start">Break Start</option>
@@ -1082,6 +1087,22 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="document.getElementById('editMileage').value=''" class="tap px-3 py-2 rounded-xl text-xs font-semibold" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;white-space:nowrap;">Clear Miles</button>
         </div>
         <p class="text-xs mt-1" style="color:#9ca3af;">Leave blank or clear to remove mileage from this entry.</p>
+      </div>
+      <!-- Travel / Draw time split — only shown on clock-in entries for phlebotomists -->
+      <div id="editTimeSplitRow" style="display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px;">
+        <p class="text-xs font-bold mb-1" style="color:#1a2b8c;">&#9201; Time Split (Admin)</p>
+        <p class="text-xs mb-3" style="color:#6b7280;">Enter how much of this shift was travel vs. draw time. Leave blank to count all hours at draw rate.</p>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;">
+            <label class="text-xs font-semibold" style="color:#6b7280;">Travel Hours</label>
+            <input id="editTravelHours" type="number" step="0.25" min="0" placeholder="e.g. 1.0" class="inp mt-1" style="color:#111827;width:100%;">
+          </div>
+          <div style="flex:1;">
+            <label class="text-xs font-semibold" style="color:#6b7280;">Draw Hours</label>
+            <input id="editDrawHours" type="number" step="0.25" min="0" placeholder="e.g. 6.0" class="inp mt-1" style="color:#111827;width:100%;">
+          </div>
+        </div>
+        <p id="editTimeSplitNote" class="text-xs mt-2" style="color:#9ca3af;">Total must equal shift duration once clocked out.</p>
       </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Employee Photo</label>
@@ -1132,7 +1153,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Employee</label>
-        <select id="manualEmpName" class="inp w-full mt-1" style="color:#111827;">
+        <select id="manualEmpName" class="inp w-full mt-1" style="color:#111827;" onchange="updateManualSplitVisibility()">
           <option value="">— Select employee —</option>
         </select>
       </div>
@@ -1169,6 +1190,21 @@ video{object-fit:cover;transform:scaleX(-1);}
           <select id="manualFacility" class="inp w-full mt-1" style="color:#111827;">
             <option value="">— Select facility —</option>
           </select>
+        </div>
+        <!-- Travel / Draw split — only shown for split-rate employees -->
+        <div id="manualSplitRow" style="display:none;margin-top:10px;">
+          <p class="text-xs font-semibold" style="color:#6b7280;margin-bottom:4px;">Hours Split <span style="font-weight:400;color:#9ca3af;">(optional)</span></p>
+          <p class="text-xs" style="color:#6b7280;margin-bottom:6px;">Enter draw vs. travel hours. Leave blank to count all hours as draw time.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label class="text-xs font-semibold" style="color:#6b7280;">Draw Hours</label>
+              <input id="manualDrawHours" type="number" min="0" step="0.25" placeholder="e.g. 6" class="inp w-full mt-1" style="color:#111827;">
+            </div>
+            <div>
+              <label class="text-xs font-semibold" style="color:#6b7280;">Travel Hours</label>
+              <input id="manualTravelHours" type="number" min="0" step="0.25" placeholder="e.g. 2" class="inp w-full mt-1" style="color:#111827;">
+            </div>
+          </div>
         </div>
       </div>
       <div>
@@ -3421,6 +3457,13 @@ function openEditEntry(ts) {
   var hasMileageField = (entry.type === 'in' || entry.type === 'out');
   document.getElementById('editMileageRow').style.display = hasMileageField ? '' : 'none';
   document.getElementById('editMileage').value = (hasMileageField && entry.mileage != null) ? entry.mileage : '';
+  // Show time split section only on clock-in entries for Krys Ellis and Enrique Blanco
+  var SPLIT_EMPS = ['Krys Ellis', 'Enrique Blanco'];
+  var isClockIn = (entry.type === 'in');
+  var showSplit = isClockIn && SPLIT_EMPS.indexOf(entry.name) >= 0;
+  document.getElementById('editTimeSplitRow').style.display = showSplit ? '' : 'none';
+  document.getElementById('editTravelHours').value = (showSplit && entry.travelHours != null) ? entry.travelHours : '';
+  document.getElementById('editDrawHours').value   = (showSplit && entry.drawHours   != null) ? entry.drawHours   : '';
   // Load facilities
   var storedFacs = entry.facilities || [];
   var knownFacs = storedFacs.filter(function(f){ return FACILITIES.indexOf(f) >= 0; });
@@ -3519,6 +3562,12 @@ function saveEditEntry() {
       if (r.type === 'in' || r.type === 'out') {
         r.mileage = (newMileage !== null && !isNaN(newMileage)) ? newMileage : null;
       }
+      if (r.type === 'in') {
+        var tRaw = document.getElementById('editTravelHours').value.trim();
+        var dRaw = document.getElementById('editDrawHours').value.trim();
+        r.travelHours = tRaw !== '' ? (parseFloat(tRaw) || 0) : null;
+        r.drawHours   = dRaw !== '' ? (parseFloat(dRaw) || 0) : null;
+      }
       if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately under admin_{ts}; never overwrites employee photo
       // Save updated facilities
       var facList = editSelectedFacilities.filter(function(f){ return f !== 'Others'; });
@@ -3589,6 +3638,13 @@ function saveEditEntry() {
 /* ── Manual Log Entry ────────────────────── */
 var _manualMode = 'single'; // 'single' or 'shift'
 var _manualSaving = false;  // double-submit guard
+var MANUAL_SPLIT_EMPS = ['Krys Ellis', 'Enrique Blanco'];
+function updateManualSplitVisibility() {
+  var emp = document.getElementById('manualEmpName').value;
+  var isShift = _manualMode === 'shift';
+  var show = isShift && MANUAL_SPLIT_EMPS.indexOf(emp) >= 0;
+  document.getElementById('manualSplitRow').style.display = show ? '' : 'none';
+}
 function setManualMode(mode) {
   _manualMode = mode;
   var isSingle = mode === 'single';
@@ -3601,6 +3657,7 @@ function setManualMode(mode) {
   btnSingle.style.color      = isSingle ? '#fff' : '#6b7280';
   btnShift.style.background  = isSingle ? 'transparent' : '#1a2b8c';
   btnShift.style.color       = isSingle ? '#6b7280' : '#fff';
+  updateManualSplitVisibility();
 }
 function openManualEntry() {
   // Populate employee dropdown
@@ -3639,6 +3696,8 @@ function openManualEntry() {
   document.getElementById('manualOutDatetime').value = localOut;
   document.getElementById('manualNote').value = '';
   document.getElementById('manualType').value = 'in';
+  document.getElementById('manualDrawHours').value = '';
+  document.getElementById('manualTravelHours').value = '';
   setManualMode('single');
   document.getElementById('manualEntryWrap').style.display = 'flex';
 }
@@ -3776,11 +3835,17 @@ function saveManualEntry() {
       facilities: facList, hasPhoto: !!manualPhotoUrl
     };
     if (manualPhotoUrl) inEntry.photo = manualPhotoUrl;
+    var drawRaw   = document.getElementById('manualDrawHours').value.trim();
+    var travelRaw = document.getElementById('manualTravelHours').value.trim();
     var outEntry = {
       ts: makeUniqueTs(outTs, arr), name: empName, type: 'out', note: note,
       manualEntry: true, addedBy: 'admin', addedAt: addedAt,
       facilities: facList, hasPhoto: false
     };
+    if (MANUAL_SPLIT_EMPS.indexOf(empName) >= 0 && (drawRaw !== '' || travelRaw !== '')) {
+      outEntry.drawHours   = drawRaw   !== '' ? (parseFloat(drawRaw)   || 0) : null;
+      outEntry.travelHours = travelRaw !== '' ? (parseFloat(travelRaw) || 0) : null;
+    }
     arr.push(inEntry);
     arr.push(outEntry);
     store.setJ(K.timesheet, arr);
@@ -6827,7 +6892,7 @@ function calcCAWithholding(annualGross, filing, allowances) {
   return Math.max(0, annualTax);
 }
 
-function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats) {
+function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats, totalTravelHours, totalDrawHours, hasSplit) {
   var profile = emp.payProfile || {};
   // Fall back to the dedicated pay-profile backup key if the main profile was wiped by a sync/re-seed
   if (!profile.hourlyRate && !profile.weeklyRate) {
@@ -6882,8 +6947,19 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
 
   if (!rate) return {empName: emp.name, noProfile: true, grossWages: 0, totalMiles: totalMiles, netPay: 0};
 
+  var travelRate = parseFloat(profile.travelRate) || 16.50;
+  if (travelRate < 16.50) travelRate = 16.50;
+
   hoursWorked = r2(hoursWorked);
-  var grossWages      = r2(hoursWorked * rate);
+
+  // Use admin-entered split if available; otherwise all hours are draw time
+  var drawHrs   = r2(hasSplit ? (totalDrawHours   || 0) : hoursWorked);
+  var travelHrs = r2(hasSplit ? (totalTravelHours || 0) : 0);
+
+  var drawWages   = r2(drawHrs   * rate);
+  var travelWages = r2(travelHrs * travelRate);
+  var grossWages  = r2(drawWages + travelWages);
+
   var fica            = r2(grossWages * 0.062);
   var medicare        = r2(grossWages * 0.0145);
   var fedWith         = r2(grossWages * 0.08);
@@ -6894,7 +6970,10 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
 
   return {
     empName: emp.name, role: 'phlebotomist',
-    hoursWorked: hoursWorked, hourlyRate: rate, grossWages: grossWages,
+    hoursWorked: hoursWorked, hourlyRate: rate, travelRate: travelRate,
+    drawHours: drawHrs, travelHours: travelHrs, hasSplit: !!hasSplit,
+    drawWages: drawWages, travelWages: travelWages,
+    grossWages: grossWages,
     fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
     totalDeductions: totalDeductions,
     totalMiles: totalMiles, mileageReimb: mileageReimb,
@@ -6999,7 +7078,11 @@ function renderPaycheck(result, fromStr, toStr) {
     +header
     +(result.role === 'logistics'
     ? '<div class="paycheck-row"><span>Fixed Weekly Rate</span><span>'+fmt$(result.weeklyRate)+'/wk</span></div>'
-    : '<div class="paycheck-row"><span>Hours Worked</span><span>'+fmtHrs(result.hoursWorked)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+    : (result.hasSplit
+      ? '<div class="paycheck-row"><span>Draw Time</span><span>'+fmtHrs(result.drawHours)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+        +'<div class="paycheck-row"><span>Travel Time</span><span>'+fmtHrs(result.travelHours)+' @ '+fmt$(result.travelRate)+'/hr</span></div>'
+      : '<div class="paycheck-row"><span>Hours Worked</span><span>'+fmtHrs(result.hoursWorked)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
+    )
   )
     +sessBreakdown
     +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
@@ -7126,7 +7209,9 @@ function runPayroll() {
       if (e.type === 'in') {
         var facs = e.facilities || [];
         var nonLab = facs.filter(function(f){ return f !== 'Juno Tech Lab'; });
-        cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1};
+        cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1,
+               travelHours: e.travelHours != null ? e.travelHours : null,
+               drawHours:   e.drawHours   != null ? e.drawHours   : null};
         sessions.push(cur);
       }
       if (e.type === 'out' && cur) {
@@ -7138,11 +7223,20 @@ function runPayroll() {
       }
     });
 
-    var totalHours = 0, totalMiles = 0, totalMileageReimb = 0, mileageDetails = [];
+    var totalHours = 0, totalTravelHours = 0, totalDrawHours = 0, hasSplit = false;
+    var totalMiles = 0, totalMileageReimb = 0, mileageDetails = [];
     sessions.forEach(function(s) {
       if (s.inTs && s.outTs) {
         var hrs = (s.outTs - s.inTs) / 3600000;
         totalHours += hrs;
+        if (s.travelHours != null || s.drawHours != null) {
+          hasSplit = true;
+          totalTravelHours += s.travelHours || 0;
+          totalDrawHours   += s.drawHours   || 0;
+        } else {
+          // No split entered — all hours count as draw time
+          totalDrawHours += hrs;
+        }
       }
       var mi = parseFloat(s.mileage) || 0;
       totalMiles += mi;
@@ -7156,7 +7250,9 @@ function runPayroll() {
         });
       }
     });
-    return {totalHours: totalHours, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb, mileageDetails: mileageDetails, sessions: sessions};
+    return {totalHours: totalHours, totalTravelHours: totalTravelHours, totalDrawHours: totalDrawHours,
+            hasSplit: hasSplit, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb,
+            mileageDetails: mileageDetails, sessions: sessions};
   }
 
   var allResults = [];
@@ -7164,7 +7260,7 @@ function runPayroll() {
 
   emps.forEach(function(emp) {
     var stats = buildSessMap(emp.name);
-    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays, stats);
+    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays, stats, stats.totalTravelHours, stats.totalDrawHours, stats.hasSplit);
     if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
     allResults.push(result);
     empCards += renderPaycheck(result, periodLabel, '');
@@ -7334,7 +7430,7 @@ function printPayroll() {
       +'</div>'
       // Table
       +'<table style="width:100%;border-collapse:collapse;">'
-      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+(r.role==='logistics' ? 'Fixed Weekly Rate: $'+(r.weeklyRate||0).toFixed(2)+'/wk' : fmtHrs(r.hoursWorked)+' worked @ $'+(r.hourlyRate||0).toFixed(2)+'/hr')+'</td></tr>'
+      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+(r.role==='logistics' ? 'Fixed Weekly Rate: $'+(r.weeklyRate||0).toFixed(2)+'/wk' : (r.hasSplit ? 'Draw: '+fmtHrs(r.drawHours)+' @ $'+(r.hourlyRate||0).toFixed(2)+'/hr  |  Travel: '+fmtHrs(r.travelHours)+' @ $'+(r.travelRate||16.50).toFixed(2)+'/hr' : fmtHrs(r.hoursWorked)+' worked @ $'+(r.hourlyRate||0).toFixed(2)+'/hr'))+'</td></tr>'
       // Shift detail rows
       +(function(){
         var _mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -7457,14 +7553,19 @@ function openPayProfile(empName) {
   if (!emp) return;
   var profile = emp.payProfile || {};
   var role = emp.role || 'phlebotomist';
+  var SPLIT_EMPS = ['Krys Ellis', 'Enrique Blanco'];
   document.getElementById('ppEmpName').textContent = empName;
   document.getElementById('ppRole').value        = role;
   document.getElementById('ppRate').value        = profile.hourlyRate || '';
+  document.getElementById('ppTravelRate').value  = profile.travelRate || '';
   document.getElementById('ppWeeklyRate').value  = profile.weeklyRate || '';
   document.getElementById('ppFiling').value      = profile.filingStatus || 'single';
   document.getElementById('ppFedEx').value   = profile.fedAllowances || '';
   document.getElementById('ppStateEx').value = profile.caAllowances || '';
   document.getElementById('ppMileage').value = profile.mileageRate || '';
+  // Only show travel rate field for the two phlebotomists on the two-rate plan
+  var travelRateWrap = document.getElementById('ppTravelRate').closest('div');
+  if (travelRateWrap) travelRateWrap.style.display = (SPLIT_EMPS.indexOf(empName) >= 0) ? '' : 'none';
   togglePayProfileFields();
   document.getElementById('payProfileModal').classList.add('open');
 }
@@ -7477,8 +7578,11 @@ function savePayProfile() {
   if (!emp) return;
   var role = document.getElementById('ppRole').value || 'phlebotomist';
   emp.role = role;
+  var rawTravelRate = parseFloat(document.getElementById('ppTravelRate').value) || 16.50;
+  if (rawTravelRate < 16.50) rawTravelRate = 16.50;
   emp.payProfile = {
     hourlyRate:    (role === 'courier' || role === 'logistics') ? 0 : (parseFloat(document.getElementById('ppRate').value) || 0),
+    travelRate:    (role === 'phlebotomist') ? rawTravelRate : 0,
     weeklyRate:    role === 'logistics' ? (parseFloat(document.getElementById('ppWeeklyRate').value) || 0) : 0,
     filingStatus:  document.getElementById('ppFiling').value || 'single',
     fedAllowances: parseInt(document.getElementById('ppFedEx').value) || 0,
