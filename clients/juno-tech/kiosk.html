@@ -1153,7 +1153,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Employee</label>
-        <select id="manualEmpName" class="inp w-full mt-1" style="color:#111827;">
+        <select id="manualEmpName" class="inp w-full mt-1" style="color:#111827;" onchange="updateManualSplitVisibility()">
           <option value="">— Select employee —</option>
         </select>
       </div>
@@ -3645,12 +3645,17 @@ function saveEditEntry() {
 var _manualMode = 'single'; // 'single' or 'shift'
 var _manualSaving = false;  // double-submit guard
 var MANUAL_SPLIT_EMPS = ['Krys Ellis', 'Enrique Blanco'];
+function updateManualSplitVisibility() {
+  var emp = document.getElementById('manualEmpName').value;
+  var show = _manualMode === 'shift' && MANUAL_SPLIT_EMPS.indexOf(emp) >= 0;
+  document.getElementById('manualSplitRow').style.display = show ? '' : 'none';
+}
 function setManualMode(mode) {
   _manualMode = mode;
   var isSingle = mode === 'single';
   document.getElementById('manualSingleFields').style.display = isSingle ? '' : 'none';
   document.getElementById('manualShiftFields').style.display  = isSingle ? 'none' : '';
-  document.getElementById('manualSplitRow').style.display     = isSingle ? 'none' : '';
+  updateManualSplitVisibility();
   document.getElementById('manualSaveBtn').textContent = isSingle ? 'Add Entry' : 'Add Clock In + Clock Out';
   var btnSingle = document.getElementById('manualModeSingle');
   var btnShift  = document.getElementById('manualModeShift');
