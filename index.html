@@ -270,6 +270,94 @@
       color: rgba(10,10,18,0.5);
     }
 
+    /* ── Human vs AI ────────────────────────────────────── */
+    .human-section {
+      background: #FFFFFF;
+      padding: 112px 48px;
+    }
+    .compare-grid {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      margin-bottom: 64px;
+    }
+    .compare-card {
+      flex: 1;
+      border-radius: 16px;
+      padding: 36px 32px;
+    }
+    .compare-bad {
+      background: #FFF5F5;
+      border: 1.5px solid #FECACA;
+    }
+    .compare-good {
+      background: #F0FDF4;
+      border: 1.5px solid #BBF7D0;
+    }
+    .compare-label {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: #0A0A12;
+    }
+    .compare-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .compare-list li {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: rgba(10,10,18,0.65);
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(10,10,18,0.06);
+    }
+    .compare-list li:last-child { border-bottom: none; }
+    .compare-bad .compare-list li::before { content: '✗ '; color: #EF4444; font-weight: 700; }
+    .compare-good .compare-list li::before { content: '✓ '; color: #16a34a; font-weight: 700; }
+    .compare-vs {
+      width: 60px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: rgba(10,10,18,0.2);
+      letter-spacing: 0.1em;
+      padding-top: 120px;
+    }
+    .human-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      background: rgba(10,10,18,0.06);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .stat-card {
+      background: #09090F;
+      padding: 36px 32px;
+    }
+    .stat-num {
+      font-size: 42px;
+      font-weight: 800;
+      color: #818CF8;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+    }
+    .stat-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.6;
+    }
+    @media (max-width: 768px) {
+      .compare-grid { flex-direction: column; gap: 16px; }
+      .compare-vs { width: 100%; padding-top: 0; }
+      .human-stats { grid-template-columns: 1fr; }
+      .human-section { padding: 72px 20px; }
+    }
+
     /* ── CTA Strip ───────────────────────────────────────── */
     .cta-strip {
       background: #09090F;
@@ -352,14 +440,14 @@
 <section class="hero">
   <p class="hero-eyebrow">WorkTrail HQ</p>
   <h1 class="hero-headline">
-    Never Miss a Lead.<br>
-    <span>Never Lose a Client.</span>
+    Real People. Real Conversations.<br>
+    <span>Real Results.</span>
   </h1>
   <p class="hero-headline" style="font-size: clamp(22px, 3.5vw, 42px); margin-bottom: 24px; color: rgba(255,255,255,0.55); font-weight: 300; letter-spacing: -0.01em;">
-    Your Virtual Front Desk. Always On.
+    Not a bot. Never a recording. Always a human.
   </p>
   <p class="hero-sub">
-    We provide US businesses with dedicated, trained virtual intake agents who answer every call, book appointments, and capture every lead — in your business name, in under 60 seconds.
+    We staff your front desk with experienced, call-trained human agents who answer in your business name, make callers feel heard, and turn inquiries into booked appointments — in under 60 seconds.
   </p>
   <div class="hero-ctas">
     <a href="mailto:admin@worktrailhq.com" class="cta-explore">Book a Free 15-Min Call</a>
@@ -374,7 +462,7 @@
 <section id="solutions" class="solutions">
   <div class="solutions-inner">
     <p class="section-label">What We Do</p>
-    <h2 class="section-heading">Every lead captured. Every call answered.</h2>
+    <h2 class="section-heading">Experienced humans. Every call. Every time.</h2>
     <div class="solutions-grid">
 
       <div class="solution-card">
@@ -384,9 +472,9 @@
               d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
           </svg>
         </div>
-        <h3 class="solution-title">Every Call Answered</h3>
+        <h3 class="solution-title">A Real Human Answers — Every Time</h3>
         <p class="solution-desc">
-          Your dedicated agent answers in your business name, follows your script, and never lets a potential client go to voicemail — not during lunch, not after hours, not ever.
+          No bots. No recordings. No "press 1." Your dedicated, call-trained agent picks up in your business name within 60 seconds — and makes every caller feel like your most important client.
         </p>
       </div>
 
@@ -397,9 +485,9 @@
               d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
         </div>
-        <h3 class="solution-title">Leads Booked Instantly</h3>
+        <h3 class="solution-title">Trained for Your Industry</h3>
         <p class="solution-desc">
-          From first call to confirmed appointment — your agent qualifies the lead and books directly into your calendar in real time. No back-and-forth, no dropped balls.
+          Our agents aren't generic. They're trained on your intake script, your practice area, and your tone. They ask the right questions, handle objections with empathy, and book directly into your calendar.
         </p>
       </div>
 
@@ -410,13 +498,71 @@
               d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
           </svg>
         </div>
-        <h3 class="solution-title">Zero Leakage Guaranteed</h3>
+        <h3 class="solution-title">Zero Leakage. Full Visibility.</h3>
         <p class="solution-desc">
-          Every call, chat, and inquiry is logged and reported weekly. You'll know exactly how many leads came in, how many were captured, and how many turned into booked appointments.
+          Every call logged, every lead tracked, every booking confirmed. You get a weekly report showing exactly what came in and what was captured — so you always know your ROI.
         </p>
       </div>
 
     </div>
+  </div>
+</section>
+
+<!-- ── Human vs AI Section ───────────────────────────────── -->
+<section class="human-section">
+  <div class="solutions-inner">
+    <p class="section-label">Why It Matters</p>
+    <h2 class="section-heading">In the age of AI, humans still win the client.</h2>
+    <p style="font-size:15px;color:rgba(10,10,18,0.5);max-width:600px;line-height:1.7;margin-bottom:56px;">
+      Automation is everywhere. But when someone calls about a legal case, a medical concern, or a home emergency — they don't want a bot. They want to feel heard. That's exactly what our agents deliver.
+    </p>
+    <div class="compare-grid">
+
+      <div class="compare-card compare-bad">
+        <div class="compare-label">🤖 Chatbot / AI Answering</div>
+        <ul class="compare-list">
+          <li>Robotic, scripted responses</li>
+          <li>"Press 1 for sales, press 2 for support…"</li>
+          <li>Can't handle emotion or urgency</li>
+          <li>Callers hang up and call a competitor</li>
+          <li>No judgment — misses context completely</li>
+          <li>Feels impersonal — damages your brand</li>
+          <li>Callers feel like a ticket, not a person</li>
+        </ul>
+      </div>
+
+      <div class="compare-vs">VS</div>
+
+      <div class="compare-card compare-good">
+        <div class="compare-label">✅ WorkTrail HQ Human Agent</div>
+        <ul class="compare-list">
+          <li>Warm, professional, empathetic tone</li>
+          <li>Answers in your business name instantly</li>
+          <li>Trained to handle urgency and emotion</li>
+          <li>Callers feel heard — and stay on the line</li>
+          <li>Exercises real judgment on every call</li>
+          <li>Represents your brand with professionalism</li>
+          <li>Callers feel valued — and book appointments</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="human-stats">
+      <div class="stat-card">
+        <div class="stat-num">78%</div>
+        <div class="stat-label">of callers who reach a live person are more likely to do business with that company</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">67%</div>
+        <div class="stat-label">of customers hang up on automated systems and never call back</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">5 min</div>
+        <div class="stat-label">is all it takes for a lead to go cold — our agents respond in under 60 seconds</div>
+      </div>
+    </div>
+
   </div>
 </section>
 
