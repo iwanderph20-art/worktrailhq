@@ -2950,6 +2950,17 @@ var TYPE_CLS   = {in:'tb-in',out:'tb-out',break_start:'tb-brk',break_end:'tb-brk
 
 function _renderTablesImpl() {
   var ts   = store.getJ(K.timesheet,[]).slice();
+  // Merge jtl_approvals cache into entries so approved/denied status is always current,
+  // even when the approval happened on a different device or before a cloud sync.
+  var _localApprovals = store.getJ('jtl_approvals', {});
+  ts.forEach(function(e) {
+    if (e.type !== 'in') return;
+    var a = _localApprovals[String(e.ts)];
+    if (a && (a.status === 'approved' || a.status === 'denied') && e.approval !== a.status) {
+      e.approval = a.status;
+      if (a.status === 'approved' && a.updatedAt) e.approvedAt = a.updatedAt;
+    }
+  });
   var sups = store.getJ(K.supplies,[]).slice().reverse();
 
   var byDate={};
