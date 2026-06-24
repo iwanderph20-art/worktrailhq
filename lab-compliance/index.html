@@ -494,50 +494,24 @@
 
         <div id="no-state-warning" class="no-state-note">Select a state on the left to activate claim validation.</div>
 
-        <div class="form-row">
-          <div>
-            <label class="field-label">CPT Procedure Code</label>
-            <div class="input-group">
-              <input class="code-input" id="cpt-input" type="text" placeholder="e.g. 80048" maxlength="6" autocomplete="off">
-              <select class="quick-select" onchange="if(this.value){document.getElementById('cpt-input').value=this.value;this.value=''}">
-                <option value="">Quick pick</option>
-                <option value="80048">80048 – Basic Metabolic Panel</option>
-                <option value="80053">80053 – Comp. Metabolic Panel</option>
-                <option value="85025">85025 – CBC with Differential</option>
-                <option value="82962">82962 – Blood Glucose</option>
-                <option value="83036">83036 – Hemoglobin A1c</option>
-                <option value="84443">84443 – TSH</option>
-                <option value="87491">87491 – Chlamydia NAA</option>
-                <option value="81001">81001 – Urinalysis w/ Microscopy</option>
-              </select>
-            </div>
-            <p class="field-error" id="cpt-error" style="display:none"></p>
-          </div>
-          <div>
-            <label class="field-label">ICD-10 Diagnosis Code</label>
-            <div class="input-group">
-              <input class="code-input" id="icd10-input" type="text" placeholder="e.g. E11.9" maxlength="8" autocomplete="off">
-              <select class="quick-select" onchange="if(this.value){document.getElementById('icd10-input').value=this.value;this.value=''}">
-                <option value="">Quick pick</option>
-                <option value="E11.9">E11.9 – Type 2 Diabetes</option>
-                <option value="I10">I10 – Essential Hypertension</option>
-                <option value="N18.3">N18.3 – CKD Stage 3</option>
-                <option value="E03.9">E03.9 – Hypothyroidism</option>
-                <option value="D64.9">D64.9 – Anemia, unspecified</option>
-                <option value="K74.60">K74.60 – Unspecified Cirrhosis</option>
-                <option value="Z00.00">Z00.00 – Routine General Exam</option>
-                <option value="Z11.3">Z11.3 – STI Screening</option>
-              </select>
-            </div>
-            <p class="field-error" id="icd10-error" style="display:none"></p>
-          </div>
+        <!-- Claims table header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <p style="font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.3);">Claim Lines</p>
+          <button onclick="addClaimRow()" id="add-row-btn" disabled
+            style="font-size:11px;font-weight:600;color:#818CF8;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.2);padding:5px 14px;border-radius:8px;cursor:pointer;transition:background 0.18s;"
+            onmouseover="if(!this.disabled)this.style.background='rgba(129,140,248,0.18)'" onmouseout="this.style.background='rgba(129,140,248,0.1)'">
+            + Add Claim Line
+          </button>
         </div>
+
+        <!-- Claim rows container -->
+        <div id="claim-rows" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
 
         <button class="validate-btn" id="validate-btn" onclick="submitValidation()" disabled>
           Select a state to validate
         </button>
 
-        <div id="result-container"></div>
+        <div id="result-container" style="margin-top:16px;display:flex;flex-direction:column;gap:10px;"></div>
       </div>
 
       <!-- Compliance Guide Tab -->
@@ -721,8 +695,9 @@ function onStateChange(val) {
     document.getElementById('mac-region').textContent = info.region;
     infoEl.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Validate Claim';
+    btn.textContent = 'Validate All Claims';
     warning.style.display = 'none';
+    document.getElementById('add-row-btn').disabled = false;
 
     const policyRef = MAC_POLICY[info.mac] || '—';
     document.getElementById('mac-policy-ref').textContent = policyRef;
@@ -732,6 +707,7 @@ function onStateChange(val) {
     btn.disabled = true;
     btn.textContent = 'Select a state to validate';
     warning.style.display = 'block';
+    document.getElementById('add-row-btn').disabled = true;
     document.getElementById('mac-policy-row').style.display = 'none';
   }
 }
@@ -744,57 +720,149 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
 }
 
+// ── Claim Rows ────────────────────────────────────────────────────────────────
+const CPT_OPTIONS = [
+  ['80048','80048 – Basic Metabolic Panel'],['80053','80053 – Comp. Metabolic Panel'],
+  ['85025','85025 – CBC with Differential'],['82962','82962 – Blood Glucose'],
+  ['83036','83036 – Hemoglobin A1c'],['84443','84443 – TSH'],
+  ['87491','87491 – Chlamydia NAA'],['81001','81001 – Urinalysis w/ Microscopy'],
+];
+const ICD10_OPTIONS = [
+  ['E11.9','E11.9 – Type 2 Diabetes'],['I10','I10 – Essential Hypertension'],
+  ['N18.3','N18.3 – CKD Stage 3'],['E03.9','E03.9 – Hypothyroidism'],
+  ['D64.9','D64.9 – Anemia, unspecified'],['K74.60','K74.60 – Unspecified Cirrhosis'],
+  ['Z00.00','Z00.00 – Routine General Exam'],['Z11.3','Z11.3 – STI Screening'],
+];
+
+let rowCounter = 0;
+
+function buildSelectOptions(opts) {
+  return '<option value="">Quick pick</option>' + opts.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+}
+
+function addClaimRow(cptVal='', icd10Val='') {
+  const id = ++rowCounter;
+  const container = document.getElementById('claim-rows');
+  const div = document.createElement('div');
+  div.id = `row-${id}`;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:start;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 16px;';
+  div.innerHTML = `
+    <div>
+      <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.3);display:block;margin-bottom:6px;">CPT Code</label>
+      <div style="display:flex;gap:6px;">
+        <input id="cpt-${id}" type="text" placeholder="e.g. 80048" maxlength="6" autocomplete="off"
+          value="${esc(cptVal)}"
+          oninput="this.value=this.value.toUpperCase()"
+          style="flex:1;font-family:monospace;font-size:14px;font-weight:600;padding:9px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;outline:none;letter-spacing:0.04em;"
+          onfocus="this.style.borderColor='#818CF8'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+        <select onchange="if(this.value){document.getElementById('cpt-${id}').value=this.value;this.value=''}"
+          style="font-size:11px;padding:0 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.5);cursor:pointer;font-family:inherit;outline:none;">
+          ${buildSelectOptions(CPT_OPTIONS)}
+        </select>
+      </div>
+      <p id="cpt-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
+    </div>
+    <div>
+      <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.3);display:block;margin-bottom:6px;">ICD-10 Code</label>
+      <div style="display:flex;gap:6px;">
+        <input id="icd10-${id}" type="text" placeholder="e.g. E11.9" maxlength="8" autocomplete="off"
+          value="${esc(icd10Val)}"
+          oninput="this.value=this.value.toUpperCase()"
+          style="flex:1;font-family:monospace;font-size:14px;font-weight:600;padding:9px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;outline:none;letter-spacing:0.04em;"
+          onfocus="this.style.borderColor='#818CF8'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+        <select onchange="if(this.value){document.getElementById('icd10-${id}').value=this.value;this.value=''}"
+          style="font-size:11px;padding:0 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.5);cursor:pointer;font-family:inherit;outline:none;">
+          ${buildSelectOptions(ICD10_OPTIONS)}
+        </select>
+      </div>
+      <p id="icd10-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
+    </div>
+    <div style="padding-top:24px;">
+      ${container.children.length > 0
+        ? `<button onclick="removeRow(${id})" title="Remove"
+            style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.08);color:#F87171;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;"
+            onmouseover="this.style.background='rgba(239,68,68,0.18)'" onmouseout="this.style.background='rgba(239,68,68,0.08)'">×</button>`
+        : '<div style="width:32px;"></div>'}
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function removeRow(id) {
+  const el = document.getElementById(`row-${id}`);
+  if (el) el.remove();
+  // Ensure at least one row always exists
+  if (document.getElementById('claim-rows').children.length === 0) addClaimRow();
+}
+
 // ── Validation ────────────────────────────────────────────────────────────────
 function isValidCPT(c) { return /^\d{5}[A-Z]?$/.test(c.trim().toUpperCase()); }
 function isValidICD10(c) { return /^[A-Z]\d{2}(\.[A-Z0-9]{1,4})?$/.test(c.trim().toUpperCase()); }
 
 async function submitValidation() {
-  const cptEl = document.getElementById('cpt-input');
-  const icd10El = document.getElementById('icd10-input');
-  const cptErrEl = document.getElementById('cpt-error');
-  const icd10ErrEl = document.getElementById('icd10-error');
-
-  const cpt = cptEl.value.trim().toUpperCase();
-  const icd10 = icd10El.value.trim().toUpperCase();
-
-  cptErrEl.style.display = 'none'; cptEl.classList.remove('error');
-  icd10ErrEl.style.display = 'none'; icd10El.classList.remove('error');
+  const rows = Array.from(document.getElementById('claim-rows').children);
+  if (rows.length === 0) return;
 
   let valid = true;
-  if (!isValidCPT(cpt)) {
-    cptErrEl.textContent = 'Enter a valid 5-digit CPT code (e.g. 80048)';
-    cptErrEl.style.display = 'block'; cptEl.classList.add('error'); valid = false;
-  }
-  if (!isValidICD10(icd10)) {
-    icd10ErrEl.textContent = 'Enter a valid ICD-10 code (e.g. E11.9 or I10)';
-    icd10ErrEl.style.display = 'block'; icd10El.classList.add('error'); valid = false;
-  }
+  const claims = rows.map(row => {
+    const id = row.id.replace('row-', '');
+    const cptEl = document.getElementById(`cpt-${id}`);
+    const icd10El = document.getElementById(`icd10-${id}`);
+    const cptErrEl = document.getElementById(`cpt-err-${id}`);
+    const icd10ErrEl = document.getElementById(`icd10-err-${id}`);
+    const cpt = (cptEl?.value || '').trim().toUpperCase();
+    const icd10 = (icd10El?.value || '').trim().toUpperCase();
+
+    if (cptErrEl) cptErrEl.style.display = 'none';
+    if (icd10ErrEl) icd10ErrEl.style.display = 'none';
+    if (cptEl) cptEl.style.borderColor = 'rgba(255,255,255,0.1)';
+    if (icd10El) icd10El.style.borderColor = 'rgba(255,255,255,0.1)';
+
+    if (!isValidCPT(cpt)) {
+      if (cptErrEl) { cptErrEl.textContent = 'Valid 5-digit CPT required (e.g. 80048)'; cptErrEl.style.display = 'block'; }
+      if (cptEl) cptEl.style.borderColor = '#EF4444';
+      valid = false;
+    }
+    if (!isValidICD10(icd10)) {
+      if (icd10ErrEl) { icd10ErrEl.textContent = 'Valid ICD-10 required (e.g. E11.9 or I10)'; icd10ErrEl.style.display = 'block'; }
+      if (icd10El) icd10El.style.borderColor = '#EF4444';
+      valid = false;
+    }
+    return { id, cpt, icd10 };
+  });
   if (!valid) return;
 
   const btn = document.getElementById('validate-btn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Validating against LCD…';
+  btn.innerHTML = `<span class="spinner"></span> Validating ${claims.length} claim${claims.length > 1 ? 's' : ''}…`;
+  document.getElementById('result-container').innerHTML = '';
 
-  try {
-    const res = await fetch('/.netlify/functions/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cpt, icd10, jurisdiction: selectedState })
-    });
-    const data = await res.json();
-    renderResult(data, cpt, icd10);
+  const results = await Promise.all(claims.map(async ({ id, cpt, icd10 }) => {
+    try {
+      const res = await fetch('/.netlify/functions/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cpt, icd10, jurisdiction: selectedState })
+      });
+      const data = await res.json();
+      return { id, cpt, icd10, data };
+    } catch {
+      return { id, cpt, icd10, data: {
+        status: 'NOT_COVERED',
+        reason: 'Network error — could not reach the validation service.',
+        remediationAdvice: 'Check your connection and try again.'
+      }};
+    }
+  }));
+
+  results.forEach(({ cpt, icd10, data }) => {
+    appendResult(data, cpt, icd10);
     addAuditEntry(cpt, icd10, data);
     updateScore(data.status === 'COVERED');
-  } catch (e) {
-    renderResult({
-      status: 'NOT_COVERED',
-      reason: 'Network error — could not reach the validation service.',
-      remediationAdvice: 'Check your connection and try again. If the issue persists, contact support.'
-    }, cpt, icd10);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Validate Claim';
-  }
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Validate All Claims';
 }
 
 // ── Render Result ─────────────────────────────────────────────────────────────
@@ -806,7 +874,7 @@ const STATUS_LABELS = {
 };
 const STATUS_ICONS = { COVERED: '✓', NOT_COVERED: '✗', CONDITIONAL: '⚠', UNKNOWN_JURISDICTION: '?' };
 
-function renderResult(data, cpt, icd10) {
+function appendResult(data, cpt, icd10) {
   const st = data.status || 'NOT_COVERED';
   const icon = STATUS_ICONS[st];
   const label = STATUS_LABELS[st];
@@ -815,29 +883,34 @@ function renderResult(data, cpt, icd10) {
   if (data.frequency || data.policyId || data.medNecessity !== undefined) {
     metaHtml = `<div class="result-meta">`;
     if (data.frequency) metaHtml += `<div class="meta-chip"><p class="meta-chip-label">Frequency</p><p class="meta-chip-value">${esc(data.frequency)}</p></div>`;
-    if (data.medNecessity !== undefined) metaHtml += `<div class="meta-chip"><p class="meta-chip-label">Med. Necessity Required</p><p class="meta-chip-value" style="color:${data.medNecessity ? '#FCD34D' : 'rgba(255,255,255,0.5)'}">${data.medNecessity ? 'Yes — document in chart' : 'No'}</p></div>`;
-    if (data.policyId) metaHtml += `<div class="meta-chip"><p class="meta-chip-label">Policy Reference</p><p class="meta-chip-value">${esc(data.policyId)}</p></div>`;
+    if (data.medNecessity !== undefined) metaHtml += `<div class="meta-chip"><p class="meta-chip-label">Med. Necessity</p><p class="meta-chip-value" style="color:${data.medNecessity ? '#FCD34D' : 'rgba(255,255,255,0.5)'}">${data.medNecessity ? 'Yes — document in chart' : 'No'}</p></div>`;
+    if (data.policyId) metaHtml += `<div class="meta-chip"><p class="meta-chip-label">Policy Ref</p><p class="meta-chip-value">${esc(data.policyId)}</p></div>`;
     if (data.policyVersion) metaHtml += `<div class="meta-chip"><p class="meta-chip-label">LCD Version</p><p class="meta-chip-value">${esc(data.policyVersion)}</p></div>`;
     metaHtml += `</div>`;
   }
   const notesHtml = data.notes ? `<p class="result-notes">${esc(data.notes)}</p>` : '';
 
-  document.getElementById('result-container').innerHTML = `
-    <div class="result-card ${st}">
-      <div class="result-header">
-        <span class="result-icon">${icon}</span>
-        <div>
+  const container = document.getElementById('result-container');
+  const div = document.createElement('div');
+  div.className = `result-card ${st}`;
+  div.innerHTML = `
+    <div class="result-header">
+      <span class="result-icon">${icon}</span>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <p class="result-status ${st}">${label}</p>
-          <p class="result-reason">${esc(data.reason || '')}</p>
+          <span style="font-size:11px;font-family:monospace;color:rgba(255,255,255,0.3);">CPT ${esc(cpt)} · ICD-10 ${esc(icd10)}</span>
         </div>
+        <p class="result-reason">${esc(data.reason || '')}</p>
       </div>
-      <div class="result-divider"></div>
-      <p class="result-section-label">Remediation Advice</p>
-      <p class="result-advice">${esc(data.remediationAdvice || '')}</p>
-      ${metaHtml}
-      ${notesHtml}
     </div>
+    <div class="result-divider"></div>
+    <p class="result-section-label">Remediation Advice</p>
+    <p class="result-advice">${esc(data.remediationAdvice || '')}</p>
+    ${metaHtml}
+    ${notesHtml}
   `;
+  container.appendChild(div);
 }
 
 function esc(s) {
@@ -934,15 +1007,8 @@ function clearAudit() {
   badge.textContent = '0';
 }
 
-// ── Enter on inputs ───────────────────────────────────────────────────────────
-['cpt-input','icd10-input'].forEach(id => {
-  document.getElementById(id).addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !document.getElementById('validate-btn').disabled) submitValidation();
-  });
-  document.getElementById(id).addEventListener('input', e => {
-    e.target.value = e.target.value.toUpperCase();
-  });
-});
+// ── Init ──────────────────────────────────────────────────────────────────────
+addClaimRow();
 </script>
 
 </body>

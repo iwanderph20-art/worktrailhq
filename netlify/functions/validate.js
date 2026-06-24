@@ -334,7 +334,7 @@ function validateClaim(cpt, icd10, state) {
 exports.handler = async (event) => {
   const headers = {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "https://worktrailhq.com",
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "X-Content-Type-Options": "nosniff",
