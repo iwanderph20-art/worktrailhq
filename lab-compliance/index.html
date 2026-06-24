@@ -1070,7 +1070,8 @@ async function submitValidation() {
 
   const results = await Promise.all(claims.map(async ({ id, cpt, icd10 }) => {
     try {
-      const res = await fetch('https://junotechkiosk.netlify.app/.netlify/functions/validate', {
+      const VALIDATE_URL = 'https://junotechkiosk.netlify.app/.netlify/functions/validate';
+      const res = await fetch(VALIDATE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cpt, icd10, jurisdiction: selectedState })
