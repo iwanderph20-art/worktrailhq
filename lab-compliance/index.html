@@ -420,6 +420,20 @@
       min-width: 130px; flex: 1; padding: 2px 0;
     }
     .chip-text-input::placeholder { color: var(--text-sub); font-family: inherit; }
+    .suggest-box {
+      position: absolute; left: 0; right: 0; z-index: 200;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      max-height: 220px; overflow-y: auto; margin-top: 4px;
+    }
+    .suggest-item {
+      padding: 9px 14px; cursor: pointer; display: flex; align-items: baseline; gap: 10px;
+      font-size: 13px; border-bottom: 1px solid var(--border); transition: background 0.12s;
+    }
+    .suggest-item:last-child { border-bottom: none; }
+    .suggest-item:hover, .suggest-item.active { background: var(--accent-bg); }
+    .suggest-code { font-family: monospace; font-weight: 700; color: var(--accent); font-size: 12px; white-space: nowrap; }
+    .suggest-desc { color: var(--text-muted); font-size: 12px; }
     .chip-empty-hint {
       font-size: 11px; color: var(--text-sub); font-style: italic; line-height: 1;
     }
@@ -609,13 +623,16 @@
         <div id="no-state-warning" class="no-state-note">Select a state on the left to activate claim validation.</div>
 
         <!-- CPT chip field -->
-        <div class="chip-field" style="margin-bottom:14px;">
+        <div class="chip-field" style="margin-bottom:14px;position:relative;">
           <label class="field-label">CPT Procedure Codes</label>
           <div class="chip-box" id="cpt-chip-box" onclick="document.getElementById('cpt-text').focus()">
-            <input id="cpt-text" class="chip-text-input" type="text" placeholder="Type code + Enter…" maxlength="7"
-              autocomplete="off" oninput="this.value=this.value.toUpperCase()"
-              onkeydown="handleChipKey(event,'cpt')">
+            <input id="cpt-text" class="chip-text-input" type="text" placeholder="Type code or name + Enter…" maxlength="30"
+              autocomplete="off"
+              oninput="this.value=this.value.toUpperCase();filterSuggestions('cpt',this.value)"
+              onkeydown="handleChipKey(event,'cpt')"
+              onblur="setTimeout(()=>hideSuggestions('cpt'),180)">
           </div>
+          <div id="cpt-suggest" class="suggest-box" style="display:none;"></div>
           <div id="cpt-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
           <select id="cpt-quick-select" class="row-quick-select" style="width:100%;margin-top:8px;"
             onchange="if(this.value){addChip('cpt',this.value);this.value=''}">
@@ -623,13 +640,16 @@
         </div>
 
         <!-- ICD-10 chip field -->
-        <div class="chip-field" style="margin-bottom:18px;">
+        <div class="chip-field" style="margin-bottom:18px;position:relative;">
           <label class="field-label">ICD-10 Diagnosis Codes</label>
           <div class="chip-box" id="icd10-chip-box" onclick="document.getElementById('icd10-text').focus()">
-            <input id="icd10-text" class="chip-text-input" type="text" placeholder="Type code + Enter…" maxlength="8"
-              autocomplete="off" oninput="this.value=this.value.toUpperCase()"
-              onkeydown="handleChipKey(event,'icd10')">
+            <input id="icd10-text" class="chip-text-input" type="text" placeholder="Type code or diagnosis + Enter…" maxlength="30"
+              autocomplete="off"
+              oninput="this.value=this.value.toUpperCase();filterSuggestions('icd10',this.value)"
+              onkeydown="handleChipKey(event,'icd10')"
+              onblur="setTimeout(()=>hideSuggestions('icd10'),180)">
           </div>
+          <div id="icd10-suggest" class="suggest-box" style="display:none;"></div>
           <div id="icd10-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
           <select id="icd10-quick-select" class="row-quick-select" style="width:100%;margin-top:8px;"
             onchange="if(this.value){addChip('icd10',this.value);this.value=''}">
@@ -873,6 +893,7 @@ const CPT_GROUPS = [
     ['82962','82962 – Blood Glucose, Monitoring Device'],
     ['83036','83036 – Hemoglobin A1c'],
     ['84443','84443 – TSH (Thyroid Stimulating Hormone)'],
+    ['84153','84153 – PSA (Prostate-Specific Antigen), Total'],
     ['82728','82728 – Ferritin'],
     ['82306','82306 – Vitamin D, 25-OH'],
   ]},
@@ -950,6 +971,7 @@ const ICD10_GROUPS = [
     ['E03.8','E03.8 – Other Specified Hypothyroidism (FY2026)'],
     ['E89.0','E89.0 – Post-procedural Hypothyroidism'],
     ['E78.5','E78.5 – Hyperlipidemia, Unspecified'],
+    ['E78.2','E78.2 – Mixed Hyperlipidemia'],
     ['E11.21','E11.21 – T2DM with Diabetic Nephropathy'],
     ['R73.09','R73.09 – Prediabetes / Impaired Fasting Glucose'],
   ]},
@@ -1031,6 +1053,19 @@ const ICD10_GROUPS = [
     ['D53.9','D53.9 – Nutritional Anemia, Unspecified'],
     ['C91.00','C91.00 – Acute Lymphoblastic Leukemia'],
     ['C91.10','C91.10 – CLL Stage 0 (FY2026)'],
+  ]},
+  { label: 'Respiratory / Pulmonary', options: [
+    ['J44.9','J44.9 – COPD, Unspecified'],
+    ['J44.1','J44.1 – COPD with Acute Exacerbation'],
+    ['J44.0','J44.0 – COPD with Acute Lower Respiratory Infection'],
+    ['J45.901','J45.901 – Unspecified Asthma, Uncomplicated'],
+    ['R07.9','R07.9 – Chest Pain, Unspecified'],
+    ['R07.4','R07.4 – Chest Pain on Breathing (Pleurodynia)'],
+    ['R05.9','R05.9 – Cough, Unspecified'],
+    ['R06.00','R06.00 – Dyspnea, Unspecified'],
+    ['G47.00','G47.00 – Insomnia, Unspecified'],
+    ['G47.09','G47.09 – Other Insomnia'],
+    ['F51.01','F51.01 – Primary Insomnia'],
   ]},
   { label: 'Screening / Wellness', options: [
     ['Z00.00','Z00.00 – Adult Routine General Exam'],
@@ -1136,9 +1171,25 @@ function renderChips(type) {
 }
 
 function handleChipKey(e, type) {
-  if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+  const box = document.getElementById(`${type}-suggest`);
+  const items = box.querySelectorAll('.suggest-item');
+  if (e.key === 'ArrowDown') {
     e.preventDefault();
-    addChip(type, e.target.value);
+    suggestIndex[type] = Math.min(suggestIndex[type] + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === suggestIndex[type]));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    suggestIndex[type] = Math.max(suggestIndex[type] - 1, -1);
+    items.forEach((el, i) => el.classList.toggle('active', i === suggestIndex[type]));
+  } else if (e.key === 'Escape') {
+    hideSuggestions(type);
+  } else if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    if (suggestIndex[type] >= 0 && items[suggestIndex[type]]) {
+      items[suggestIndex[type]].dispatchEvent(new MouseEvent('mousedown'));
+    } else {
+      addChip(type, e.target.value);
+    }
   }
 }
 
@@ -1341,6 +1392,38 @@ function clearAudit() {
   const badge = document.getElementById('audit-tab-count');
   badge.style.display = 'none';
   badge.textContent = '0';
+}
+
+// ── Autosuggest ───────────────────────────────────────────────────────────────
+let suggestIndex = { cpt: -1, icd10: -1 };
+
+function filterSuggestions(type, raw) {
+  const q = raw.trim().toUpperCase();
+  const box = document.getElementById(`${type}-suggest`);
+  if (!q) { box.style.display = 'none'; return; }
+  const all = type === 'cpt' ? CPT_GROUPS : ICD10_GROUPS;
+  const matches = [];
+  all.forEach(g => g.options.forEach(([code, label]) => {
+    if (code.includes(q) || label.toUpperCase().includes(q)) matches.push([code, label]);
+  }));
+  if (!matches.length) { box.style.display = 'none'; return; }
+  suggestIndex[type] = -1;
+  box.innerHTML = matches.slice(0, 10).map(([code, label]) => {
+    const desc = label.replace(/^\S+\s*–\s*/, '');
+    return `<div class="suggest-item" onmousedown="selectSuggestion('${type}','${esc(code)}')">`
+      + `<span class="suggest-code">${esc(code)}</span><span class="suggest-desc">${esc(desc)}</span></div>`;
+  }).join('');
+  box.style.display = 'block';
+}
+
+function hideSuggestions(type) {
+  document.getElementById(`${type}-suggest`).style.display = 'none';
+}
+
+function selectSuggestion(type, code) {
+  addChip(type, code);
+  document.getElementById(`${type}-text`).value = '';
+  hideSuggestions(type);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
