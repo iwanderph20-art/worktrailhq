@@ -257,7 +257,12 @@ const LCD_DATA = {
 };
 
 // ── Validators ────────────────────────────────────────────────────────────────
-function isValidCPT(code) { return /^\d{5}[A-Z]?$/.test(code.trim().toUpperCase()); }
+function isValidCPT(code) {
+  const c = code.trim().toUpperCase();
+  // Standard 5-digit CPT (e.g. 80048), Category III with letter (e.g. 0075T),
+  // and proprietary U-codes (e.g. 0029U)
+  return /^\d{5}[A-Z]?$/.test(c) || /^\d{4}[A-Z]$/.test(c);
+}
 function isValidICD10(code) { return /^[A-Z]\d{2}(\.[A-Z0-9]{1,4})?$/.test(code.trim().toUpperCase()); }
 function sanitize(s) { return String(s).replace(/[<>'"&]/g, c => ({'<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;','&':'&amp;'}[c]||c)).trim().slice(0,50); }
 
