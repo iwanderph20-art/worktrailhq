@@ -391,13 +391,40 @@
     .footer-link { font-size: 11px; color: var(--text-footer); text-decoration: none; transition: color 0.15s; }
     .footer-link:hover { color: var(--text-mid); }
 
-    /* ── Claim row inputs (dynamic) ─────────────────────── */
-    .row-code-input {
-      flex: 1; font-family: monospace; font-size: 14px; font-weight: 600;
-      padding: 9px 12px; background: var(--bg-input); border: 1px solid var(--border-input);
-      border-radius: 8px; color: var(--text); outline: none; letter-spacing: 0.04em;
-      transition: border-color 0.2s;
+    /* ── Chip / Tag input ────────────────────────────────── */
+    .chip-box {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      min-height: 44px; padding: 7px 10px; cursor: text;
+      background: var(--bg-input); border: 1px solid var(--border-input);
+      border-radius: 10px; transition: border-color 0.2s;
     }
+    .chip-box:focus-within { border-color: var(--accent); }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: monospace; font-size: 12px; font-weight: 700;
+      padding: 4px 8px 4px 10px; border-radius: 6px;
+      background: var(--accent-bg); border: 1px solid var(--accent-border);
+      color: var(--accent); white-space: nowrap; animation: chipIn 0.15s ease-out;
+    }
+    @keyframes chipIn { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+    .chip-remove {
+      width: 14px; height: 14px; border-radius: 50%; border: none;
+      background: var(--accent); color: var(--bg); font-size: 10px; font-weight: 800;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      line-height: 1; padding: 0; transition: opacity 0.15s; flex-shrink: 0;
+    }
+    .chip-remove:hover { opacity: 0.7; }
+    .chip-text-input {
+      border: none; outline: none; background: transparent;
+      font-size: 13px; font-family: monospace; color: var(--text);
+      min-width: 130px; flex: 1; padding: 2px 0;
+    }
+    .chip-text-input::placeholder { color: var(--text-sub); font-family: inherit; }
+    .chip-empty-hint {
+      font-size: 11px; color: var(--text-sub); font-style: italic; line-height: 1;
+    }
+
+    /* ── Quick-select dropdown ───────────────────────────── */
     .row-quick-select {
       font-size: 11px; padding: 7px 8px; background: var(--bg-input);
       border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid);
@@ -581,18 +608,35 @@
 
         <div id="no-state-warning" class="no-state-note">Select a state on the left to activate claim validation.</div>
 
-        <!-- Claims table header -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <p style="font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-label);">CPT / Diagnosis Pairs</p>
-          <button onclick="addClaimRow()" id="add-row-btn"
-            style="font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-bg);border:1px solid var(--accent-border);padding:7px 16px;border-radius:8px;cursor:pointer;transition:background 0.18s;display:flex;align-items:center;gap:6px;"
-            onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-            <span style="font-size:16px;line-height:1;">+</span> Add CPT / Dx Pair
-          </button>
+        <!-- CPT chip field -->
+        <div class="chip-field" style="margin-bottom:14px;">
+          <label class="field-label">CPT Procedure Codes</label>
+          <div class="chip-box" id="cpt-chip-box" onclick="document.getElementById('cpt-text').focus()">
+            <input id="cpt-text" class="chip-text-input" type="text" placeholder="Type code + Enter…" maxlength="7"
+              autocomplete="off" oninput="this.value=this.value.toUpperCase()"
+              onkeydown="handleChipKey(event,'cpt')">
+          </div>
+          <div id="cpt-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
+          <select class="row-quick-select" style="width:100%;margin-top:8px;"
+            onchange="if(this.value){addChip('cpt',this.value);this.value=''}">
+            ${buildSelectOptions(CPT_GROUPS)}
+          </select>
         </div>
 
-        <!-- Claim rows container -->
-        <div id="claim-rows" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;"></div>
+        <!-- ICD-10 chip field -->
+        <div class="chip-field" style="margin-bottom:18px;">
+          <label class="field-label">ICD-10 Diagnosis Codes</label>
+          <div class="chip-box" id="icd10-chip-box" onclick="document.getElementById('icd10-text').focus()">
+            <input id="icd10-text" class="chip-text-input" type="text" placeholder="Type code + Enter…" maxlength="8"
+              autocomplete="off" oninput="this.value=this.value.toUpperCase()"
+              onkeydown="handleChipKey(event,'icd10')">
+          </div>
+          <div id="icd10-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
+          <select class="row-quick-select" style="width:100%;margin-top:8px;"
+            onchange="if(this.value){addChip('icd10',this.value);this.value=''}">
+            ${buildSelectOptions(ICD10_GROUPS)}
+          </select>
+        </div>
 
         <button class="validate-btn" id="validate-btn" onclick="submitValidation()" disabled>
           Select a state to validate
@@ -799,9 +843,8 @@ function onStateChange(val) {
     document.getElementById('mac-code').textContent = info.mac;
     document.getElementById('mac-region').textContent = info.region;
     infoEl.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Validate All Claims';
     warning.style.display = 'none';
+    updateValidateBtn();
 
     const policyRef = MAC_POLICY[info.mac] || '—';
     document.getElementById('mac-policy-ref').textContent = policyRef;
@@ -809,9 +852,9 @@ function onStateChange(val) {
   } else {
     infoEl.style.display = 'none';
     btn.disabled = true;
-    btn.textContent = 'Select a state to validate';
     warning.style.display = 'block';
     document.getElementById('mac-policy-row').style.display = 'none';
+    updateValidateBtn();
   }
 }
 
@@ -961,69 +1004,90 @@ const ICD10_GROUPS = [
   ]},
 ];
 
-let rowCounter = 0;
-
 function buildSelectOptions(groups) {
   return '<option value="">Quick pick…</option>' + groups.map(g =>
     `<optgroup label="${g.label}">${g.options.map(([v,l]) => `<option value="${v}">${l}</option>`).join('')}</optgroup>`
   ).join('');
 }
 
-function addClaimRow(cptVal='', icd10Val='') {
-  const id = ++rowCounter;
-  const container = document.getElementById('claim-rows');
-  const div = document.createElement('div');
-  div.id = `row-${id}`;
-  const isFirst = container.children.length === 0;
-  div.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;';
-  div.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-label);">Claim Line ${id}</span>
-      ${!isFirst
-        ? `<button onclick="removeRow(${id})" title="Remove claim line"
-            style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:7px;border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.08);color:#F87171;cursor:pointer;transition:background 0.15s;font-family:inherit;"
-            onmouseover="this.style.background='rgba(239,68,68,0.18)'" onmouseout="this.style.background='rgba(239,68,68,0.08)'">Remove</button>`
-        : ''}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div>
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-label);display:block;margin-bottom:6px;">CPT Procedure Code</label>
-        <input id="cpt-${id}" type="text" placeholder="e.g. 80048" maxlength="6" autocomplete="off"
-          value="${esc(cptVal)}"
-          oninput="this.value=this.value.toUpperCase()"
-          class="row-code-input"
-          style="width:100%;margin-bottom:6px;"
-          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
-        <select onchange="if(this.value){document.getElementById('cpt-${id}').value=this.value;this.value=''}"
-          class="row-quick-select" style="width:100%;">
-          ${buildSelectOptions(CPT_GROUPS)}
-        </select>
-        <p id="cpt-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
-      </div>
-      <div>
-        <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-label);display:block;margin-bottom:6px;">ICD-10 Diagnosis Code</label>
-        <input id="icd10-${id}" type="text" placeholder="e.g. E11.9" maxlength="8" autocomplete="off"
-          value="${esc(icd10Val)}"
-          oninput="this.value=this.value.toUpperCase()"
-          class="row-code-input"
-          style="width:100%;margin-bottom:6px;"
-          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
-        <select onchange="if(this.value){document.getElementById('icd10-${id}').value=this.value;this.value=''}"
-          class="row-quick-select" style="width:100%;">
-          ${buildSelectOptions(ICD10_GROUPS)}
-        </select>
-        <p id="icd10-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
-      </div>
-    </div>
-  `;
-  container.appendChild(div);
+// ── Chip / Tag Input ──────────────────────────────────────────────────────────
+const chipSets = { cpt: new Set(), icd10: new Set() };
+
+function addChip(type, rawCode) {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return;
+  const errEl = document.getElementById(`${type}-field-err`);
+  const isValid = type === 'cpt' ? isValidCPT(code) : isValidICD10(code);
+  if (!isValid) {
+    errEl.textContent = type === 'cpt'
+      ? 'Enter a valid CPT code (e.g. 80048 or 81225)'
+      : 'Enter a valid ICD-10 code (e.g. E11.9 or I10)';
+    errEl.style.display = 'block';
+    setTimeout(() => { errEl.style.display = 'none'; }, 2500);
+    return;
+  }
+  errEl.style.display = 'none';
+  if (chipSets[type].has(code)) return; // no duplicates
+  chipSets[type].add(code);
+  renderChips(type);
+  // clear text input
+  document.getElementById(`${type}-text`).value = '';
+  updateValidateBtn();
 }
 
-function removeRow(id) {
-  const el = document.getElementById(`row-${id}`);
-  if (el) el.remove();
-  // Ensure at least one row always exists
-  if (document.getElementById('claim-rows').children.length === 0) addClaimRow();
+function removeChip(type, code) {
+  chipSets[type].delete(code);
+  renderChips(type);
+  updateValidateBtn();
+}
+
+function renderChips(type) {
+  const box = document.getElementById(`${type}-chip-box`);
+  const input = document.getElementById(`${type}-text`);
+  // remove all chips (keep input)
+  Array.from(box.children).forEach(c => { if (c !== input) c.remove(); });
+
+  chipSets[type].forEach(code => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${esc(code)}<button class="chip-remove" onclick="removeChip('${type}','${esc(code)}')" title="Remove">×</button>`;
+    box.insertBefore(chip, input);
+  });
+
+  // placeholder hint when empty
+  let hint = box.querySelector('.chip-empty-hint');
+  if (chipSets[type].size === 0) {
+    if (!hint) {
+      hint = document.createElement('span');
+      hint.className = 'chip-empty-hint';
+      hint.textContent = type === 'cpt' ? 'No codes added yet' : 'No codes added yet';
+      box.insertBefore(hint, input);
+    }
+  } else if (hint) {
+    hint.remove();
+  }
+}
+
+function handleChipKey(e, type) {
+  if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+    e.preventDefault();
+    addChip(type, e.target.value);
+  }
+}
+
+function updateValidateBtn() {
+  const btn = document.getElementById('validate-btn');
+  if (!selectedState) { btn.textContent = 'Select a state to validate'; btn.disabled = true; return; }
+  const hasCpt = chipSets.cpt.size > 0;
+  const hasIcd = chipSets.icd10.size > 0;
+  if (!hasCpt || !hasIcd) {
+    btn.textContent = 'Add at least one CPT and one ICD-10 code';
+    btn.disabled = true;
+  } else {
+    const combos = chipSets.cpt.size * chipSets.icd10.size;
+    btn.textContent = `Validate ${combos} Combination${combos > 1 ? 's' : ''}`;
+    btn.disabled = false;
+  }
 }
 
 // ── Validation ────────────────────────────────────────────────────────────────
@@ -1031,44 +1095,18 @@ function isValidCPT(c) { return /^\d{5}[A-Z]?$/.test(c.trim().toUpperCase()); }
 function isValidICD10(c) { return /^[A-Z]\d{2}(\.[A-Z0-9]{1,4})?$/.test(c.trim().toUpperCase()); }
 
 async function submitValidation() {
-  const rows = Array.from(document.getElementById('claim-rows').children);
-  if (rows.length === 0) return;
+  if (chipSets.cpt.size === 0 || chipSets.icd10.size === 0) return;
 
-  let valid = true;
-  const claims = rows.map(row => {
-    const id = row.id.replace('row-', '');
-    const cptEl = document.getElementById(`cpt-${id}`);
-    const icd10El = document.getElementById(`icd10-${id}`);
-    const cptErrEl = document.getElementById(`cpt-err-${id}`);
-    const icd10ErrEl = document.getElementById(`icd10-err-${id}`);
-    const cpt = (cptEl?.value || '').trim().toUpperCase();
-    const icd10 = (icd10El?.value || '').trim().toUpperCase();
-
-    if (cptErrEl) cptErrEl.style.display = 'none';
-    if (icd10ErrEl) icd10ErrEl.style.display = 'none';
-    if (cptEl) cptEl.style.borderColor = '';
-    if (icd10El) icd10El.style.borderColor = '';
-
-    if (!isValidCPT(cpt)) {
-      if (cptErrEl) { cptErrEl.textContent = 'Valid 5-digit CPT required (e.g. 80048)'; cptErrEl.style.display = 'block'; }
-      if (cptEl) cptEl.style.borderColor = '#EF4444';
-      valid = false;
-    }
-    if (!isValidICD10(icd10)) {
-      if (icd10ErrEl) { icd10ErrEl.textContent = 'Valid ICD-10 required (e.g. E11.9 or I10)'; icd10ErrEl.style.display = 'block'; }
-      if (icd10El) icd10El.style.borderColor = '#EF4444';
-      valid = false;
-    }
-    return { id, cpt, icd10 };
-  });
-  if (!valid) return;
+  // Build cross-product of all CPTs × all ICD-10s
+  const pairs = [];
+  chipSets.cpt.forEach(cpt => chipSets.icd10.forEach(icd10 => pairs.push({ cpt, icd10 })));
 
   const btn = document.getElementById('validate-btn');
   btn.disabled = true;
-  btn.innerHTML = `<span class="spinner"></span> Validating ${claims.length} claim${claims.length > 1 ? 's' : ''}…`;
+  btn.innerHTML = `<span class="spinner"></span> Validating ${pairs.length} combination${pairs.length > 1 ? 's' : ''}…`;
   document.getElementById('result-container').innerHTML = '';
 
-  const results = await Promise.all(claims.map(async ({ id, cpt, icd10 }) => {
+  const results = await Promise.all(pairs.map(async ({ cpt, icd10 }) => {
     try {
       const VALIDATE_URL = 'https://junotechkiosk.netlify.app/.netlify/functions/validate';
       const res = await fetch(VALIDATE_URL, {
@@ -1077,9 +1115,9 @@ async function submitValidation() {
         body: JSON.stringify({ cpt, icd10, jurisdiction: selectedState })
       });
       const data = await res.json();
-      return { id, cpt, icd10, data };
+      return { cpt, icd10, data };
     } catch {
-      return { id, cpt, icd10, data: {
+      return { cpt, icd10, data: {
         status: 'NOT_COVERED',
         reason: 'Network error — could not reach the validation service.',
         remediationAdvice: 'Check your connection and try again.'
@@ -1093,8 +1131,7 @@ async function submitValidation() {
     updateScore(data.status === 'COVERED');
   });
 
-  btn.disabled = false;
-  btn.textContent = 'Validate All Claims';
+  updateValidateBtn();
 }
 
 // ── Render Result ─────────────────────────────────────────────────────────────
@@ -1240,7 +1277,9 @@ function clearAudit() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-addClaimRow();
+renderChips('cpt');
+renderChips('icd10');
+updateValidateBtn();
 </script>
 
 </body>
