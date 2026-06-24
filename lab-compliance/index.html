@@ -399,11 +399,14 @@
       transition: border-color 0.2s;
     }
     .row-quick-select {
-      font-size: 11px; padding: 0 8px; background: var(--bg-input);
+      font-size: 11px; padding: 7px 8px; background: var(--bg-input);
       border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid);
-      cursor: pointer; font-family: inherit; outline: none;
+      cursor: pointer; font-family: inherit; outline: none; width: 100%;
+      appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      padding-right: 24px;
     }
-    .row-quick-select option { background: var(--select-opt-bg); }
+    .row-quick-select option, .row-quick-select optgroup { background: var(--select-opt-bg); }
 
     @media (max-width: 640px) {
       nav { padding: 0 20px; }
@@ -823,23 +826,116 @@ function switchTab(name, btn) {
 }
 
 // ── Claim Rows ────────────────────────────────────────────────────────────────
-const CPT_OPTIONS = [
-  ['80048','80048 – Basic Metabolic Panel'],['80053','80053 – Comp. Metabolic Panel'],
-  ['85025','85025 – CBC with Differential'],['82962','82962 – Blood Glucose'],
-  ['83036','83036 – Hemoglobin A1c'],['84443','84443 – TSH'],
-  ['87491','87491 – Chlamydia NAA'],['81001','81001 – Urinalysis w/ Microscopy'],
+// CPT options grouped by category for the quick-pick select
+const CPT_GROUPS = [
+  { label: 'Chemistry / Metabolic', options: [
+    ['80048','80048 – Basic Metabolic Panel (BMP)'],
+    ['80053','80053 – Comprehensive Metabolic Panel (CMP)'],
+    ['82962','82962 – Blood Glucose, Monitoring Device'],
+    ['83036','83036 – Hemoglobin A1c'],
+    ['84443','84443 – TSH (Thyroid Stimulating Hormone)'],
+    ['82728','82728 – Ferritin'],
+    ['82306','82306 – Vitamin D, 25-OH'],
+  ]},
+  { label: 'Hematology', options: [
+    ['85025','85025 – CBC with Differential'],
+    ['85027','85027 – CBC without Differential'],
+    ['85610','85610 – Prothrombin Time (PT/INR)'],
+  ]},
+  { label: 'Urinalysis', options: [
+    ['81001','81001 – UA w/ Microscopy (Dipstick + Micro)'],
+    ['81003','81003 – UA Dipstick Only (Automated)'],
+    ['81007','81007 – UA Bacteriuria Screen'],
+  ]},
+  { label: 'Infectious Disease / PCR', options: [
+    ['87491','87491 – Chlamydia trachomatis, NAA/PCR'],
+    ['87591','87591 – Neisseria gonorrhoeae, NAA/PCR'],
+    ['87661','87661 – Trichomonas vaginalis, NAA/PCR'],
+    ['87389','87389 – HIV-1 Antigen & HIV 1+2 Ab'],
+    ['86703','86703 – HIV-1 & HIV-2 Antibody, Single'],
+    ['87340','87340 – Hepatitis B Surface Antigen (HBsAg)'],
+    ['86706','86706 – Hepatitis B Surface Ab (HBsAb)'],
+    ['86803','86803 – Hepatitis C Ab (HCV)'],
+    ['87902','87902 – HCV Genotype, Nucleic Acid'],
+    ['87529','87529 – Herpes Simplex Virus (HSV), NAA'],
+    ['87801','87801 – Ureaplasma/Mycoplasma, NAA'],
+  ]},
+  { label: 'Immunoassay', options: [
+    ['86235','86235 – Antinuclear Ab (ANA)'],
+    ['86038','86038 – Antinuclear Ab (ANA) Titer'],
+    ['86200','86200 – Anti-CCP (Rheumatoid)'],
+    ['86431','86431 – Rheumatoid Factor (RF)'],
+    ['86140','86140 – C-Reactive Protein (CRP)'],
+    ['86141','86141 – CRP, High Sensitivity (hsCRP)'],
+    ['83519','83519 – Immunoassay, Analyte NOS'],
+    ['86592','86592 – RPR (Syphilis Screen)'],
+    ['86596','86596 – RPR Titer (Syphilis Quantitative)'],
+  ]},
+  { label: 'Drug Testing', options: [
+    ['80305','80305 – Drug Screen, Presumptive (Chemistry)'],
+    ['80306','80306 – Drug Screen, Presumptive (Instrument)'],
+    ['80307','80307 – Drug Screen, Presumptive (Chromatography)'],
+  ]},
 ];
-const ICD10_OPTIONS = [
-  ['E11.9','E11.9 – Type 2 Diabetes'],['I10','I10 – Essential Hypertension'],
-  ['N18.3','N18.3 – CKD Stage 3'],['E03.9','E03.9 – Hypothyroidism'],
-  ['D64.9','D64.9 – Anemia, unspecified'],['K74.60','K74.60 – Unspecified Cirrhosis'],
-  ['Z00.00','Z00.00 – Routine General Exam'],['Z11.3','Z11.3 – STI Screening'],
+
+// Flat array for backward compat (used nowhere directly now)
+const CPT_OPTIONS = CPT_GROUPS.flatMap(g => g.options);
+
+const ICD10_GROUPS = [
+  { label: 'Endocrine / Metabolic', options: [
+    ['E11.9','E11.9 – Type 2 Diabetes, Uncontrolled'],
+    ['E11.65','E11.65 – Type 2 Diabetes w/ Hyperglycemia'],
+    ['E03.9','E03.9 – Hypothyroidism, Unspecified'],
+    ['E78.5','E78.5 – Hyperlipidemia, Unspecified'],
+    ['E11.21','E11.21 – T2DM with Diabetic Nephropathy'],
+  ]},
+  { label: 'Cardiovascular / Renal', options: [
+    ['I10','I10 – Essential Hypertension'],
+    ['N18.3','N18.3 – CKD Stage 3'],
+    ['N18.4','N18.4 – CKD Stage 4'],
+    ['N39.0','N39.0 – Urinary Tract Infection (UTI)'],
+    ['R80.9','R80.9 – Proteinuria, Unspecified'],
+  ]},
+  { label: 'Infectious Disease', options: [
+    ['Z11.3','Z11.3 – STI Screening Encounter'],
+    ['Z11.51','Z11.51 – HIV Screening Encounter'],
+    ['Z11.59','Z11.59 – Other Viral Disease Screening'],
+    ['A56.00','A56.00 – Chlamydial Urogenital Infection'],
+    ['A54.9','A54.9 – Gonococcal Infection, Unspecified'],
+    ['B18.2','B18.2 – Chronic Viral Hepatitis C'],
+    ['B18.1','B18.1 – Chronic Viral Hepatitis B'],
+    ['A53.9','A53.9 – Syphilis, Unspecified'],
+    ['R87.810','R87.810 – Abnormal Pap — HPV Positive'],
+  ]},
+  { label: 'Immunology / Rheumatology', options: [
+    ['M06.9','M06.9 – Rheumatoid Arthritis, Unspecified'],
+    ['M32.9','M32.9 – Systemic Lupus Erythematosus (SLE)'],
+    ['R70.0','R70.0 – Elevated ESR'],
+    ['R79.82','R79.82 – Elevated CRP'],
+  ]},
+  { label: 'Hematology / Anemia', options: [
+    ['D64.9','D64.9 – Anemia, Unspecified'],
+    ['D50.9','D50.9 – Iron Deficiency Anemia'],
+    ['D53.9','D53.9 – Nutritional Anemia, Unspecified'],
+  ]},
+  { label: 'Screening / Wellness', options: [
+    ['Z00.00','Z00.00 – Adult Routine General Exam'],
+    ['Z00.01','Z00.01 – Adult Exam w/ Abnormal Findings'],
+    ['Z13.88','Z13.88 – Encounter for Disorder NOS Screening'],
+  ]},
+  { label: 'Hepatic / GI', options: [
+    ['K74.60','K74.60 – Unspecified Cirrhosis of Liver'],
+    ['K70.30','K70.30 – Alcoholic Cirrhosis w/o Ascites'],
+    ['R17','R17 – Unspecified Jaundice'],
+  ]},
 ];
 
 let rowCounter = 0;
 
-function buildSelectOptions(opts) {
-  return '<option value="">Quick pick</option>' + opts.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+function buildSelectOptions(groups) {
+  return '<option value="">Quick pick…</option>' + groups.map(g =>
+    `<optgroup label="${g.label}">${g.options.map(([v,l]) => `<option value="${v}">${l}</option>`).join('')}</optgroup>`
+  ).join('');
 }
 
 function addClaimRow(cptVal='', icd10Val='') {
@@ -847,44 +943,46 @@ function addClaimRow(cptVal='', icd10Val='') {
   const container = document.getElementById('claim-rows');
   const div = document.createElement('div');
   div.id = `row-${id}`;
-  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:start;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;';
+  const isFirst = container.children.length === 0;
+  div.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;';
   div.innerHTML = `
-    <div>
-      <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-label);display:block;margin-bottom:6px;">CPT Code</label>
-      <div style="display:flex;gap:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-label);">Claim Line ${id}</span>
+      ${!isFirst
+        ? `<button onclick="removeRow(${id})" title="Remove claim line"
+            style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:7px;border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.08);color:#F87171;cursor:pointer;transition:background 0.15s;font-family:inherit;"
+            onmouseover="this.style.background='rgba(239,68,68,0.18)'" onmouseout="this.style.background='rgba(239,68,68,0.08)'">Remove</button>`
+        : ''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-label);display:block;margin-bottom:6px;">CPT Procedure Code</label>
         <input id="cpt-${id}" type="text" placeholder="e.g. 80048" maxlength="6" autocomplete="off"
           value="${esc(cptVal)}"
           oninput="this.value=this.value.toUpperCase()"
           class="row-code-input"
-          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-input)'">
+          style="width:100%;margin-bottom:6px;"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
         <select onchange="if(this.value){document.getElementById('cpt-${id}').value=this.value;this.value=''}"
-          class="row-quick-select">
-          ${buildSelectOptions(CPT_OPTIONS)}
+          class="row-quick-select" style="width:100%;">
+          ${buildSelectOptions(CPT_GROUPS)}
         </select>
+        <p id="cpt-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
       </div>
-      <p id="cpt-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
-    </div>
-    <div>
-      <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-label);display:block;margin-bottom:6px;">ICD-10 Code</label>
-      <div style="display:flex;gap:6px;">
+      <div>
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-label);display:block;margin-bottom:6px;">ICD-10 Diagnosis Code</label>
         <input id="icd10-${id}" type="text" placeholder="e.g. E11.9" maxlength="8" autocomplete="off"
           value="${esc(icd10Val)}"
           oninput="this.value=this.value.toUpperCase()"
           class="row-code-input"
-          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-input)'">
+          style="width:100%;margin-bottom:6px;"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
         <select onchange="if(this.value){document.getElementById('icd10-${id}').value=this.value;this.value=''}"
-          class="row-quick-select">
-          ${buildSelectOptions(ICD10_OPTIONS)}
+          class="row-quick-select" style="width:100%;">
+          ${buildSelectOptions(ICD10_GROUPS)}
         </select>
+        <p id="icd10-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
       </div>
-      <p id="icd10-err-${id}" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></p>
-    </div>
-    <div style="padding-top:24px;">
-      ${container.children.length > 0
-        ? `<button onclick="removeRow(${id})" title="Remove"
-            style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.08);color:#F87171;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s;"
-            onmouseover="this.style.background='rgba(239,68,68,0.18)'" onmouseout="this.style.background='rgba(239,68,68,0.08)'">×</button>`
-        : '<div style="width:32px;"></div>'}
     </div>
   `;
   container.appendChild(div);
