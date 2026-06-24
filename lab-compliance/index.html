@@ -583,11 +583,11 @@
 
         <!-- Claims table header -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <p style="font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-label);">Claim Lines</p>
-          <button onclick="addClaimRow()" id="add-row-btn" disabled
-            style="font-size:11px;font-weight:600;color:#818CF8;background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.2);padding:5px 14px;border-radius:8px;cursor:pointer;transition:background 0.18s;"
-            onmouseover="if(!this.disabled)this.style.background='rgba(129,140,248,0.18)'" onmouseout="this.style.background='rgba(129,140,248,0.1)'">
-            + Add Claim Line
+          <p style="font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-label);">CPT / Diagnosis Pairs</p>
+          <button onclick="addClaimRow()" id="add-row-btn"
+            style="font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-bg);border:1px solid var(--accent-border);padding:7px 16px;border-radius:8px;cursor:pointer;transition:background 0.18s;display:flex;align-items:center;gap:6px;"
+            onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+            <span style="font-size:16px;line-height:1;">+</span> Add CPT / Dx Pair
           </button>
         </div>
 
@@ -802,7 +802,6 @@ function onStateChange(val) {
     btn.disabled = false;
     btn.textContent = 'Validate All Claims';
     warning.style.display = 'none';
-    document.getElementById('add-row-btn').disabled = false;
 
     const policyRef = MAC_POLICY[info.mac] || '—';
     document.getElementById('mac-policy-ref').textContent = policyRef;
@@ -812,7 +811,6 @@ function onStateChange(val) {
     btn.disabled = true;
     btn.textContent = 'Select a state to validate';
     warning.style.display = 'block';
-    document.getElementById('add-row-btn').disabled = true;
     document.getElementById('mac-policy-row').style.display = 'none';
   }
 }
@@ -876,6 +874,21 @@ const CPT_GROUPS = [
     ['80306','80306 – Drug Screen, Presumptive (Instrument)'],
     ['80307','80307 – Drug Screen, Presumptive (Chromatography)'],
   ]},
+  { label: 'Pharmacogenomics (PGx)', options: [
+    ['81225','81225 – CYP2C19 (Full Gene Sequence)'],
+    ['81226','81226 – CYP2D6 (Full Gene Sequence)'],
+    ['81227','81227 – CYP2C9 (Common Variants)'],
+    ['81228','81228 – CYP2C19 (Common Variants)'],
+    ['81229','81229 – CYP2D6 (Common Variants)'],
+    ['81230','81230 – CYP3A4 (Common Variants)'],
+    ['81231','81231 – CYP3A5 (Common Variants)'],
+    ['81346','81346 – TPMT (Thiopurine Methyltransferase)'],
+    ['81400','81400 – Mol Path Level 1 (Single Variant)'],
+    ['81401','81401 – Mol Path Level 2 (2–10 Variants)'],
+    ['81479','81479 – Unlisted Molecular Pathology Procedure'],
+    ['0029U','0029U – CYP2D6/CYP2C19 Multi-gene Panel'],
+    ['0030U','0030U – ABCB1/CYP2C9/CYP2C19/CYP3A4 Panel'],
+  ]},
 ];
 
 // Flat array for backward compat (used nowhere directly now)
@@ -927,6 +940,24 @@ const ICD10_GROUPS = [
     ['K74.60','K74.60 – Unspecified Cirrhosis of Liver'],
     ['K70.30','K70.30 – Alcoholic Cirrhosis w/o Ascites'],
     ['R17','R17 – Unspecified Jaundice'],
+  ]},
+  { label: 'Pharmacogenomics (PGx)', options: [
+    ['Z79.899','Z79.899 – Long-term Use of Other Medication'],
+    ['Z79.01','Z79.01 – Long-term Use of Anticoagulants'],
+    ['Z79.02','Z79.02 – Long-term Use of Antithrombotics'],
+    ['Z79.3','Z79.3 – Long-term Use of Hormonal Contraceptives'],
+    ['Z79.4','Z79.4 – Long-term Use of Insulin'],
+    ['Z79.82','Z79.82 – Long-term Use of Aspirin'],
+    ['F32.9','F32.9 – Major Depressive Disorder (MDD)'],
+    ['F41.1','F41.1 – Generalized Anxiety Disorder (GAD)'],
+    ['F31.9','F31.9 – Bipolar Disorder, Unspecified'],
+    ['F20.9','F20.9 – Schizophrenia, Unspecified'],
+    ['G40.909','G40.909 – Epilepsy, Unspecified, Not Intractable'],
+    ['I25.10','I25.10 – Atherosclerotic Heart Disease'],
+    ['I48.91','I48.91 – Unspecified Atrial Fibrillation'],
+    ['C50.919','C50.919 – Malignant Neoplasm of Breast, Unspecified'],
+    ['Z13.88','Z13.88 – Encounter for Genetic Risk Screening'],
+    ['Z84.81','Z84.81 – Family History of Carrier of Genetic Disease'],
   ]},
 ];
 
