@@ -617,9 +617,8 @@
               onkeydown="handleChipKey(event,'cpt')">
           </div>
           <div id="cpt-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
-          <select class="row-quick-select" style="width:100%;margin-top:8px;"
+          <select id="cpt-quick-select" class="row-quick-select" style="width:100%;margin-top:8px;"
             onchange="if(this.value){addChip('cpt',this.value);this.value=''}">
-            ${buildSelectOptions(CPT_GROUPS)}
           </select>
         </div>
 
@@ -632,9 +631,8 @@
               onkeydown="handleChipKey(event,'icd10')">
           </div>
           <div id="icd10-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
-          <select class="row-quick-select" style="width:100%;margin-top:8px;"
+          <select id="icd10-quick-select" class="row-quick-select" style="width:100%;margin-top:8px;"
             onchange="if(this.value){addChip('icd10',this.value);this.value=''}">
-            ${buildSelectOptions(ICD10_GROUPS)}
           </select>
         </div>
 
@@ -1277,6 +1275,8 @@ function clearAudit() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('cpt-quick-select').innerHTML = buildSelectOptions(CPT_GROUPS);
+document.getElementById('icd10-quick-select').innerHTML = buildSelectOptions(ICD10_GROUPS);
 renderChips('cpt');
 renderChips('icd10');
 updateValidateBtn();
