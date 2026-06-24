@@ -1175,7 +1175,7 @@ async function submitValidation() {
 
   const results = await Promise.all(pairs.map(async ({ cpt, icd10 }) => {
     try {
-      const VALIDATE_URL = 'https://junotechkiosk.netlify.app/.netlify/functions/validate';
+      const VALIDATE_URL = 'https://lab-compliance-validate.monterolia90.workers.dev';
       const res = await fetch(VALIDATE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
