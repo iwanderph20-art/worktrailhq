@@ -356,96 +356,46 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button onclick="cancelCapture()" class="text-sm font-medium" style="color:rgba(255,255,255,.4);background:none;border:none;cursor:pointer;">Cancel</button>
     </div>
 
-    <!-- Gamified Clock-In Questions (shown after photo, clock-IN only) -->
-    <div id="clockInQuestionsCard" class="glass rounded-3xl px-6 py-6 space-y-5" style="display:none;">
-      <!-- Step progress -->
-      <div class="flex items-center gap-3">
-        <div class="flex gap-1.5">
-          <div id="qDot1" style="width:8px;height:8px;border-radius:99px;background:#1a2b8c;transition:all .2s;"></div>
-          <div id="qDot2" style="width:8px;height:8px;border-radius:99px;background:#e5e7eb;transition:all .2s;"></div>
-        </div>
-        <p id="qStepLabel" class="text-xs font-semibold" style="color:#9ca3af;"></p>
-      </div>
-
-      <!-- Step 1: Facility -->
-      <div id="qStep1">
-        <p class="text-lg font-bold" style="color:#111827;">Where are you working today?</p>
-        <p class="text-xs mt-1 mb-4" style="color:#9ca3af;">Select your facility for this shift</p>
-        <!-- Dropdown trigger -->
-        <div style="position:relative;">
-          <button id="qFacDropdownBtn" onclick="toggleQFacDropdown()" class="tap w-full" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-radius:14px;border:1.5px solid #e5e7eb;background:#f9fafb;cursor:pointer;text-align:left;">
-            <span id="qFacDropdownLabel" style="font-size:13px;color:#9ca3af;">Select facility…</span>
-            <svg id="qFacDropdownArrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" stroke-width="2.5" style="flex-shrink:0;transition:transform .2s;">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-          <!-- Dropdown list -->
-          <div id="qFacDropdownList" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;background:#fff;border-radius:14px;border:1.5px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.12);overflow:hidden;max-height:260px;overflow-y:auto;">
-            <!-- items injected by renderQFacGrid() -->
-            <button onclick="closeQFacDropdown();event.stopPropagation();" style="display:flex;align-items:center;justify-content:center;width:100%;padding:12px 16px;border:none;border-top:2px solid #e5e7eb;background:#f9fafb;cursor:pointer;font-size:13px;font-weight:700;color:#1a2b8c;gap:6px;position:sticky;bottom:0;">
-              &#10003; Done
-            </button>
-          </div>
-        </div>
-        <!-- Selected chips -->
-        <div id="qFacChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
-        <input id="qFacOther" type="text" placeholder="Describe other location…" class="inp mt-3" style="font-size:13px;display:none;">
-        <button onclick="qGoStep2()" id="qNextBtn" class="tap w-full py-3 mt-4 rounded-2xl font-semibold text-sm"
-          style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;opacity:.4;pointer-events:none;">Continue →</button>
-      </div>
-
-      <!-- Step 2: Mileage (only if Juno Tech Lab) -->
-      <div id="qStep2" style="display:none;">
-        <button onclick="qBackStep1()" class="text-xs mb-3 flex items-center gap-1" style="background:none;border:none;cursor:pointer;color:#9ca3af;">← Back</button>
-        <p class="text-lg font-bold" style="color:#111827;">Track Mileage?</p>
-        <p class="text-xs mt-1 mb-4" style="color:#9ca3af;">If yes, your GPS will automatically track distance until you clock out — no manual entry needed.</p>
-        <div class="grid grid-cols-2 gap-3">
-          <button onclick="setDroveMode(true)" id="qDroveYes" class="tap py-5 rounded-2xl font-semibold text-sm"
-            style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">
-            <div style="font-size:22px;margin-bottom:4px;">&#128663;</div>Yes — track miles
-          </button>
-          <button onclick="setDroveMode(false)" id="qDroveNo" class="tap py-5 rounded-2xl font-semibold text-sm"
-            style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">
-            <div style="font-size:22px;margin-bottom:4px;">&#128683;</div>No mileage
+    <!-- Clock-In Form (shown FIRST — facility + note, then photo) -->
+    <div id="clockInQuestionsCard" class="glass rounded-3xl px-6 py-6 space-y-4" style="display:none;">
+      <p class="text-lg font-bold" style="color:#111827;">Where are you working today?</p>
+      <!-- Facility dropdown -->
+      <div style="position:relative;">
+        <button id="qFacDropdownBtn" onclick="toggleQFacDropdown()" class="tap w-full" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-radius:14px;border:1.5px solid #e5e7eb;background:#f9fafb;cursor:pointer;text-align:left;">
+          <span id="qFacDropdownLabel" style="font-size:13px;color:#9ca3af;">Select facility…</span>
+          <svg id="qFacDropdownArrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" stroke-width="2.5" style="flex-shrink:0;transition:transform .2s;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div id="qFacDropdownList" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;background:#fff;border-radius:14px;border:1.5px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.12);overflow:hidden;max-height:260px;overflow-y:auto;">
+          <button onclick="closeQFacDropdown();event.stopPropagation();" style="display:flex;align-items:center;justify-content:center;width:100%;padding:12px 16px;border:none;border-top:2px solid #e5e7eb;background:#f9fafb;cursor:pointer;font-size:13px;font-weight:700;color:#1a2b8c;gap:6px;position:sticky;bottom:0;">
+            &#10003; Done
           </button>
         </div>
-        <div id="qMileageWrap" style="display:none;">
-          <p class="text-sm font-semibold mt-4 mb-2" style="color:#111827;">Trip Type</p>
-          <p class="text-xs mb-3" style="color:#9ca3af;">Will you return to Juno Tech Lab after your visit?</p>
-          <div class="grid grid-cols-2 gap-3 mb-3">
-            <button onclick="setTripType('ONE_WAY')" id="qTripOneWay" class="tap py-4 rounded-2xl font-semibold text-sm"
-              style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">
-              <div style="font-size:20px;margin-bottom:4px;">&#10145;</div>
-              <div>One-Way</div>
-              <div style="font-size:10px;font-weight:400;margin-top:2px;color:#9ca3af;">Ends at patient site</div>
-            </button>
-            <button onclick="setTripType('ROUND_TRIP')" id="qTripRoundTrip" class="tap py-4 rounded-2xl font-semibold text-sm"
-              style="background:#f9fafb;color:#374151;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;">
-              <div style="font-size:20px;margin-bottom:4px;">&#8634;</div>
-              <div>Round Trip</div>
-              <div style="font-size:10px;font-weight:400;margin-top:2px;color:#9ca3af;">Returns to lab</div>
-            </button>
-          </div>
-          <div id="qTripNote" style="display:none;" class="rounded-2xl px-4 py-3" style="background:#f5f3ff;border:1px solid #ddd6fe;">
-            <p id="qTripNoteText" class="text-xs font-semibold" style="color:#7c3aed;"></p>
-          </div>
-        </div>
       </div>
-
-      <!-- Note (always shown at bottom) -->
+      <div id="qFacChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <input id="qFacOther" type="text" placeholder="Describe other location…" class="inp" style="font-size:13px;display:none;">
+      <!-- Note -->
       <div>
         <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Note <span style="color:#d1d5db;">(optional)</span></label>
         <input id="qNote" type="text" placeholder="e.g. Starting early, working remote…" class="inp">
       </div>
-
-      <!-- Submit -->
-      <button onclick="submitClockInQuestions()" id="qSubmitBtn" class="tap w-full py-4 rounded-2xl font-bold text-base"
-        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;display:none;">Clock In ✓</button>
+      <button onclick="proceedToClockInPhoto()" id="qNextBtn" class="tap w-full py-4 rounded-2xl font-bold text-base"
+        style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;opacity:.4;pointer-events:none;box-shadow:0 4px 16px rgba(26,43,140,.3);">Continue to Photo →</button>
       <button onclick="cancelCapture()" class="text-sm text-center w-full" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
     </div>
 
-    <!-- Clock-Out Card (shown after photo, clock-OUT only) -->
-    <!-- clockOutNoteCard removed — clock-out submits immediately after photo -->
+    <!-- Clock-Out Note Card (shown FIRST on clock-out) -->
+    <div id="clockOutNoteCard" class="glass rounded-3xl px-6 py-6 space-y-4" style="display:none;">
+      <p class="text-lg font-bold" style="color:#111827;">Clock Out</p>
+      <div>
+        <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Note <span style="color:#d1d5db;">(optional)</span></label>
+        <input id="clockOutNote" type="text" placeholder="e.g. Finished early, patient rescheduled…" class="inp">
+      </div>
+      <button onclick="_openCameraForClock()" class="tap w-full py-4 rounded-2xl font-bold text-base"
+        style="background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(185,28,28,.3);">Continue to Photo →</button>
+      <button onclick="cancelCapture()" class="text-sm text-center w-full" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1669,16 +1619,36 @@ function renderEmpState() {
 /* ── clock in/out ───────────────────────── */
 function handleClock() {
   pendingAction = (clockState==='out') ? 'in' : 'out';
-  // Block clock-out if CA break gate fails
   if (pendingAction === 'out' && !_checkClockOutBreakGate()) return;
-  // Location is required — show blocking modal if not yet granted
-  if (!currentLocation) {
-    openLocationModal();
-    return;
+  if (!currentLocation) { openLocationModal(); return; }
+  _openPreClockForm();
+}
+function _openPreClockForm() {
+  document.getElementById('mainCard').style.display='none';
+  if (pendingAction === 'in') {
+    qSelectedFacs = []; qDroveMode = null;
+    document.getElementById('qNote').value = '';
+    document.getElementById('qFacOther').value = '';
+    document.getElementById('qFacOther').style.display = 'none';
+    closeQFacDropdown();
+    renderQFacGrid();
+    var nb = document.getElementById('qNextBtn');
+    if (nb) { nb.style.opacity='.4'; nb.style.pointerEvents='none'; }
+    var card = document.getElementById('clockInQuestionsCard');
+    card.style.display='flex'; card.style.flexDirection='column';
+  } else {
+    document.getElementById('clockOutNote').value = '';
+    var card = document.getElementById('clockOutNoteCard');
+    card.style.display='flex'; card.style.flexDirection='column';
   }
+}
+function proceedToClockInPhoto() {
+  if (!qSelectedFacs.length) { toast('Please select a facility first'); return; }
   _openCameraForClock();
 }
 function _openCameraForClock() {
+  document.getElementById('clockInQuestionsCard').style.display='none';
+  document.getElementById('clockOutNoteCard').style.display='none';
   document.getElementById('mainCard').style.display='none';
   document.getElementById('camTitle').textContent = pendingAction==='in'
     ? 'Clock In — Show your work area' : 'Clock Out — Show your work area';
@@ -1719,10 +1689,9 @@ function requestLocationForClock() {
       var acc = currentLocation.accuracy;
       updateLocationPill('found', acc < 50 ? 'Location confirmed (±'+acc+'m)' : 'Location (±'+acc+'m)');
       startLocationWatch();
-      // Close modal and open camera
       var m = document.getElementById('locationRequiredModal');
       if (m) m.classList.remove('open');
-      _openCameraForClock();
+      _openPreClockForm();
     },
     function(err) {
       var msg = err.code===1
@@ -1739,6 +1708,7 @@ function cancelCapture() {
   snapDataUrl=null;
   document.getElementById('camWrap').style.display='none';
   document.getElementById('clockInQuestionsCard').style.display='none';
+  document.getElementById('clockOutNoteCard').style.display='none';
   renderEmpState();
 }
 /* ── Gamified Clock-In Flow ─────────────────── */
@@ -1748,31 +1718,14 @@ function capturePhoto() {
   var ctx    = canvas.getContext('2d');
   ctx.clearRect(0,0,canvas.width,canvas.height);
   if (video.readyState >= 2) {
-    ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-160,0,160,160); ctx.restore();
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-300,0,300,300); ctx.restore();
   }
   pendingPhoto = (video.readyState >= 2) ? canvas.toDataURL('image/jpeg',0.30) : null;
   stopCamera();
   document.getElementById('camWrap').style.display = 'none';
 
   if (pendingAction === 'in') {
-    // Reset & show gamified clock-in questions
-    qSelectedFacs = []; qDroveMode = null;
-    document.getElementById('qNote').value = '';
-    document.getElementById('qFacOther').value = '';
-    document.getElementById('qFacOther').style.display = 'none';
-    closeQFacDropdown();
-    renderQFacGrid();
-    document.getElementById('qStep1').style.display = '';
-    document.getElementById('qStep2').style.display = 'none';
-    document.getElementById('qSubmitBtn').style.display = 'none';
-    document.getElementById('qDot1').style.background = '#1a2b8c';
-    document.getElementById('qDot2').style.background = '#e5e7eb';
-    document.getElementById('qStepLabel').textContent = 'Step 1 of 2';
-    var qNextBtn = document.getElementById('qNextBtn');
-    if (qNextBtn) { qNextBtn.style.opacity='.4'; qNextBtn.style.pointerEvents='none'; }
-    renderQFacGrid();
-    var card = document.getElementById('clockInQuestionsCard');
-    card.style.display='flex'; card.style.flexDirection='column';
+    submitClockInQuestions();
   } else {
     // Clock-out: submit immediately — no extra step required
     submitClockOut();
@@ -2007,9 +1960,11 @@ function submitClockOut() {
     totalReimbursement: cms.total,
     nonTaxable:    true
   } : null;
+  var clockOutNoteVal = (document.getElementById('clockOutNote').value||'').trim();
   var entry = {
     name: currentEmp.name, type:'out', ts: entryTs,
     hasPhoto: !!pendingPhoto, photo: pendingPhoto||null,
+    note: clockOutNoteVal||null,
     location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null,
     mileage: finalMiles,
     tripType: tripType,
