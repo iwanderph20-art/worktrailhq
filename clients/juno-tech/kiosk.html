@@ -12,7 +12,8 @@
 <!-- Leaflet is lazy-loaded the first time the map modal opens (see loadLeaflet()) -->
 <style>
 *{-webkit-font-smoothing:antialiased;box-sizing:border-box;}
-body{background:#F2F2F7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+body{background:#ECECF2;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+.emp-bg{background:linear-gradient(160deg,#eef0f8 0%,#e8eaf4 40%,#eff1f7 100%);min-height:100vh;}
 video{object-fit:cover;transform:scaleX(-1);}
 .cam-ring{box-shadow:0 0 0 3px rgba(0,0,0,.06),0 10px 36px rgba(0,0,0,.13),inset 0 0 0 2px rgba(255,255,255,.8);}
 .tap{-webkit-tap-highlight-color:transparent;transition:transform .12s,background-color .18s;}
@@ -150,7 +151,7 @@ video{object-fit:cover;transform:scaleX(-1);}
 </style>
 </head>
 <body class="min-h-screen select-none overflow-x-hidden">
-<canvas id="captureCanvas" class="hidden" width="260" height="260"></canvas>
+<canvas id="captureCanvas" class="hidden" width="300" height="300"></canvas>
 
 <!-- Logo template — uses external PNG file -->
 <template id="logoTpl">
@@ -242,12 +243,12 @@ video{object-fit:cover;transform:scaleX(-1);}
     </div>
   </header>
   <div class="max-w-lg mx-auto px-4 py-6 space-y-4">
-    <div class="glass rounded-3xl px-6 py-5">
-      <p class="text-sm font-medium" style="color:#9ca3af;">Welcome back</p>
-      <p id="empName" class="text-2xl font-bold mt-0.5" style="color:#111827;"></p>
-      <div class="flex items-center gap-2 mt-2 flex-wrap">
+    <div class="rounded-3xl px-6 py-6" style="background:linear-gradient(135deg,#1a2b8c 0%,#2d44cc 100%);box-shadow:0 8px 32px rgba(26,43,140,.28);">
+      <p class="text-sm font-medium" style="color:rgba(255,255,255,.6);">Welcome back</p>
+      <p id="empName" class="text-2xl font-bold mt-0.5" style="color:#fff;"></p>
+      <div class="flex items-center gap-2 mt-3 flex-wrap">
         <span id="statusBadge" class="b-out text-xs font-semibold px-3 py-1 rounded-full">Not Clocked In</span>
-        <span id="clockedSince" class="text-xs" style="color:#9ca3af;display:none;"></span>
+        <span id="clockedSince" class="text-xs" style="color:rgba(255,255,255,.55);display:none;"></span>
         <span id="locationPill" class="loc-pill getting" style="display:none;">
           <span id="locationDot" style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;"></span>
           <span id="locationLabel">Getting location…</span>
@@ -268,7 +269,7 @@ video{object-fit:cover;transform:scaleX(-1);}
     </div>
     <div id="mainCard" class="glass rounded-3xl px-6 py-6 space-y-3">
       <button id="clockBtn" onclick="handleClock()" class="tap w-full py-5 rounded-2xl font-bold text-lg"
-        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Clock In</button>
+        style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;box-shadow:0 6px 20px rgba(26,43,140,.35);letter-spacing:.01em;">Clock In</button>
       <!-- break buttons removed — meal break appears automatically after 5 hrs -->
       <div id="breakBtns" style="display:none;"></div>
     </div>
@@ -320,10 +321,10 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div><p id="sumTotal"   class="text-base font-semibold" style="color:#111827;">&#8212;</p><p class="text-xs" style="color:#9ca3af;">Hours So Far</p></div>
       </div>
     </div>
-    <button onclick="openEmpLogs()" class="tap w-full glass rounded-3xl px-6 py-5 flex items-center gap-4"
-      style="border:none;cursor:pointer;text-align:left;">
-      <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#f0fdf4;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#15803d" stroke-width="2">
+    <button onclick="openEmpLogs()" class="tap w-full rounded-3xl px-6 py-5 flex items-center gap-4"
+      style="border:none;cursor:pointer;text-align:left;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.07);border:1px solid rgba(0,0,0,.06);">
+      <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#15803d" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
         </svg>
       </div>
@@ -331,27 +332,28 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="font-semibold" style="color:#111827;">My Logs</p>
         <p class="text-sm" style="color:#9ca3af;">View your previous shift history</p>
       </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="ml-auto flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#d1d5db" stroke-width="2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="ml-auto flex-shrink-0" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#c7ccd6" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
       </svg>
     </button>
     <!-- Camera capture panel (camera-only, no facility/note here) -->
-    <div id="camWrap" class="glass rounded-3xl px-6 py-7 flex-col items-center gap-4" style="display:none;">
-      <p id="camTitle" class="text-xl font-bold text-center" style="color:#111827;">Clock In — Show your work area</p>
-      <p class="text-sm text-center" style="color:#9ca3af;margin-top:-8px;">Position yourself so your surroundings are visible</p>
-      <div class="cam-ring rounded-full overflow-hidden mx-auto" style="width:260px;height:260px;box-shadow:0 0 0 4px rgba(26,43,140,.12),0 16px 48px rgba(0,0,0,.18),inset 0 0 0 3px rgba(255,255,255,.9);">
-        <video id="camPreview" autoplay playsinline muted style="width:260px;height:260px;"></video>
-      </div>
-      <div class="w-full rounded-2xl px-4 py-3 flex gap-3 items-start" style="background:#fef9c3;border:1px solid #fde68a;">
-        <span style="font-size:18px;flex-shrink:0;">&#128247;</span>
-        <div>
-          <p class="text-xs font-bold" style="color:#92400e;">Show your work environment</p>
-          <p class="text-xs mt-0.5 leading-relaxed" style="color:#a16207;">Make sure your <strong>work area or surroundings are visible</strong> in the background. This confirms you are on-site.</p>
+    <div id="camWrap" class="rounded-3xl flex-col items-center gap-5" style="display:none;background:linear-gradient(160deg,#0f1a5c 0%,#1a2b8c 60%,#1e3299 100%);box-shadow:0 12px 48px rgba(15,26,92,.45);padding:32px 24px 28px;">
+      <p id="camTitle" class="text-xl font-bold text-center" style="color:#fff;">Clock In — Show your work area</p>
+      <p class="text-sm text-center" style="color:rgba(255,255,255,.5);margin-top:-8px;">Position yourself so your work area is visible behind you</p>
+      <!-- ring glow effect -->
+      <div style="position:relative;margin:8px auto 0;width:300px;height:300px;">
+        <div style="position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,rgba(99,120,255,.35) 0%,transparent 70%);pointer-events:none;"></div>
+        <div class="rounded-full overflow-hidden" style="width:300px;height:300px;box-shadow:0 0 0 3px rgba(255,255,255,.18),0 0 0 6px rgba(99,120,255,.2),0 20px 60px rgba(0,0,0,.5);">
+          <video id="camPreview" autoplay playsinline muted style="width:300px;height:300px;"></video>
         </div>
       </div>
-      <button onclick="capturePhoto()" class="tap w-full py-4 rounded-2xl font-bold text-white text-base"
-        style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);border:none;cursor:pointer;box-shadow:0 4px 16px rgba(26,43,140,.35);letter-spacing:.01em;">&#128247; Take Photo &amp; Continue</button>
-      <button onclick="cancelCapture()" class="text-sm font-medium" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
+      <div class="w-full rounded-2xl px-4 py-3 flex gap-3 items-start" style="background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);">
+        <span style="font-size:16px;flex-shrink:0;">&#128247;</span>
+        <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.65);">Make sure your <strong style="color:rgba(255,255,255,.9);">work area or surroundings are visible</strong> in the background. This confirms you are on-site.</p>
+      </div>
+      <button onclick="capturePhoto()" class="tap w-full py-4 rounded-2xl font-bold text-base"
+        style="background:#fff;color:#1a2b8c;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.25);letter-spacing:.01em;">&#128247; Take Photo &amp; Continue</button>
+      <button onclick="cancelCapture()" class="text-sm font-medium" style="color:rgba(255,255,255,.4);background:none;border:none;cursor:pointer;">Cancel</button>
     </div>
 
     <!-- Gamified Clock-In Questions (shown after photo, clock-IN only) -->
