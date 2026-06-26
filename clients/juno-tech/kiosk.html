@@ -150,7 +150,7 @@ video{object-fit:cover;transform:scaleX(-1);}
 </style>
 </head>
 <body class="min-h-screen select-none overflow-x-hidden">
-<canvas id="captureCanvas" class="hidden" width="160" height="160"></canvas>
+<canvas id="captureCanvas" class="hidden" width="260" height="260"></canvas>
 
 <!-- Logo template — uses external PNG file -->
 <template id="logoTpl">
@@ -320,21 +320,6 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div><p id="sumTotal"   class="text-base font-semibold" style="color:#111827;">&#8212;</p><p class="text-xs" style="color:#9ca3af;">Hours So Far</p></div>
       </div>
     </div>
-    <button onclick="openSupply()" class="tap w-full glass rounded-3xl px-6 py-5 flex items-center gap-4"
-      style="border:none;cursor:pointer;text-align:left;">
-      <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#e0e7ff;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#3b30a0" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-        </svg>
-      </div>
-      <div>
-        <p class="font-semibold" style="color:#111827;">Supply Log — Received</p>
-        <p class="text-sm" style="color:#9ca3af;">Log supplies received today</p>
-      </div>
-      <svg xmlns="http://www.w3.org/2000/svg" class="ml-auto flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#d1d5db" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-      </svg>
-    </button>
     <button onclick="openEmpLogs()" class="tap w-full glass rounded-3xl px-6 py-5 flex items-center gap-4"
       style="border:none;cursor:pointer;text-align:left;">
       <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:#f0fdf4;">
@@ -351,21 +336,22 @@ video{object-fit:cover;transform:scaleX(-1);}
       </svg>
     </button>
     <!-- Camera capture panel (camera-only, no facility/note here) -->
-    <div id="camWrap" class="glass rounded-3xl px-6 py-5 flex-col items-center gap-3" style="display:none;">
-      <p id="camTitle" class="text-base font-semibold text-center" style="color:#111827;">Show your work area</p>
-      <div class="cam-ring rounded-full overflow-hidden mx-auto" style="width:160px;height:160px;">
-        <video id="camPreview" autoplay playsinline muted style="width:160px;height:160px;"></video>
+    <div id="camWrap" class="glass rounded-3xl px-6 py-7 flex-col items-center gap-4" style="display:none;">
+      <p id="camTitle" class="text-xl font-bold text-center" style="color:#111827;">Clock In — Show your work area</p>
+      <p class="text-sm text-center" style="color:#9ca3af;margin-top:-8px;">Position yourself so your surroundings are visible</p>
+      <div class="cam-ring rounded-full overflow-hidden mx-auto" style="width:260px;height:260px;box-shadow:0 0 0 4px rgba(26,43,140,.12),0 16px 48px rgba(0,0,0,.18),inset 0 0 0 3px rgba(255,255,255,.9);">
+        <video id="camPreview" autoplay playsinline muted style="width:260px;height:260px;"></video>
       </div>
-      <div class="w-full rounded-2xl px-4 py-3 flex gap-3 items-start" style="background:#fef9c3;">
+      <div class="w-full rounded-2xl px-4 py-3 flex gap-3 items-start" style="background:#fef9c3;border:1px solid #fde68a;">
         <span style="font-size:18px;flex-shrink:0;">&#128247;</span>
         <div>
           <p class="text-xs font-bold" style="color:#92400e;">Show your work environment</p>
           <p class="text-xs mt-0.5 leading-relaxed" style="color:#a16207;">Make sure your <strong>work area or surroundings are visible</strong> in the background. This confirms you are on-site.</p>
         </div>
       </div>
-      <button onclick="capturePhoto()" class="tap w-full py-3 rounded-2xl font-semibold text-white text-sm"
-        style="background:#1a2b8c;border:none;cursor:pointer;">&#128247; Take Photo &amp; Continue</button>
-      <button onclick="cancelCapture()" class="text-sm" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
+      <button onclick="capturePhoto()" class="tap w-full py-4 rounded-2xl font-bold text-white text-base"
+        style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);border:none;cursor:pointer;box-shadow:0 4px 16px rgba(26,43,140,.35);letter-spacing:.01em;">&#128247; Take Photo &amp; Continue</button>
+      <button onclick="cancelCapture()" class="text-sm font-medium" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
     </div>
 
     <!-- Gamified Clock-In Questions (shown after photo, clock-IN only) -->
@@ -1284,7 +1270,6 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
     </div>
     <p class="text-xs mb-4" style="color:#9ca3af;line-height:1.5;">Your shift summary has been submitted and will be reviewed by admin.</p>
-    <button onclick="openSupplyRequest()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#f97316;color:#fff;border:none;cursor:pointer;">&#128230; Request Supplies</button>
     <button onclick="closeSummaryModal()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Done</button>
   </div>
 </div>
