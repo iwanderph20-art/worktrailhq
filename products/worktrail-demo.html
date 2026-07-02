@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ShiftDesk — Live Demo</title>
+<title>Worktrail — Live Demo</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--brand:#1a2b8c;--brand-dark:#0f1a5c;--brand-light:#e0e7ff;--danger:#dc2626;--success:#059669;--warn:#d97706;}
@@ -145,13 +145,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- BUY BAR -->
 <div id="buyBar">
   <div>
-    <div class="buy-msg">⏱ ShiftDesk — Employee Clock-In Kiosk
+    <div class="buy-msg">⏱ Worktrail — Employee Clock-In Kiosk
       <span>You're viewing the live demo. All data is fake — explore freely.</span>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <span class="demo-tag">🎭 DEMO</span>
-    <button class="buy-btn" onclick="window.open('https://worktrailhq.com','_blank')">Get ShiftDesk — $69 →</button>
+    <button class="buy-btn" onclick="window.open('https://worktrailhq.com','_blank')">Get Worktrail — $69 →</button>
   </div>
 </div>
 
@@ -185,7 +185,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="pin-key del" onclick="dPinDel()">⌫</button>
     </div>
     <div class="pin-error" id="demoPinError"></div>
-    <div class="pin-hint">Demo PINs: 1001 · 1002 · 1003 · 1004 · 1005</div>
+    <div class="pin-hint">Demo PINs: 1001 · 1002 · 1003</div>
   </div>
 </div>
 
@@ -234,15 +234,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <!-- PAYROLL -->
     <div id="dTabPayroll" class="hidden">
-      <div class="rec-filters" style="margin-bottom:20px;">
+      <div class="rec-filters" style="margin-bottom:12px;">
         <input type="date" id="prFrom">
         <input type="date" id="prTo">
         <button class="btn-save" style="padding:8px 16px;margin-top:0;" onclick="renderPayroll()">Generate Report</button>
+        <button class="btn-export" style="padding:8px 16px;" onclick="exportPayrollPDF()">⬇ Download PDF</button>
       </div>
+      <p style="font-size:12px;color:#6b7280;margin-bottom:16px;line-height:1.5;">💡 In the full product, <strong>you define your own computation</strong> — upload a sample salary computation from your accountant for W-2 and 1099 workers, enter the deduction lines (they differ by state), and Worktrail computes gross &rarr; net automatically. This demo uses a sample W-2 template: FICA 6.2% · Medicare 1.45% · State 4%. The 1099 contractor has no withholdings.</p>
       <div class="pay-summary" id="paySummary"></div>
       <table class="payroll-table" id="payTable">
         <thead><tr>
-          <th>Employee</th><th>Total Hours</th><th>Rate</th><th>Gross Pay</th>
+          <th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th>
         </tr></thead>
         <tbody id="payBody"></tbody>
       </table>
@@ -263,6 +265,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <span>Payroll Add-On is <strong>unlocked</strong> — License key verified.</span>
         </div>
         <p style="font-size:11px;color:#9ca3af;margin-top:10px;">In the real product, features are locked until you enter a valid license key purchased on Gumroad.</p>
+      </div>
+      <div class="settings-section">
+        <h3>📧 Clock-In Email Alerts</h3>
+        <label class="field-label">Admin Email</label>
+        <input class="inp" value="owner@sunrisewellness.com" readonly>
+        <p style="font-size:11px;color:#9ca3af;margin-top:8px;">In the full product, the admin gets an email every time an employee clocks in or out — free, no server needed.</p>
       </div>
       <div class="settings-section">
         <h3>Cloud Sync</h3>
@@ -290,12 +298,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ─── DEMO DATA ─── */
 var COLORS=['#1a2b8c','#0f766e','#7c3aed','#b91c1c','#0369a1','#065f46'];
 var DEMO_EMPS=[
-  {name:'Alex Rivera',  code:'1001',rate:18, color:'#1a2b8c'},
-  {name:'Jordan Smith', code:'1002',rate:16, color:'#0f766e'},
-  {name:'Taylor Chen',  code:'1003',rate:17, color:'#7c3aed'},
-  {name:'Morgan Lee',   code:'1004',rate:15, color:'#b91c1c'},
-  {name:'Sam Park',     code:'1005',rate:16, color:'#0369a1'}
+  {name:'Alex Rivera',  code:'1001',rate:18, empType:'w2',   color:'#1a2b8c'},
+  {name:'Jordan Smith', code:'1002',rate:16, empType:'w2',   color:'#0f766e'},
+  {name:'Taylor Chen',  code:'1003',rate:25, empType:'1099', color:'#7c3aed'}
 ];
+/* Sample computation templates (in the full product the admin defines these) */
+var DEMO_TPL_W2=[{label:'FICA (Social Security)',pct:6.2},{label:'Medicare',pct:1.45},{label:'State Withholding',pct:4}];
+var DEMO_TPL_1099=[];
 var DEMO_TS = (function(){
   var now=new Date(), entries=[];
   for(var d=6;d>=1;d--){
@@ -343,11 +352,11 @@ function checkDemoPin(){
   if(match){
     var isIn=isClocked(match.name);
     document.getElementById('clockIcon').textContent=isIn?'👋':'✅';
-    document.getElementById('clockMsg').textContent=match.name+(isIn?' — Clocked Out!'>' — Clocked In!');
+    document.getElementById('clockMsg').textContent=match.name+(isIn?' — Clocked Out!':' — Clocked In!');
     document.getElementById('clockTime').textContent='Demo: '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     document.getElementById('clockModal').classList.add('open');
   } else {
-    document.getElementById('demoPinError').textContent='Incorrect PIN. Try: 1001–1005';
+    document.getElementById('demoPinError').textContent='Incorrect PIN. Try: 1001–1003';
     setTimeout(function(){ pinBuf=''; renderPinDots(); document.getElementById('demoPinError').textContent=''; },1500);
   }
 }
@@ -538,7 +547,7 @@ function renderEmployees(){
       +'<div class="emp-avatar" style="background:'+e.color+';">'+initials(e.name)+'</div>'
       +'<div class="emp-info">'
         +'<div class="emp-name">'+e.name+'</div>'
-        +'<div class="emp-pin">PIN: '+e.code+'</div>'
+        +'<div class="emp-pin">PIN: '+e.code+' · $'+e.rate.toFixed(2)+'/hr · '+(e.empType==='1099'?'1099':'W-2')+'</div>'
         +'<div class="emp-status '+(clocked?'status-in':'status-out')+'">'+(clocked?'● Clocked In':'○ Clocked Out')+'</div>'
       +'</div>'
     +'</div>';
@@ -547,40 +556,101 @@ function renderEmployees(){
 }
 
 /* ─── PAYROLL ─── */
+var _lastPayReport=null;
+function demoDeductions(gross,empType){
+  var tpl=empType==='1099'?DEMO_TPL_1099:DEMO_TPL_W2;
+  var total=0, parts=[];
+  tpl.forEach(function(ln){
+    var amt=Math.round(gross*ln.pct)/100;
+    total+=amt; parts.push({label:ln.label,amount:amt});
+  });
+  return {total:Math.round(total*100)/100, parts:parts};
+}
 function renderPayroll(){
   var from=new Date((document.getElementById('prFrom').value||'2000-01-01')+'T00:00:00');
   var to=new Date((document.getElementById('prTo').value||'2099-12-31')+'T23:59:59');
   var ts=DEMO_TS.filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
   var byEmp={};
-  DEMO_EMPS.forEach(function(e){ byEmp[e.name]={hours:0,rate:e.rate,ins:[],outs:[]}; });
+  DEMO_EMPS.forEach(function(e){ byEmp[e.name]={hours:0,rate:e.rate,empType:e.empType,ins:[],outs:[]}; });
   ts.forEach(function(e){
     if(!byEmp[e.name]) return;
     if(e.type==='in') byEmp[e.name].ins.push(new Date(e.ts));
     else byEmp[e.name].outs.push(new Date(e.ts));
   });
-  // Pair sessions
-  var totalHrs=0, totalPay=0;
+  var totalHrs=0, totalGross=0, totalDed=0, totalNet=0;
+  var reportRows=[];
   Object.keys(byEmp).forEach(function(name){
     var d=byEmp[name]; d.hours=0;
     d.ins.forEach(function(inT){
       var matchOut=d.outs.find(function(outT){ return outT>inT; });
       if(matchOut) d.hours+=(matchOut-inT)/3600000;
     });
-    totalHrs+=d.hours; totalPay+=d.hours*d.rate;
+    if(d.hours<=0) return;
+    var gross=Math.round(d.hours*d.rate*100)/100;
+    var ded=demoDeductions(gross,d.empType);
+    var net=Math.round((gross-ded.total)*100)/100;
+    totalHrs+=d.hours; totalGross+=gross; totalDed+=ded.total; totalNet+=net;
+    reportRows.push({name:name,empType:d.empType,hours:d.hours,rate:d.rate,gross:gross,ded:ded,net:net});
   });
+  _lastPayReport={from:document.getElementById('prFrom').value,to:document.getElementById('prTo').value,rows:reportRows,totalHrs:totalHrs,totalGross:totalGross,totalDed:totalDed,totalNet:totalNet};
   // Summary cards
   var sumHtml='<div class="pay-stat"><div class="pay-stat-label">Total Hours</div><div class="pay-stat-val">'+totalHrs.toFixed(1)+'h</div></div>'
-    +'<div class="pay-stat"><div class="pay-stat-label">Employees</div><div class="pay-stat-val">'+DEMO_EMPS.length+'</div></div>'
-    +'<div class="pay-stat"><div class="pay-stat-label">Est. Gross Pay</div><div class="pay-stat-val">$'+totalPay.toFixed(0)+'</div></div>';
+    +'<div class="pay-stat"><div class="pay-stat-label">Employees</div><div class="pay-stat-val">'+reportRows.length+'</div></div>'
+    +'<div class="pay-stat"><div class="pay-stat-label">Total Gross</div><div class="pay-stat-val">$'+totalGross.toFixed(0)+'</div></div>'
+    +'<div class="pay-stat"><div class="pay-stat-label">Total Net</div><div class="pay-stat-val" style="color:#065f46;">$'+totalNet.toFixed(0)+'</div></div>';
   document.getElementById('paySummary').innerHTML=sumHtml;
   // Table
   var rows='';
-  Object.keys(byEmp).forEach(function(name){
-    var d=byEmp[name], pay=d.hours*d.rate;
-    rows+='<tr><td><strong>'+name+'</strong></td><td>'+d.hours.toFixed(2)+' hrs</td><td>$'+d.rate.toFixed(2)+'/hr</td><td style="font-weight:700;color:#065f46;">$'+pay.toFixed(2)+'</td></tr>';
+  reportRows.forEach(function(r){
+    var dedDetail=r.ded.parts.length?r.ded.parts.map(function(p){ return p.label+': $'+p.amount.toFixed(2); }).join(' · '):'None (1099 — contractor handles own taxes)';
+    rows+='<tr><td><strong>'+r.name+'</strong></td>'
+      +'<td>'+(r.empType==='1099'?'1099':'W-2')+'</td>'
+      +'<td>'+r.hours.toFixed(2)+'</td>'
+      +'<td>$'+r.rate.toFixed(2)+'/hr</td>'
+      +'<td>$'+r.gross.toFixed(2)+'</td>'
+      +'<td title="'+dedDetail+'" style="cursor:help;">− $'+r.ded.total.toFixed(2)+'</td>'
+      +'<td style="font-weight:700;color:#065f46;">$'+r.net.toFixed(2)+'</td></tr>';
   });
-  rows+='<tr class="total-row"><td>Total</td><td>'+totalHrs.toFixed(2)+' hrs</td><td>—</td><td>$'+totalPay.toFixed(2)+'</td></tr>';
+  rows+='<tr class="total-row"><td>Total</td><td></td><td>'+totalHrs.toFixed(2)+'</td><td>—</td><td>$'+totalGross.toFixed(2)+'</td><td>− $'+totalDed.toFixed(2)+'</td><td>$'+totalNet.toFixed(2)+'</td></tr>';
   document.getElementById('payBody').innerHTML=rows;
+}
+
+/* ─── PDF EXPORT ─── */
+function exportPayrollPDF(){
+  if(!_lastPayReport||!_lastPayReport.rows.length) renderPayroll();
+  var r=_lastPayReport;
+  if(!r||!r.rows.length){ toast('Generate a report first'); return; }
+  var h='<!DOCTYPE html><html><head><title>Payroll Report — Sunrise Wellness Co.</title><style>'
+    +'body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1f2937;padding:32px;}'
+    +'h1{font-size:20px;margin:0 0 2px;}h2{font-size:13px;color:#6b7280;font-weight:400;margin:0 0 24px;}'
+    +'table{width:100%;border-collapse:collapse;font-size:12px;}'
+    +'th{background:#f3f4f6;text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db;}'
+    +'td{padding:8px 10px;border-bottom:1px solid #e5e7eb;}'
+    +'.ded{font-size:10px;color:#6b7280;}'
+    +'.tot td{font-weight:800;background:#f0fdf4;}'
+    +'.foot{margin-top:28px;font-size:10px;color:#9ca3af;}'
+    +'@media print{body{padding:0;}}'
+    +'</style></head><body>'
+    +'<h1>Sunrise Wellness Co. — Payroll Report (DEMO)</h1>'
+    +'<h2>Pay period: '+r.from+' to '+r.to+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString('en-US')+'</h2>'
+    +'<table><tr><th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th></tr>';
+  r.rows.forEach(function(row){
+    var dedLines=row.ded.parts.map(function(p){ return p.label+': $'+p.amount.toFixed(2); }).join('<br>')||'None';
+    h+='<tr><td><strong>'+row.name+'</strong></td><td>'+(row.empType==='1099'?'1099':'W-2')+'</td>'
+      +'<td>'+row.hours.toFixed(2)+'</td><td>$'+row.rate.toFixed(2)+'/hr</td>'
+      +'<td>$'+row.gross.toFixed(2)+'</td>'
+      +'<td>− $'+row.ded.total.toFixed(2)+'<div class="ded">'+dedLines+'</div></td>'
+      +'<td><strong>$'+row.net.toFixed(2)+'</strong></td></tr>';
+  });
+  h+='<tr class="tot"><td>Total</td><td></td><td>'+r.totalHrs.toFixed(2)+'</td><td>—</td>'
+    +'<td>$'+r.totalGross.toFixed(2)+'</td><td>− $'+r.totalDed.toFixed(2)+'</td><td>$'+r.totalNet.toFixed(2)+'</td></tr>'
+    +'</table>'
+    +'<p class="foot">Demo data — in the full product this uses YOUR computation template. Generated by Worktrail — worktrailhq.com</p>'
+    +'</body></html>';
+  var w=window.open('','_blank');
+  if(!w){ toast('Allow pop-ups to download the PDF'); return; }
+  w.document.write(h); w.document.close();
+  setTimeout(function(){ w.print(); },400);
 }
 
 /* ─── TOAST ─── */

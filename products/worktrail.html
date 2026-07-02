@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ShiftDesk — Employee Clock-In Kiosk</title>
+<title>Worktrail — Employee Clock-In Kiosk</title>
 <script>if(location.protocol==='http:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1')location.replace('https:'+location.href.substring(location.protocol.length));</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -265,7 +265,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 ══════════════════════════════════ -->
 <div id="landingScreen" class="screen">
   <div class="landing-card">
-    <div class="landing-logo">⏱ ShiftDesk</div>
+    <div class="landing-logo">⏱ Worktrail</div>
     <div class="landing-sub">Employee Clock-In Kiosk for Small Business</div>
     <button class="btn-primary" onclick="startSetup()">Set Up My Kiosk</button>
     <button class="btn-outline" onclick="startDemo()">Try Live Demo</button>
@@ -282,7 +282,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 
     <!-- Step 1: Business Info -->
     <div class="setup-step active" id="step1">
-      <div class="setup-title">Welcome to ShiftDesk</div>
+      <div class="setup-title">Welcome to Worktrail</div>
       <div class="setup-sub">Let's set up your kiosk in 3 steps.</div>
       <div class="form-row">
         <label class="field-label">Business Name</label>
@@ -343,7 +343,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
   <div class="pin-wrap">
     <div class="biz-header">
       <img id="pinBizLogo" class="biz-logo-img hidden" src="" alt="">
-      <div class="biz-name" id="pinBizName">ShiftDesk</div>
+      <div class="biz-name" id="pinBizName">Worktrail</div>
       <div class="biz-time" id="pinClock"></div>
     </div>
     <div class="pin-label">Enter your PIN to clock in or out</div>
@@ -402,7 +402,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 ══════════════════════════════════ -->
 <div id="adminScreen" class="screen">
   <nav class="admin-nav">
-    <span class="admin-logo" id="adminBizName">ShiftDesk</span>
+    <span class="admin-logo" id="adminBizName">Worktrail</span>
     <button class="admin-tab active" onclick="adminTab('records',this)">Records</button>
     <button class="admin-tab" onclick="adminTab('employees',this)">Employees</button>
     <button class="admin-tab" id="payrollTabBtn" onclick="adminTab('payroll',this)">🔒 Payroll</button>
@@ -445,26 +445,74 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 
     <!-- PAYROLL TAB -->
     <div id="tabPayroll" class="hidden tab-lock-wrap" style="min-height:400px;">
-      <div class="rec-filters">
-        <input type="date" id="prFrom">
-        <input type="date" id="prTo">
-        <button class="btn-add-entry" style="padding:8px 16px;" onclick="renderPayrollReport()">Generate Report</button>
+      <div class="rec-filters" style="margin-bottom:16px;">
+        <div class="view-toggle">
+          <button class="view-btn active" id="payBtnReport" onclick="setPayrollView('report')">Report</button>
+          <button class="view-btn" id="payBtnSetup" onclick="setPayrollView('setup')">Computation Setup</button>
+        </div>
       </div>
-      <div class="pay-summary" id="paySummary"></div>
-      <table class="pay-table">
-        <thead><tr>
-          <th>Employee</th><th>Total Hours</th><th>Hourly Rate</th><th>Gross Pay</th>
-        </tr></thead>
-        <tbody id="payTableBody"></tbody>
-      </table>
+
+      <!-- PAYROLL REPORT -->
+      <div id="payReportView">
+        <div class="rec-filters">
+          <input type="date" id="prFrom">
+          <input type="date" id="prTo">
+          <button class="btn-add-entry" style="padding:8px 16px;" onclick="renderPayrollReport()">Generate Report</button>
+          <button class="btn-export" style="padding:8px 16px;" onclick="exportPayrollPDF()">⬇ Download PDF</button>
+        </div>
+        <p id="payTplWarning" class="text-xs mt-1" style="color:var(--warn);margin-bottom:12px;"></p>
+        <div class="pay-summary" id="paySummary"></div>
+        <table class="pay-table">
+          <thead><tr>
+            <th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th>
+          </tr></thead>
+          <tbody id="payTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- PAYROLL COMPUTATION SETUP -->
+      <div id="paySetupView" class="hidden">
+        <p class="text-xs text-gray" style="margin-bottom:16px;line-height:1.6;">Payroll taxes and deductions differ by state and business. Define your own computation below — upload a sample salary computation from your accountant as a reference, then enter each deduction line. Gross pay = hours × hourly rate; net pay = gross − your deductions.</p>
+        <div class="settings-section" id="tplCardW2">
+          <h3>W-2 Employees</h3>
+          <div class="form-row">
+            <label class="field-label">Sample Salary Computation (photo or PDF from your accountant)</label>
+            <input type="file" id="sampleFileW2" accept="image/*,.pdf" style="display:none;" onchange="uploadSample('w2',this)">
+            <button class="btn-export" style="padding:9px 16px;border-radius:10px;" onclick="document.getElementById('sampleFileW2').click()">📎 Upload Sample</button>
+            <span id="sampleStatusW2" class="text-xs text-gray" style="margin-left:8px;"></span>
+          </div>
+          <div class="form-row">
+            <label class="field-label">Deduction Lines (applied to gross pay)</label>
+            <div id="tplLinesW2"></div>
+            <button class="btn-export" style="padding:7px 14px;border-radius:9px;font-size:12px;margin-top:6px;" onclick="addTplLine('w2')">+ Add Deduction Line</button>
+          </div>
+          <button class="btn-save" style="max-width:220px;" onclick="saveTemplate('w2')">Save W-2 Computation</button>
+        </div>
+        <div class="settings-section" id="tplCard1099">
+          <h3>1099 Contractors</h3>
+          <div class="form-row">
+            <label class="field-label">Sample Salary Computation (photo or PDF from your accountant)</label>
+            <input type="file" id="sampleFile1099" accept="image/*,.pdf" style="display:none;" onchange="uploadSample('1099',this)">
+            <button class="btn-export" style="padding:9px 16px;border-radius:10px;" onclick="document.getElementById('sampleFile1099').click()">📎 Upload Sample</button>
+            <span id="sampleStatus1099" class="text-xs text-gray" style="margin-left:8px;"></span>
+          </div>
+          <div class="form-row">
+            <label class="field-label">Deduction Lines (usually none — contractors handle their own taxes)</label>
+            <div id="tplLines1099"></div>
+            <button class="btn-export" style="padding:7px 14px;border-radius:9px;font-size:12px;margin-top:6px;" onclick="addTplLine('1099')">+ Add Deduction Line</button>
+          </div>
+          <button class="btn-save" style="max-width:220px;" onclick="saveTemplate('1099')">Save 1099 Computation</button>
+        </div>
+      </div>
+
       <!-- Lock overlay — hidden when unlocked -->
       <div class="lock-overlay" id="payrollLockOverlay">
         <div class="lock-box">
           <div class="lock-icon-big">🔒</div>
           <div class="lock-title">Payroll Add-On</div>
-          <div class="lock-sub">Generate pay summaries for your team — hours, rates, and gross pay for any date range.</div>
+          <div class="lock-sub">Set up your own W-2 and 1099 salary computations, then generate gross-to-net pay reports with PDF export.</div>
           <div class="lock-price">$39 one-time</div>
-          <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/shiftdesk-payroll" target="_blank">Buy on Gumroad →</a>
+          <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank">Buy on Gumroad →</a>
           <p class="lock-already">Already purchased? <button onclick="openUnlockModal()">Enter license key</button></p>
         </div>
       </div>
@@ -504,6 +552,16 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
         <p id="fbStatus" class="text-xs text-gray mt-2"></p>
       </div>
       <div class="settings-section">
+        <h3>Clock-In Email Alerts</h3>
+        <div class="form-row">
+          <label class="field-label">Admin Email</label>
+          <input id="setAlertEmail" class="inp" type="email" placeholder="you@yourbusiness.com">
+          <p class="text-xs text-gray mt-1">Get an email every time an employee clocks in or out. Uses the free FormSubmit service — the first alert sends you a one-time activation email; click the link inside it to start receiving alerts.</p>
+        </div>
+        <button class="btn-save mt-2" onclick="saveAlertSettings()">Save & Send Test Email</button>
+        <p id="alertStatus" class="text-xs text-gray mt-2"></p>
+      </div>
+      <div class="settings-section">
         <h3>Admin Password</h3>
         <div class="form-row">
           <label class="field-label">New Password</label>
@@ -522,7 +580,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
         <p class="text-xs text-gray mt-2">Clears all employees, records, and settings. Cannot be undone.</p>
       </div>
       <p class="text-xs text-gray" style="text-align:center;margin-top:20px;">
-        ShiftDesk · Powered by <a href="https://worktrailhq.com">WorkTrail HQ</a><br>
+        Worktrail · Powered by <a href="https://worktrailhq.com">WorkTrail HQ</a><br>
         Want custom features? <a href="mailto:info@worktrailhq.com">Contact us for a quote</a>
       </p>
     </div>
@@ -564,6 +622,13 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
     <div class="form-row">
       <label class="field-label">Hourly Rate (optional, for payroll)</label>
       <input id="empRate" class="inp" type="number" min="0" step="0.01" placeholder="e.g. 15.00">
+    </div>
+    <div class="form-row">
+      <label class="field-label">Employment Type (for payroll)</label>
+      <select id="empType" class="inp">
+        <option value="w2">W-2 Employee</option>
+        <option value="1099">1099 Contractor</option>
+      </select>
     </div>
     <button class="btn-save" onclick="saveEmployee()">Save Employee</button>
   </div>
@@ -631,7 +696,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
     </div>
     <p id="unlockStatus" class="text-xs mt-2" style="color:var(--danger);min-height:16px;"></p>
     <button class="btn-save" onclick="submitUnlockKey()">Verify &amp; Unlock</button>
-    <p class="text-xs text-gray mt-2" style="text-align:center;">Don't have it yet? <a href="https://worktrailhq.gumroad.com/l/shiftdesk-payroll" target="_blank" style="color:var(--brand);">Buy for $39 on Gumroad →</a></p>
+    <p class="text-xs text-gray mt-2" style="text-align:center;">Don't have it yet? <a href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank" style="color:var(--brand);">Buy for $39 on Gumroad →</a></p>
   </div>
 </div>
 
@@ -657,7 +722,7 @@ var store = {
 };
 
 var cfg = {
-  get bizName(){ return store.get('biz_name')||'ShiftDesk'; },
+  get bizName(){ return store.get('biz_name')||'Worktrail'; },
   get tagline(){ return store.get('biz_tagline')||'Employee Clock-In'; },
   get color(){ return store.get('biz_color')||'#1a2b8c'; },
   get fbUrl(){ return store.get('fb_url')||''; },
@@ -676,7 +741,7 @@ function applyBrandColor(color){
 /* ═══════════════════════════════════════════
    FEATURE FLAGS & GUMROAD UNLOCK
 ═══════════════════════════════════════════ */
-var GUMROAD_PAYROLL_PERMALINK = 'shiftdesk-payroll'; // update when product is live on Gumroad
+var GUMROAD_PAYROLL_PERMALINK = 'worktrail-payroll'; // update when product is live on Gumroad
 
 function isUnlocked(feature){ return !!store.get('unlock_'+feature); }
 
@@ -697,7 +762,7 @@ function renderUnlockSettings(){
     el.innerHTML = '<div class="addon-locked-box">'
       +'<h4>💰 Payroll Add-On — $39</h4>'
       +'<p>Generate pay summaries: total hours, hourly rate, and gross pay per employee. Purchase on Gumroad, then enter your license key below.</p>'
-      +'<a href="https://worktrailhq.gumroad.com/l/shiftdesk-payroll" target="_blank" style="display:inline-block;background:#f59e0b;color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;text-decoration:none;margin-right:8px;">Buy on Gumroad →</a>'
+      +'<a href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank" style="display:inline-block;background:#f59e0b;color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;text-decoration:none;margin-right:8px;">Buy on Gumroad →</a>'
       +'<button onclick="openUnlockModal()" style="background:transparent;border:1.5px solid #f59e0b;color:#92400e;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;">Enter License Key</button>'
     +'</div>';
   }
@@ -745,7 +810,7 @@ var photoDB = null;
 function initPhotoDB(cb){
   if(photoDB){ if(cb)cb(); return; }
   try{
-    var req=indexedDB.open('shiftdesk_photos',1);
+    var req=indexedDB.open('worktrail_photos',1);
     req.onupgradeneeded=function(e){ e.target.result.createObjectStore('photos',{keyPath:'ts'}); };
     req.onsuccess=function(e){ photoDB=e.target.result; if(cb)cb(); };
     req.onerror=function(){ if(cb)cb(); };
@@ -805,11 +870,9 @@ function syncFromCloud(cb){
    DEMO MODE
 ═══════════════════════════════════════════ */
 var DEMO_EMPLOYEES = [
-  {name:'Alex Rivera', code:'1001'},
-  {name:'Jordan Smith', code:'1002'},
-  {name:'Taylor Chen',  code:'1003'},
-  {name:'Morgan Lee',   code:'1004'},
-  {name:'Sam Park',     code:'1005'}
+  {name:'Alex Rivera',  code:'1001', rate:18, empType:'w2'},
+  {name:'Jordan Smith', code:'1002', rate:16, empType:'w2'},
+  {name:'Taylor Chen',  code:'1003', rate:25, empType:'1099'}
 ];
 function genDemoTimesheet(){
   var now=new Date(), entries=[];
@@ -1091,6 +1154,7 @@ function submitClock(type){
   demoSaveTimesheet(arr);
   if(capturedPhoto&&!DEMO_MODE) savePhoto(ts,capturedPhoto);
   if(!DEMO_MODE&&cfg.fbUrl) fbPut('timesheet',ts,entry);
+  if(!DEMO_MODE) sendClockAlert(currentEmp.name,type,note);
   stopCamera();
   // Show success
   document.getElementById('clockContent').classList.add('hidden');
@@ -1107,6 +1171,45 @@ function backToPin(){
 }
 
 /* ═══════════════════════════════════════════
+   CLOCK-IN EMAIL ALERTS (via FormSubmit — free, no backend)
+═══════════════════════════════════════════ */
+function sendClockAlert(empName,type,note){
+  var email=store.get('alert_email'); if(!email) return;
+  var when=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  var action=type==='in'?'clocked IN':'clocked OUT';
+  fetch('https://formsubmit.co/ajax/'+encodeURIComponent(email),{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify({
+      _subject:'⏱ '+empName+' '+action+' — '+cfg.bizName,
+      Business:cfg.bizName,
+      Employee:empName,
+      Action:action,
+      Time:when,
+      Note:note||'(none)'
+    })
+  }).catch(function(){});
+}
+function saveAlertSettings(){
+  var email=document.getElementById('setAlertEmail').value.trim();
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email address'); return; }
+  store.set('alert_email',email);
+  var st=document.getElementById('alertStatus');
+  if(!email){ st.textContent='Email alerts disabled.'; toast('Alerts disabled'); return; }
+  st.textContent='Sending test email…';
+  fetch('https://formsubmit.co/ajax/'+encodeURIComponent(email),{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body:JSON.stringify({_subject:'⏱ Worktrail alerts activated — '+cfg.bizName,Message:'Clock-in email alerts are now set up for '+cfg.bizName+'. If this is your first alert, FormSubmit sent you a separate activation email — click the confirmation link inside it once.'})
+  }).then(function(r){ return r.json(); }).then(function(){
+    st.textContent='✓ Test email sent to '+email+'. First time? Check your inbox for a FormSubmit activation email and click its link.';
+    toast('Alert email saved');
+  }).catch(function(){
+    st.textContent='Saved, but the test email could not be sent — check your connection.';
+  });
+}
+
+/* ═══════════════════════════════════════════
    ADMIN — RECORDS
 ═══════════════════════════════════════════ */
 function adminTab(tab, btn){
@@ -1119,7 +1222,7 @@ function adminTab(tab, btn){
   });
   if(tab==='records'){ _recView='list'; setRecordView('list'); }
   if(tab==='employees') renderEmployees();
-  if(tab==='payroll'){ checkUnlockStatus(); initPayrollDates(); if(isUnlocked('payroll')) renderPayrollReport(); }
+  if(tab==='payroll'){ checkUnlockStatus(); initPayrollDates(); setPayrollView('report'); if(isUnlocked('payroll')) renderPayrollReport(); }
   if(tab==='settings'){ loadSettingsFields(); checkUnlockStatus(); }
 }
 function initRecordFilters(){
@@ -1311,7 +1414,7 @@ function renderEmployees(){
   emps.forEach(function(e){
     html+='<div class="emp-card">'
       +'<div class="emp-card-name">'+e.name+'</div>'
-      +'<div class="emp-card-pin">PIN: <strong>'+e.code+'</strong>'+(e.rate?' &nbsp;·&nbsp; $'+parseFloat(e.rate).toFixed(2)+'/hr':'')+'</div>'
+      +'<div class="emp-card-pin">PIN: <strong>'+e.code+'</strong>'+(e.rate?' &nbsp;·&nbsp; $'+parseFloat(e.rate).toFixed(2)+'/hr':'')+' &nbsp;·&nbsp; '+(e.empType==='1099'?'1099':'W-2')+'</div>'
       +'<div class="emp-card-actions">'
         +'<button class="btn-edit-emp" onclick="openEditEmployee(\''+e.code+'\')">Edit</button>'
         +'<button class="btn-del-emp" onclick="deleteEmployee(\''+e.code+'\')">Delete</button>'
@@ -1326,6 +1429,7 @@ function openAddEmployee(){
   document.getElementById('empName').value='';
   document.getElementById('empPin').value='';
   document.getElementById('empRate').value='';
+  document.getElementById('empType').value='w2';
   document.getElementById('empPinDisplay').classList.add('hidden');
   openModal('empModal');
 }
@@ -1338,6 +1442,7 @@ function openEditEmployee(code){
   document.getElementById('empName').value=e.name;
   document.getElementById('empPin').value=e.code;
   document.getElementById('empRate').value=e.rate||'';
+  document.getElementById('empType').value=e.empType||'w2';
   document.getElementById('empPinDisplay').textContent=e.code;
   document.getElementById('empPinDisplay').classList.remove('hidden');
   openModal('empModal');
@@ -1346,13 +1451,14 @@ function saveEmployee(){
   var name=document.getElementById('empName').value.trim();
   var pin=document.getElementById('empPin').value.trim();
   var rate=parseFloat(document.getElementById('empRate').value)||0;
+  var empType=document.getElementById('empType').value;
   var editCode=document.getElementById('empEditCode').value;
   if(!name){ toast('Enter employee name'); return; }
   if(!/^\d{4}$/.test(pin)){ toast('PIN must be exactly 4 digits'); return; }
   var emps=DEMO_MODE?store.getJ('_demo_employees',[]):store.getJ('employees',[]);
   var dup=emps.find(function(e){ return e.code===pin&&e.code!==editCode; });
   if(dup){ toast('PIN '+pin+' is already used by '+dup.name); return; }
-  var empObj={name:name,code:pin,rate:rate};
+  var empObj={name:name,code:pin,rate:rate,empType:empType};
   if(editCode){
     emps=emps.map(function(e){ return e.code===editCode?empObj:e; });
   } else {
@@ -1377,6 +1483,7 @@ function loadSettingsFields(){
   document.getElementById('setBizName').value=cfg.bizName;
   document.getElementById('setTagline').value=cfg.tagline;
   document.getElementById('setFbUrl').value=cfg.fbUrl;
+  document.getElementById('setAlertEmail').value=store.get('alert_email')||'';
   renderColorSwatches('settingsColorSwatches',function(col){ applyBrandColor(col); });
   var cur=cfg.color;
   document.querySelectorAll('#settingsColorSwatches .color-swatch').forEach(function(s){
@@ -1533,6 +1640,127 @@ function initPayrollDates(){
   if(pt && !pt.value) pt.value = today;
 }
 
+/* ── Payroll view toggle (Report / Computation Setup) ── */
+function setPayrollView(v){
+  document.getElementById('payReportView').classList.toggle('hidden', v!=='report');
+  document.getElementById('paySetupView').classList.toggle('hidden', v!=='setup');
+  document.getElementById('payBtnReport').classList.toggle('active', v==='report');
+  document.getElementById('payBtnSetup').classList.toggle('active', v==='setup');
+  if(v==='setup') renderTemplateEditors();
+}
+
+/* ── Payroll computation templates (admin-defined, per employment type) ──
+   Stored as pay_tpl_w2 / pay_tpl_1099: {lines:[{label, mode:'pct'|'fixed', value}], sampleName}
+   Sample salary computation files stored in IndexedDB under paysample_w2 / paysample_1099. */
+function getTemplate(type){
+  var def = type==='w2'
+    ? {lines:[{label:'FICA (Social Security)',mode:'pct',value:6.2},{label:'Medicare',mode:'pct',value:1.45}],sampleName:''}
+    : {lines:[],sampleName:''};
+  return store.getJ('pay_tpl_'+type, def);
+}
+function templateSaved(type){ return !!store.get('pay_tpl_'+type); }
+
+function renderTemplateEditors(){
+  ['w2','1099'].forEach(function(type){
+    var tpl=getTemplate(type);
+    var wrap=document.getElementById('tplLines'+(type==='w2'?'W2':'1099'));
+    var html='';
+    tpl.lines.forEach(function(ln,i){
+      html+='<div class="tpl-line" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">'
+        +'<input class="inp" style="flex:2;padding:8px 10px;font-size:13px;" data-fld="label" value="'+String(ln.label).replace(/"/g,'&quot;')+'" placeholder="e.g. State Withholding">'
+        +'<select class="inp" style="flex:0 0 90px;padding:8px 6px;font-size:13px;" data-fld="mode">'
+          +'<option value="pct"'+(ln.mode==='pct'?' selected':'')+'>% of gross</option>'
+          +'<option value="fixed"'+(ln.mode==='fixed'?' selected':'')+'>$ fixed</option>'
+        +'</select>'
+        +'<input class="inp" style="flex:0 0 80px;padding:8px 10px;font-size:13px;" data-fld="value" type="number" step="0.01" min="0" value="'+ln.value+'">'
+        +'<button onclick="removeTplLine(\''+type+'\','+i+')" style="background:#fee2e2;color:var(--danger);border:none;border-radius:8px;width:30px;height:34px;font-weight:700;cursor:pointer;flex-shrink:0;">✕</button>'
+      +'</div>';
+    });
+    if(!tpl.lines.length) html='<p class="text-xs text-gray" style="padding:4px 0;">No deductions — net pay will equal gross pay.</p>';
+    wrap.innerHTML=html;
+    var st=document.getElementById('sampleStatus'+(type==='w2'?'W2':'1099'));
+    st.textContent = tpl.sampleName ? '✓ '+tpl.sampleName : 'No sample uploaded yet.';
+    if(tpl.sampleName){
+      st.style.color='#065f46'; st.style.cursor='pointer'; st.style.textDecoration='underline';
+      st.onclick=function(){ viewSample(type); };
+    } else { st.style.color=''; st.style.cursor=''; st.style.textDecoration=''; st.onclick=null; }
+  });
+}
+function readTplLinesFromDOM(type){
+  var wrap=document.getElementById('tplLines'+(type==='w2'?'W2':'1099'));
+  var lines=[];
+  wrap.querySelectorAll('.tpl-line').forEach(function(row){
+    var label=row.querySelector('[data-fld="label"]').value.trim();
+    var mode=row.querySelector('[data-fld="mode"]').value;
+    var value=parseFloat(row.querySelector('[data-fld="value"]').value)||0;
+    if(label) lines.push({label:label,mode:mode,value:value});
+  });
+  return lines;
+}
+function addTplLine(type){
+  var tpl=getTemplate(type);
+  tpl.lines=readTplLinesFromDOM(type);
+  tpl.lines.push({label:'',mode:'pct',value:0});
+  store.setJ('pay_tpl_'+type,tpl);
+  renderTemplateEditors();
+}
+function removeTplLine(type,idx){
+  var tpl=getTemplate(type);
+  tpl.lines=readTplLinesFromDOM(type);
+  tpl.lines.splice(idx,1);
+  store.setJ('pay_tpl_'+type,tpl);
+  renderTemplateEditors();
+}
+function saveTemplate(type){
+  var tpl=getTemplate(type);
+  tpl.lines=readTplLinesFromDOM(type);
+  store.setJ('pay_tpl_'+type,tpl);
+  toast((type==='w2'?'W-2':'1099')+' computation saved');
+  renderTemplateEditors();
+}
+function uploadSample(type,input){
+  var f=input.files&&input.files[0]; if(!f) return;
+  if(f.size>4*1024*1024){ toast('File too large — keep it under 4 MB'); input.value=''; return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    savePhoto('paysample_'+type, e.target.result);
+    var tpl=getTemplate(type);
+    tpl.lines=readTplLinesFromDOM(type);
+    tpl.sampleName=f.name;
+    store.setJ('pay_tpl_'+type,tpl);
+    toast('Sample uploaded — now enter its deduction lines below');
+    renderTemplateEditors();
+  };
+  reader.readAsDataURL(f);
+  input.value='';
+}
+function viewSample(type){
+  loadPhoto('paysample_'+type,function(url){
+    if(!url){ toast('Sample not found'); return; }
+    if(url.indexOf('data:application/pdf')===0){
+      var w=window.open('','_blank');
+      w.document.write('<iframe src="'+url+'" style="border:0;width:100%;height:100vh;"></iframe>');
+    } else {
+      document.getElementById('photoLightboxImg').src=url;
+      document.getElementById('photoLightboxCap').textContent=(type==='w2'?'W-2':'1099')+' sample salary computation';
+      document.getElementById('photoLightbox').classList.add('open');
+    }
+  });
+}
+
+/* ── Apply a template to a gross amount ── */
+function computeDeductions(gross,tpl){
+  var total=0, parts=[];
+  (tpl.lines||[]).forEach(function(ln){
+    var amt=ln.mode==='pct' ? gross*ln.value/100 : ln.value;
+    amt=Math.round(amt*100)/100;
+    total+=amt;
+    parts.push({label:ln.label,amount:amt});
+  });
+  return {total:Math.round(total*100)/100, parts:parts};
+}
+
+var _lastPayReport=null; // kept for PDF export
 function renderPayrollReport(){
   var pf = document.getElementById('prFrom').value;
   var pt = document.getElementById('prTo').value;
@@ -1541,42 +1769,98 @@ function renderPayrollReport(){
   var emps = demoEmployees();
   var ts = demoTimesheet().filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
   var empMap = {};
-  emps.forEach(function(e){ empMap[e.name]={name:e.name,rate:parseFloat(e.rate)||0,ins:[],outs:[],hours:0}; });
+  emps.forEach(function(e){ empMap[e.name]={name:e.name,rate:parseFloat(e.rate)||0,empType:e.empType||'w2',ins:[],outs:[],hours:0}; });
   ts.forEach(function(e){
-    if(!empMap[e.name]) empMap[e.name]={name:e.name,rate:0,ins:[],outs:[],hours:0};
+    if(!empMap[e.name]) empMap[e.name]={name:e.name,rate:0,empType:'w2',ins:[],outs:[],hours:0};
     if(e.type==='in') empMap[e.name].ins.push(new Date(e.ts));
     else empMap[e.name].outs.push(new Date(e.ts));
   });
-  var totalHrs=0, totalPay=0, empCount=0;
+  var tplW2=getTemplate('w2'), tpl1099=getTemplate('1099');
+  var warn=document.getElementById('payTplWarning');
+  warn.textContent = (!templateSaved('w2')&&!templateSaved('1099'))
+    ? '⚠ You haven’t saved your own computation yet — using starter defaults. Go to Computation Setup to match your accountant’s salary computation.' : '';
+  var totalHrs=0, totalGross=0, totalDed=0, totalNet=0, empCount=0;
+  var reportRows=[];
   Object.values(empMap).forEach(function(d){
     d.hours=0;
     d.ins.forEach(function(inT){
       var outT=d.outs.find(function(o){ return o>inT; });
       if(outT) d.hours+=(outT-inT)/3600000;
     });
-    if(d.hours>0) empCount++;
-    totalHrs+=d.hours;
-    totalPay+=d.hours*d.rate;
+    if(d.hours<=0) return;
+    empCount++;
+    var gross=Math.round(d.hours*d.rate*100)/100;
+    var ded=computeDeductions(gross, d.empType==='1099'?tpl1099:tplW2);
+    var net=Math.round((gross-ded.total)*100)/100;
+    totalHrs+=d.hours; totalGross+=gross; totalDed+=ded.total; totalNet+=net;
+    reportRows.push({name:d.name,empType:d.empType,hours:d.hours,rate:d.rate,gross:gross,ded:ded,net:net});
   });
+  reportRows.sort(function(a,b){ return b.hours-a.hours; });
+  _lastPayReport={from:pf,to:pt,rows:reportRows,totalHrs:totalHrs,totalGross:totalGross,totalDed:totalDed,totalNet:totalNet};
   // Summary
   var sumHtml='<div class="pay-stat"><div class="pay-stat-label">Total Hours</div><div class="pay-stat-val">'+totalHrs.toFixed(1)+'h</div></div>'
     +'<div class="pay-stat"><div class="pay-stat-label">Employees</div><div class="pay-stat-val">'+empCount+'</div></div>'
-    +(totalPay>0?'<div class="pay-stat"><div class="pay-stat-label">Est. Gross Pay</div><div class="pay-stat-val">$'+(totalPay.toFixed(0))+'</div></div>':'');
+    +'<div class="pay-stat"><div class="pay-stat-label">Total Gross</div><div class="pay-stat-val">$'+totalGross.toFixed(0)+'</div></div>'
+    +'<div class="pay-stat"><div class="pay-stat-label">Total Net</div><div class="pay-stat-val" style="color:#065f46;">$'+totalNet.toFixed(0)+'</div></div>';
   document.getElementById('paySummary').innerHTML=sumHtml;
   // Table rows
   var rows='';
-  Object.values(empMap).filter(function(d){ return d.hours>0; }).sort(function(a,b){ return b.hours-a.hours; }).forEach(function(d){
-    var pay=d.hours*d.rate;
+  reportRows.forEach(function(r){
+    var dedDetail=r.ded.parts.length
+      ? r.ded.parts.map(function(p){ return p.label+': $'+p.amount.toFixed(2); }).join(' · ')
+      : 'None';
     rows+='<tr>'
-      +'<td class="emp-cell">'+d.name+'</td>'
-      +'<td>'+d.hours.toFixed(2)+' hrs</td>'
-      +'<td>'+(d.rate?'$'+d.rate.toFixed(2)+'/hr':'<span style="color:var(--gray-400);font-size:11px;">not set</span>')+'</td>'
-      +'<td style="font-weight:700;color:#065f46;">'+(d.rate?'$'+pay.toFixed(2):'—')+'</td>'
+      +'<td class="emp-cell">'+r.name+'</td>'
+      +'<td><span class="rec-badge '+(r.empType==='1099'?'badge-manual':'badge-in')+'" style="margin-left:0;">'+(r.empType==='1099'?'1099':'W-2')+'</span></td>'
+      +'<td>'+r.hours.toFixed(2)+'</td>'
+      +'<td>'+(r.rate?'$'+r.rate.toFixed(2):'<span style="color:var(--gray-400);font-size:11px;">not set</span>')+'</td>'
+      +'<td>$'+r.gross.toFixed(2)+'</td>'
+      +'<td title="'+dedDetail.replace(/"/g,'&quot;')+'" style="cursor:help;">− $'+r.ded.total.toFixed(2)+'</td>'
+      +'<td style="font-weight:700;color:#065f46;">$'+r.net.toFixed(2)+'</td>'
     +'</tr>';
   });
-  if(!rows) rows='<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:24px;">No records in this period.</td></tr>';
-  else if(totalPay>0) rows+='<tr class="total-row"><td>Total</td><td>'+totalHrs.toFixed(2)+' hrs</td><td>—</td><td>$'+totalPay.toFixed(2)+'</td></tr>';
+  if(!rows) rows='<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:24px;">No records in this period.</td></tr>';
+  else rows+='<tr class="total-row"><td>Total</td><td></td><td>'+totalHrs.toFixed(2)+'</td><td>—</td><td>$'+totalGross.toFixed(2)+'</td><td>− $'+totalDed.toFixed(2)+'</td><td>$'+totalNet.toFixed(2)+'</td></tr>';
   document.getElementById('payTableBody').innerHTML=rows;
+}
+
+/* ── PDF export (opens print-ready report; user saves as PDF) ── */
+function exportPayrollPDF(){
+  if(!_lastPayReport||!_lastPayReport.rows.length){ renderPayrollReport(); }
+  var r=_lastPayReport;
+  if(!r||!r.rows.length){ toast('Generate a report first'); return; }
+  var biz=DEMO_MODE?'Demo Business':cfg.bizName;
+  var h='<!DOCTYPE html><html><head><title>Payroll Report — '+biz+'</title><style>'
+    +'body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1f2937;padding:32px;}'
+    +'h1{font-size:20px;margin:0 0 2px;}h2{font-size:13px;color:#6b7280;font-weight:400;margin:0 0 24px;}'
+    +'table{width:100%;border-collapse:collapse;font-size:12px;}'
+    +'th{background:#f3f4f6;text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db;}'
+    +'td{padding:8px 10px;border-bottom:1px solid #e5e7eb;}'
+    +'.ded{font-size:10px;color:#6b7280;}'
+    +'.tot td{font-weight:800;background:#f0fdf4;}'
+    +'.foot{margin-top:28px;font-size:10px;color:#9ca3af;}'
+    +'@media print{body{padding:0;}}'
+    +'</style></head><body>'
+    +'<h1>'+biz+' — Payroll Report</h1>'
+    +'<h2>Pay period: '+r.from+' to '+r.to+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString('en-US')+'</h2>'
+    +'<table><tr><th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th></tr>';
+  r.rows.forEach(function(row){
+    var dedLines=row.ded.parts.map(function(p){ return p.label+': $'+p.amount.toFixed(2); }).join('<br>')||'None';
+    h+='<tr><td><strong>'+row.name+'</strong></td><td>'+(row.empType==='1099'?'1099':'W-2')+'</td>'
+      +'<td>'+row.hours.toFixed(2)+'</td><td>$'+row.rate.toFixed(2)+'/hr</td>'
+      +'<td>$'+row.gross.toFixed(2)+'</td>'
+      +'<td>− $'+row.ded.total.toFixed(2)+'<div class="ded">'+dedLines+'</div></td>'
+      +'<td><strong>$'+row.net.toFixed(2)+'</strong></td></tr>';
+  });
+  h+='<tr class="tot"><td>Total</td><td></td><td>'+r.totalHrs.toFixed(2)+'</td><td>—</td>'
+    +'<td>$'+r.totalGross.toFixed(2)+'</td><td>− $'+r.totalDed.toFixed(2)+'</td><td>$'+r.totalNet.toFixed(2)+'</td></tr>'
+    +'</table>'
+    +'<p class="foot">Computed with the deduction template you configured in Worktrail. Verify against your accountant’s figures. Generated by Worktrail — worktrailhq.com</p>'
+    +'</body></html>';
+  var w=window.open('','_blank');
+  if(!w){ toast('Allow pop-ups to download the PDF'); return; }
+  w.document.write(h); w.document.close();
+  setTimeout(function(){ w.print(); },400);
 }
 
 /* ═══════════════════════════════════════════
@@ -1601,7 +1885,7 @@ function exportCSV(){
   });
   var a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='shiftdesk-records-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.download='worktrail-records-'+new Date().toISOString().slice(0,10)+'.csv';
   a.click(); toast('CSV exported');
 }
 
