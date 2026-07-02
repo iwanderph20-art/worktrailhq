@@ -99,12 +99,13 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 .success-back{background:var(--gray-100);color:var(--gray-600);border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:600;margin-top:20px;}
 
 /* ── ADMIN ── */
-#adminScreen{flex-direction:column;}
-.admin-nav{background:var(--brand);display:flex;align-items:center;padding:0 16px;gap:4px;flex-shrink:0;}
-.admin-logo{color:#fff;font-size:15px;font-weight:900;padding:14px 0;margin-right:12px;letter-spacing:-.3px;}
-.admin-tab{background:transparent;border:none;color:rgba(255,255,255,.6);font-size:13px;font-weight:600;padding:14px 14px;border-bottom:3px solid transparent;transition:all .15s;}
+#adminScreen{flex-direction:column;background:linear-gradient(180deg,#f4f6fb 0%,var(--gray-50) 220px);}
+.admin-nav{background:linear-gradient(120deg,var(--brand) 0%,var(--brand-dark) 100%);display:flex;align-items:center;padding:0 20px;gap:4px;flex-shrink:0;box-shadow:0 4px 18px rgba(16,24,64,.18);position:sticky;top:0;z-index:50;}
+.admin-logo{color:#fff;font-size:16px;font-weight:900;padding:16px 0;margin-right:14px;letter-spacing:-.3px;}
+.admin-tab{background:transparent;border:none;color:rgba(255,255,255,.62);font-size:13px;font-weight:600;padding:16px 14px;border-bottom:3px solid transparent;transition:all .15s;position:relative;}
+.admin-tab:hover{color:rgba(255,255,255,.9);}
 .admin-tab.active{color:#fff;border-bottom-color:#fff;}
-.admin-body{flex:1;overflow-y:auto;padding:16px;}
+.admin-body{flex:1;overflow-y:auto;padding:22px;max-width:1100px;width:100%;margin:0 auto;}
 
 /* ── RECORDS ── */
 .rec-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
@@ -114,7 +115,8 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 .btn-add-entry{background:var(--brand);color:#fff;}
 .day-group{margin-bottom:20px;}
 .day-label{font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding:0 4px;}
-.rec-row{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;}
+.rec-row{background:#fff;border-radius:15px;padding:14px 16px;margin-bottom:9px;box-shadow:0 2px 8px rgba(16,24,64,.05);border:1px solid var(--gray-100);display:flex;align-items:center;gap:12px;transition:box-shadow .15s;}
+.rec-row:hover{box-shadow:0 4px 16px rgba(16,24,64,.09);}
 .rec-photo{width:48px;height:48px;border-radius:10px;object-fit:cover;flex-shrink:0;border:2px solid var(--gray-200);}
 .rec-photo.in{border-color:#86efac;}
 .rec-photo.out{border-color:#fca5a5;}
@@ -135,18 +137,26 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 .active-badge{background:#dcfce7;color:#15803d;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:700;}
 
 /* ── EMPLOYEES ── */
-.emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
-.emp-card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
-.emp-card-name{font-size:15px;font-weight:700;color:var(--gray-800);}
-.emp-card-pin{font-size:13px;color:var(--gray-400);margin-top:2px;}
-.emp-card-actions{display:flex;gap:6px;margin-top:12px;}
-.btn-edit-emp{flex:1;background:var(--gray-100);color:var(--gray-600);border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;}
-.btn-del-emp{background:#fee2e2;color:var(--danger);border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:600;}
-.btn-add-emp{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;margin-bottom:16px;}
+.emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+.emp-card{background:#fff;border-radius:18px;padding:18px;box-shadow:0 2px 10px rgba(16,24,64,.06);border:1px solid var(--gray-100);display:flex;gap:14px;transition:transform .15s,box-shadow .15s;}
+.emp-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(16,24,64,.1);}
+.emp-card-avatar{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:800;flex-shrink:0;box-shadow:0 3px 8px rgba(16,24,64,.15);}
+.emp-card-body{flex:1;min-width:0;}
+.emp-card-name{font-size:15px;font-weight:800;color:var(--gray-800);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.emp-card-position{display:inline-block;font-size:10px;font-weight:700;color:var(--brand);background:var(--brand-light);border-radius:6px;padding:2px 8px;text-transform:uppercase;letter-spacing:.04em;}
+.emp-card-pin{font-size:12px;color:var(--gray-400);margin-top:4px;}
+.emp-card-pin strong{color:var(--gray-600);letter-spacing:.08em;}
+.emp-card-actions{display:flex;gap:6px;margin-top:14px;}
+.btn-edit-emp{flex:1;background:var(--gray-100);color:var(--gray-600);border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;transition:background .15s;}
+.btn-edit-emp:hover{background:var(--gray-200);}
+.btn-del-emp{background:#fee2e2;color:var(--danger);border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:600;transition:opacity .15s;}
+.btn-del-emp:hover{opacity:.8;}
+.btn-add-emp{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 22px;font-size:14px;font-weight:700;margin-bottom:18px;box-shadow:0 4px 12px rgba(26,43,140,.25);transition:transform .12s,box-shadow .12s;}
+.btn-add-emp:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(26,43,140,.32);}
 
 /* ── SETTINGS ── */
-.settings-section{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
-.settings-section h3{font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:14px;}
+.settings-section{background:#fff;border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 2px 10px rgba(16,24,64,.05);border:1px solid var(--gray-100);}
+.settings-section h3{font-size:14px;font-weight:800;color:var(--gray-800);margin-bottom:14px;letter-spacing:-.2px;}
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);}
 .settings-row:last-child{border-bottom:none;}
 .settings-row label{font-size:13px;color:var(--gray-600);}
@@ -235,6 +245,22 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 .addon-unlocked-box{background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:14px;padding:14px 18px;border:1.5px solid #6ee7b7;display:flex;align-items:center;gap:10px;margin-top:12px;}
 .addon-unlocked-box span{font-size:13px;font-weight:700;color:#065f46;}
 
+/* ── LOGO UPLOAD ── */
+.logo-uploader{display:flex;align-items:center;gap:12px;}
+.logo-drop{width:72px;height:72px;border-radius:14px;border:2px dashed var(--gray-200);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--gray-400);cursor:pointer;flex-shrink:0;overflow:hidden;background:var(--gray-50);}
+.logo-drop:hover{border-color:var(--brand);}
+.logo-drop img{width:100%;height:100%;object-fit:contain;}
+.logo-upload-actions{display:flex;flex-direction:column;gap:6px;}
+.btn-logo{background:var(--gray-100);color:var(--gray-600);border:none;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;}
+.btn-logo-remove{background:transparent;color:var(--danger);border:none;font-size:12px;font-weight:600;cursor:pointer;text-align:left;padding:0;}
+.admin-logo-img{height:26px;max-width:120px;object-fit:contain;margin-right:10px;border-radius:5px;}
+
+/* ── CUSTOM URL ── */
+.url-preview{display:flex;align-items:center;gap:8px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:12px;padding:10px 14px;margin-top:8px;}
+.url-preview code{flex:1;font-size:13px;color:var(--brand);font-weight:700;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+.btn-copy-url{background:var(--brand);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;}
+.url-prefix{color:var(--gray-400);font-weight:400;}
+
 /* ── UTILS ── */
 .mt-1{margin-top:4px;}.mt-2{margin-top:8px;}.mt-3{margin-top:12px;}.mt-4{margin-top:16px;}
 .text-sm{font-size:13px;}.text-xs{font-size:11px;}.text-gray{color:var(--gray-400);}
@@ -293,6 +319,18 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
         <input id="s1Tagline" class="inp" placeholder="e.g. Employee Check-In" type="text">
       </div>
       <div class="form-row">
+        <label class="field-label">Company Logo (optional)</label>
+        <div class="logo-uploader">
+          <div class="logo-drop" id="s1LogoDrop" onclick="document.getElementById('s1LogoFile').click()"><span>🏢</span></div>
+          <div class="logo-upload-actions">
+            <input type="file" id="s1LogoFile" accept="image/*" style="display:none;" onchange="handleLogoUpload(this,'s1LogoDrop')">
+            <button type="button" class="btn-logo" onclick="document.getElementById('s1LogoFile').click()">📷 Upload Logo</button>
+            <button type="button" class="btn-logo-remove hidden" id="s1LogoRemove" onclick="clearSetupLogo()">Remove</button>
+          </div>
+        </div>
+        <p class="text-xs text-gray mt-1">Appears on the clock-in screen and admin header. PNG or JPG.</p>
+      </div>
+      <div class="form-row">
         <label class="field-label">Brand Color</label>
         <div class="color-row" id="colorSwatches"></div>
       </div>
@@ -319,14 +357,23 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
       </div>
     </div>
 
-    <!-- Step 3: Firebase (optional) -->
+    <!-- Step 3: Custom URL + Firebase (optional) -->
     <div class="setup-step" id="step3">
-      <div class="setup-title">Cloud Sync (Optional)</div>
-      <div class="setup-sub">Connect a free Firebase Realtime Database to sync data across devices. Skip if you're using a single device.</div>
+      <div class="setup-title">Your Kiosk Link</div>
+      <div class="setup-sub">Pick a custom web address for your kiosk.</div>
       <div class="form-row">
-        <label class="field-label">Firebase Database URL</label>
+        <label class="field-label">Custom URL</label>
+        <input id="s3Slug" class="inp" type="text" placeholder="sunrise-clinic" oninput="updateSetupUrlPreview()">
+        <div class="url-preview">
+          <code id="s3UrlPreview"><span class="url-prefix">worktrailhq.com/k/</span>your-business</code>
+          <button type="button" class="btn-copy-url" onclick="copyText(document.getElementById('s3UrlPreview').textContent)">Copy</button>
+        </div>
+        <p class="text-xs text-gray mt-1">Share this link so staff can open the kiosk on any device. Letters, numbers, and dashes only.</p>
+      </div>
+      <div class="form-row mt-3">
+        <label class="field-label">Firebase Database URL (optional)</label>
         <input id="s3Fb" class="inp" type="url" placeholder="https://your-app-default-rtdb.firebaseio.com">
-        <p class="text-xs text-gray mt-1">Free at firebase.google.com → Create project → Realtime Database</p>
+        <p class="text-xs text-gray mt-1">Free cloud sync across devices. Skip if you use a single device. firebase.google.com → Realtime Database</p>
       </div>
       <div class="setup-nav">
         <button class="btn-back" onclick="setupBack(3)">← Back</button>
@@ -402,6 +449,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 ══════════════════════════════════ -->
 <div id="adminScreen" class="screen">
   <nav class="admin-nav">
+    <img id="adminLogoImg" class="admin-logo-img hidden" src="" alt="">
     <span class="admin-logo" id="adminBizName">Worktrail</span>
     <button class="admin-tab active" onclick="adminTab('records',this)">Records</button>
     <button class="admin-tab" onclick="adminTab('employees',this)">Employees</button>
@@ -537,10 +585,34 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
           <input id="setTagline" class="inp" type="text">
         </div>
         <div class="form-row">
+          <label class="field-label">Company Logo</label>
+          <div class="logo-uploader">
+            <div class="logo-drop" id="setLogoDrop" onclick="document.getElementById('setLogoFile').click()"><span>🏢</span></div>
+            <div class="logo-upload-actions">
+              <input type="file" id="setLogoFile" accept="image/*" style="display:none;" onchange="handleLogoUpload(this,'setLogoDrop')">
+              <button type="button" class="btn-logo" onclick="document.getElementById('setLogoFile').click()">📷 Upload Logo</button>
+              <button type="button" class="btn-logo-remove hidden" id="setLogoRemove" onclick="clearSetupLogo()">Remove</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
           <label class="field-label">Brand Color</label>
           <div class="color-row" id="settingsColorSwatches"></div>
         </div>
         <button class="btn-save mt-3" onclick="saveBizSettings()">Save Business Settings</button>
+      </div>
+      <div class="settings-section">
+        <h3>Kiosk Link</h3>
+        <div class="form-row">
+          <label class="field-label">Custom URL</label>
+          <input id="setSlug" class="inp" type="text" placeholder="sunrise-clinic" oninput="updateSettingsUrlPreview()">
+          <div class="url-preview">
+            <code id="setUrlPreview"><span class="url-prefix">worktrailhq.com/k/</span>your-business</code>
+            <button type="button" class="btn-copy-url" onclick="copyText(document.getElementById('setUrlPreview').textContent)">Copy</button>
+          </div>
+          <p class="text-xs text-gray mt-1">Share this link so staff can open the kiosk on any device. Letters, numbers, and dashes only.</p>
+        </div>
+        <button class="btn-save mt-2" onclick="saveSlugSettings()">Save Kiosk Link</button>
       </div>
       <div class="settings-section">
         <h3>Cloud Sync</h3>
@@ -613,6 +685,10 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
     <div class="form-row">
       <label class="field-label">Full Name</label>
       <input id="empName" class="inp" type="text" placeholder="e.g. Alex Rivera">
+    </div>
+    <div class="form-row">
+      <label class="field-label">Position / Title (optional)</label>
+      <input id="empPosition" class="inp" type="text" placeholder="e.g. Front Desk, Nurse, Cashier">
     </div>
     <div class="form-row">
       <label class="field-label">PIN (4 digits)</label>
@@ -726,6 +802,8 @@ var cfg = {
   get tagline(){ return store.get('biz_tagline')||'Employee Clock-In'; },
   get color(){ return store.get('biz_color')||'#1a2b8c'; },
   get fbUrl(){ return store.get('fb_url')||''; },
+  get logo(){ return store.get('biz_logo')||''; },
+  get slug(){ return store.get('biz_slug')||''; },
   get isSetup(){ return !!store.get('setup_done'); }
 };
 
@@ -736,6 +814,100 @@ function applyBrandColor(color){
   document.documentElement.style.setProperty('--brand-dark','rgb('+r+','+g+','+b+')');
   var rl=Math.min(255,((d>>16)&255)+180), gl=Math.min(255,((d>>8)&255)+180), bl=Math.min(255,(d&255)+180);
   document.documentElement.style.setProperty('--brand-light','rgb('+rl+','+gl+','+bl+')');
+}
+
+/* ═══════════════════════════════════════════
+   COMPANY LOGO & CUSTOM URL
+═══════════════════════════════════════════ */
+// Show the saved logo on the PIN screen and admin header (or hide if none)
+function applyLogo(){
+  var url = DEMO_MODE ? '' : cfg.logo;
+  var pin = document.getElementById('pinBizLogo');
+  var adm = document.getElementById('adminLogoImg');
+  if(url){
+    if(pin){ pin.src=url; pin.classList.remove('hidden'); }
+    if(adm){ adm.src=url; adm.classList.remove('hidden'); }
+  } else {
+    if(pin){ pin.classList.add('hidden'); }
+    if(adm){ adm.classList.add('hidden'); }
+  }
+}
+// Compress an uploaded logo to a data URL (~240px max) and store it
+function handleLogoUpload(input, dropId){
+  var f = input.files && input.files[0]; if(!f) return;
+  if(!/^image\//.test(f.type)){ toast('Please choose an image file'); input.value=''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var max=240, w=img.width, h=img.height;
+      if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
+      else if(h>=w && h>max){ w=Math.round(w*max/h); h=max; }
+      var c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      var out=c.toDataURL('image/png');
+      store.set('biz_logo', out);
+      showLogoPreview(dropId, out);
+      applyLogo();
+      toast('Logo uploaded');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(f);
+  input.value='';
+}
+function showLogoPreview(dropId, url){
+  var drop=document.getElementById(dropId); if(!drop) return;
+  drop.innerHTML = url ? '<img src="'+url+'" alt="logo">' : '<span>🏢</span>';
+  // Toggle the matching Remove button
+  var removeId = dropId==='s1LogoDrop' ? 's1LogoRemove' : 'setLogoRemove';
+  var rb=document.getElementById(removeId);
+  if(rb) rb.classList.toggle('hidden', !url);
+}
+function clearSetupLogo(){
+  store.set('biz_logo','');
+  showLogoPreview('s1LogoDrop','');
+  showLogoPreview('setLogoDrop','');
+  applyLogo();
+  toast('Logo removed');
+}
+
+function initials(name){
+  return (name||'').split(' ').filter(Boolean).map(function(w){ return w[0]; }).join('').slice(0,2).toUpperCase() || '?';
+}
+function slugify(s){
+  return (s||'').toLowerCase().trim()
+    .replace(/[^a-z0-9\s-]/g,'')
+    .replace(/[\s_]+/g,'-')
+    .replace(/-+/g,'-')
+    .replace(/^-|-$/g,'');
+}
+function kioskUrl(slug){
+  return 'worktrailhq.com/k/' + (slug || 'your-business');
+}
+function updateSetupUrlPreview(){
+  var slug = slugify(document.getElementById('s3Slug').value);
+  document.getElementById('s3UrlPreview').innerHTML = '<span class="url-prefix">worktrailhq.com/k/</span>' + (slug || 'your-business');
+}
+function updateSettingsUrlPreview(){
+  var slug = slugify(document.getElementById('setSlug').value);
+  document.getElementById('setUrlPreview').innerHTML = '<span class="url-prefix">worktrailhq.com/k/</span>' + (slug || 'your-business');
+}
+function saveSlugSettings(){
+  var slug = slugify(document.getElementById('setSlug').value);
+  store.set('biz_slug', slug);
+  document.getElementById('setSlug').value = slug;
+  updateSettingsUrlPreview();
+  toast(slug ? 'Kiosk link saved' : 'Kiosk link cleared');
+}
+function copyText(txt){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ toast('Link copied'); },function(){ toast('Copy failed'); });
+  } else {
+    var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('Link copied'); }catch(e){ toast('Copy failed'); }
+    document.body.removeChild(ta);
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -870,9 +1042,9 @@ function syncFromCloud(cb){
    DEMO MODE
 ═══════════════════════════════════════════ */
 var DEMO_EMPLOYEES = [
-  {name:'Alex Rivera',  code:'1001', rate:18, empType:'w2'},
-  {name:'Jordan Smith', code:'1002', rate:16, empType:'w2'},
-  {name:'Taylor Chen',  code:'1003', rate:25, empType:'1099'}
+  {name:'Alex Rivera',  position:'Front Desk',  code:'1001', rate:18, empType:'w2'},
+  {name:'Jordan Smith', position:'Nurse',       code:'1002', rate:16, empType:'w2'},
+  {name:'Taylor Chen',  position:'Consultant',  code:'1003', rate:25, empType:'1099'}
 ];
 function genDemoTimesheet(){
   var now=new Date(), entries=[];
@@ -924,6 +1096,7 @@ function demoSaveTimesheet(arr){ DEMO_MODE ? store.setJ('_demo_timesheet',arr) :
 function init(){
   initPhotoDB();
   applyBrandColor(cfg.color);
+  applyLogo();
   if(!cfg.isSetup){
     showScreen('landingScreen');
   } else {
@@ -988,6 +1161,8 @@ function startSetup(){
   setupStep=1;
   renderSetupProgress();
   renderColorSwatches('colorSwatches', function(col){ applyBrandColor(col); });
+  showLogoPreview('s1LogoDrop', cfg.logo);
+  updateSetupUrlPreview();
   document.querySelectorAll('.setup-step').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById('step1').classList.add('active');
   showScreen('setupScreen');
@@ -1001,6 +1176,9 @@ function setupNext(from){
     var sel=document.querySelector('#colorSwatches .color-swatch.sel');
     var col=sel?sel.getAttribute('data-color'):BRAND_COLORS[0];
     store.set('biz_color',col); applyBrandColor(col);
+    // Pre-fill the kiosk URL slug from the business name if not set yet
+    var slugField=document.getElementById('s3Slug');
+    if(slugField && !slugField.value){ slugField.value=slugify(n); updateSetupUrlPreview(); }
   }
   if(from===2){
     var p=document.getElementById('s2Pass').value, c=document.getElementById('s2Confirm').value;
@@ -1022,6 +1200,7 @@ function setupBack(from){
 function setupFinish(){
   var fb=document.getElementById('s3Fb').value.trim().replace(/\/+$/,'');
   if(fb) store.set('fb_url',fb);
+  store.set('biz_slug', slugify(document.getElementById('s3Slug').value));
   store.set('setup_done','1');
   toast('Kiosk ready!');
   init();
@@ -1069,6 +1248,7 @@ function checkAdminLogin(){
 function openAdminPanel(){
   showScreen('adminScreen');
   document.getElementById('adminBizName').textContent=DEMO_MODE?'Demo Business':cfg.bizName;
+  applyLogo();
   checkUnlockStatus();
   adminTab('records', document.querySelector('.admin-tab'));
   loadSettingsFields();
@@ -1412,12 +1592,16 @@ function renderEmployees(){
   var html='';
   if(!emps.length){ html='<p style="color:var(--gray-400);font-size:13px;">No employees yet. Add one to get started.</p>'; }
   emps.forEach(function(e){
+    var pos=e.position?'<span class="emp-card-position">'+e.position+'</span>':'';
     html+='<div class="emp-card">'
-      +'<div class="emp-card-name">'+e.name+'</div>'
-      +'<div class="emp-card-pin">PIN: <strong>'+e.code+'</strong>'+(e.rate?' &nbsp;·&nbsp; $'+parseFloat(e.rate).toFixed(2)+'/hr':'')+' &nbsp;·&nbsp; '+(e.empType==='1099'?'1099':'W-2')+'</div>'
-      +'<div class="emp-card-actions">'
-        +'<button class="btn-edit-emp" onclick="openEditEmployee(\''+e.code+'\')">Edit</button>'
-        +'<button class="btn-del-emp" onclick="deleteEmployee(\''+e.code+'\')">Delete</button>'
+      +'<div class="emp-card-avatar" style="background:var(--brand);">'+initials(e.name)+'</div>'
+      +'<div class="emp-card-body">'
+        +'<div class="emp-card-name">'+e.name+pos+'</div>'
+        +'<div class="emp-card-pin">PIN <strong>'+e.code+'</strong>'+(e.rate?' &nbsp;·&nbsp; $'+parseFloat(e.rate).toFixed(2)+'/hr':'')+' &nbsp;·&nbsp; '+(e.empType==='1099'?'1099':'W-2')+'</div>'
+        +'<div class="emp-card-actions">'
+          +'<button class="btn-edit-emp" onclick="openEditEmployee(\''+e.code+'\')">Edit</button>'
+          +'<button class="btn-del-emp" onclick="deleteEmployee(\''+e.code+'\')">Delete</button>'
+        +'</div>'
       +'</div>'
     +'</div>';
   });
@@ -1427,6 +1611,7 @@ function openAddEmployee(){
   document.getElementById('empModalTitle').textContent='Add Employee';
   document.getElementById('empEditCode').value='';
   document.getElementById('empName').value='';
+  document.getElementById('empPosition').value='';
   document.getElementById('empPin').value='';
   document.getElementById('empRate').value='';
   document.getElementById('empType').value='w2';
@@ -1440,6 +1625,7 @@ function openEditEmployee(code){
   document.getElementById('empModalTitle').textContent='Edit Employee';
   document.getElementById('empEditCode').value=code;
   document.getElementById('empName').value=e.name;
+  document.getElementById('empPosition').value=e.position||'';
   document.getElementById('empPin').value=e.code;
   document.getElementById('empRate').value=e.rate||'';
   document.getElementById('empType').value=e.empType||'w2';
@@ -1449,6 +1635,7 @@ function openEditEmployee(code){
 }
 function saveEmployee(){
   var name=document.getElementById('empName').value.trim();
+  var position=document.getElementById('empPosition').value.trim();
   var pin=document.getElementById('empPin').value.trim();
   var rate=parseFloat(document.getElementById('empRate').value)||0;
   var empType=document.getElementById('empType').value;
@@ -1458,7 +1645,7 @@ function saveEmployee(){
   var emps=DEMO_MODE?store.getJ('_demo_employees',[]):store.getJ('employees',[]);
   var dup=emps.find(function(e){ return e.code===pin&&e.code!==editCode; });
   if(dup){ toast('PIN '+pin+' is already used by '+dup.name); return; }
-  var empObj={name:name,code:pin,rate:rate,empType:empType};
+  var empObj={name:name,position:position,code:pin,rate:rate,empType:empType};
   if(editCode){
     emps=emps.map(function(e){ return e.code===editCode?empObj:e; });
   } else {
@@ -1484,6 +1671,9 @@ function loadSettingsFields(){
   document.getElementById('setTagline').value=cfg.tagline;
   document.getElementById('setFbUrl').value=cfg.fbUrl;
   document.getElementById('setAlertEmail').value=store.get('alert_email')||'';
+  document.getElementById('setSlug').value=cfg.slug;
+  showLogoPreview('setLogoDrop', cfg.logo);
+  updateSettingsUrlPreview();
   renderColorSwatches('settingsColorSwatches',function(col){ applyBrandColor(col); });
   var cur=cfg.color;
   document.querySelectorAll('#settingsColorSwatches .color-swatch').forEach(function(s){
