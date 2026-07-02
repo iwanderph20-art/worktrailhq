@@ -139,6 +139,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .hidden{display:none!important;}
 .mt-1{margin-top:6px;} .mt-2{margin-top:12px;}
 .field-label{font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;}
+
+/* EMPLOYEE KIOSK BADGE */
+.emp-kiosk-badge{display:inline-block;background:var(--brand-light);color:var(--brand);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:5px 14px;margin-bottom:14px;}
+.pin-role-note{text-align:center;font-size:11px;color:#9ca3af;margin-top:6px;}
+
+/* SETUP WIZARD */
+.setup-wrap{min-height:calc(100vh - 52px);display:flex;align-items:center;justify-content:center;padding:24px;background:#f1f5f9;}
+.setup-card{background:#fff;border-radius:22px;padding:32px;max-width:460px;width:100%;box-shadow:0 12px 40px rgba(16,24,64,.1);}
+.setup-progress{display:flex;gap:6px;margin-bottom:24px;}
+.setup-dot{height:4px;flex:1;border-radius:2px;background:#e5e7eb;}
+.setup-dot.done{background:var(--brand);}
+.setup-step{display:none;} .setup-step.active{display:block;}
+.setup-title{font-size:20px;font-weight:800;color:#111827;margin-bottom:4px;}
+.setup-sub{font-size:13px;color:#9ca3af;margin-bottom:22px;line-height:1.5;}
+.setup-nav{display:flex;gap:10px;margin-top:22px;}
+.btn-back{background:#f3f4f6;color:#4b5563;border:none;border-radius:12px;padding:12px 20px;font-weight:600;cursor:pointer;}
+.btn-next{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-weight:700;flex:1;cursor:pointer;}
+.form-row{margin-bottom:16px;}
+.color-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+.color-swatch{width:36px;height:36px;border-radius:10px;border:3px solid transparent;cursor:pointer;}
+.color-swatch.sel{border-color:#111827;}
+.logo-uploader{display:flex;align-items:center;gap:12px;}
+.logo-drop{width:64px;height:64px;border-radius:14px;border:2px dashed #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:22px;color:#9ca3af;cursor:pointer;overflow:hidden;background:#f9fafb;flex-shrink:0;}
+.logo-drop img{width:100%;height:100%;object-fit:contain;}
+.btn-logo{background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;}
+.url-preview{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 14px;margin-top:8px;}
+.url-preview code{flex:1;font-size:13px;color:var(--brand);font-weight:700;word-break:break-all;font-family:ui-monospace,Menlo,monospace;}
+.url-prefix{color:#9ca3af;font-weight:400;}
+.setup-done-badge{text-align:center;padding:14px 0;}
+
+/* COMPUTATION SETUP */
+.tpl-line{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+.btn-addline{background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;margin-top:6px;}
 </style>
 </head>
 <body>
@@ -154,7 +187,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <span class="demo-tag">🎭 DEMO</span>
-    <button class="buy-btn" onclick="window.open('https://worktrailhq.com','_blank')">Get Worktrail — $69 →</button>
+    <button class="buy-btn" onclick="openBuyModal()">Get Worktrail — $69 →</button>
   </div>
 </div>
 
@@ -165,10 +198,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="pinView" class="pin-screen">
   <div class="pin-card">
     <div class="pin-biz">
+      <span class="emp-kiosk-badge">👤 Employee Clock-In Kiosk</span>
       <div class="pin-biz-name">☀️ Sunrise Wellness Co.</div>
       <div class="pin-biz-time" id="demoClockTick"></div>
     </div>
-    <div class="pin-label">Enter your PIN to clock in or out</div>
+    <div class="pin-label">You're the employee — enter your PIN to clock in or out</div>
     <div class="pin-dots" id="demoPinDots">
       <div class="pin-dot"></div><div class="pin-dot"></div>
       <div class="pin-dot"></div><div class="pin-dot"></div>
@@ -188,7 +222,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="pin-key del" onclick="dPinDel()">⌫</button>
     </div>
     <div class="pin-error" id="demoPinError"></div>
-    <div class="pin-hint">Demo PINs: 1001 · 1002 · 1003</div>
+    <div class="pin-hint">👤 Try a demo employee PIN: <strong>1001</strong> · <strong>1002</strong> · <strong>1003</strong></div>
+    <div class="pin-role-note">Business owner? Tap <strong>Admin</strong> above to see the manager dashboard.</div>
   </div>
 </div>
 
@@ -237,20 +272,69 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <!-- PAYROLL -->
     <div id="dTabPayroll" class="hidden">
-      <div class="rec-filters" style="margin-bottom:12px;">
-        <input type="date" id="prFrom">
-        <input type="date" id="prTo">
-        <button class="btn-save" style="padding:8px 16px;margin-top:0;" onclick="renderPayroll()">Generate Report</button>
-        <button class="btn-export" style="padding:8px 16px;" onclick="exportPayrollPDF()">⬇ Download PDF</button>
+      <div class="rec-filters" style="margin-bottom:16px;">
+        <div class="view-toggle">
+          <button class="view-btn active" id="dPayBtnReport" onclick="dSetPayView('report')">Report</button>
+          <button class="view-btn" id="dPayBtnSetup" onclick="dSetPayView('setup')">Computation Setup</button>
+        </div>
       </div>
-      <p style="font-size:12px;color:#6b7280;margin-bottom:16px;line-height:1.5;">💡 In the full product, <strong>you define your own computation</strong> — upload a sample salary computation from your accountant for W-2 and 1099 workers, enter the deduction lines (they differ by state), and Worktrail computes gross &rarr; net automatically. This demo uses a sample W-2 template: FICA 6.2% · Medicare 1.45% · State 4%. The 1099 contractor has no withholdings.</p>
-      <div class="pay-summary" id="paySummary"></div>
-      <table class="payroll-table" id="payTable">
-        <thead><tr>
-          <th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th>
-        </tr></thead>
-        <tbody id="payBody"></tbody>
-      </table>
+
+      <!-- REPORT -->
+      <div id="dPayReportView">
+        <div class="rec-filters" style="margin-bottom:12px;">
+          <input type="date" id="prFrom">
+          <input type="date" id="prTo">
+          <button class="btn-save" style="padding:8px 16px;margin-top:0;" onclick="renderPayroll()">Generate Report</button>
+          <button class="btn-export" style="padding:8px 16px;" onclick="exportPayrollPDF()">⬇ Download PDF</button>
+        </div>
+        <p style="font-size:12px;color:#6b7280;margin-bottom:16px;line-height:1.5;">💡 You define your own computation under <strong>Computation Setup</strong> — upload a sample stub, tap Auto-fill, tweak, and Worktrail computes gross → net using your numbers.</p>
+        <div class="pay-summary" id="paySummary"></div>
+        <table class="payroll-table" id="payTable">
+          <thead><tr>
+            <th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th>
+          </tr></thead>
+          <tbody id="payBody"></tbody>
+        </table>
+      </div>
+
+      <!-- COMPUTATION SETUP -->
+      <div id="dPaySetupView" class="hidden">
+        <p style="font-size:12px;color:#6b7280;margin-bottom:16px;line-height:1.6;">Taxes differ by state and business, so you define the computation. <strong>Upload a sample</strong> salary stub from your accountant and tap <strong>🔍 Auto-fill</strong> — Worktrail reads it and fills the deduction lines for you to review. Or add them by hand. Gross = hours × rate; net = gross − your deductions.</p>
+        <div class="settings-section" id="dTplCardW2">
+          <h3>W-2 Employees</h3>
+          <div class="form-row">
+            <label class="field-label">Sample Salary Computation (photo or PDF)</label>
+            <input type="file" id="dSampleFileW2" accept="image/*,.pdf" style="display:none;" onchange="dUploadSample('w2',this)">
+            <button class="btn-export" style="padding:9px 16px;border-radius:10px;" onclick="document.getElementById('dSampleFileW2').click()">📎 Upload Sample</button>
+            <button id="dAutoBtnW2" class="btn-save hidden" style="padding:9px 16px;margin-top:0;" onclick="dAutoReadSample('w2')">🔍 Auto-fill from sample</button>
+            <span id="dSampleStatusW2" style="font-size:12px;color:#9ca3af;margin-left:8px;"></span>
+            <p id="dAutoStatusW2" style="font-size:12px;color:var(--brand);font-weight:600;margin-top:6px;"></p>
+          </div>
+          <div class="form-row">
+            <label class="field-label">Deduction Lines (applied to gross)</label>
+            <div id="dTplLinesW2"></div>
+            <button class="btn-addline" onclick="dAddTplLine('w2')">+ Add Deduction Line</button>
+          </div>
+          <button class="btn-save" onclick="dSaveTemplate('w2')">Save W-2 Computation</button>
+        </div>
+        <div class="settings-section" id="dTplCard1099">
+          <h3>1099 Contractors</h3>
+          <div class="form-row">
+            <label class="field-label">Sample Salary Computation (photo or PDF)</label>
+            <input type="file" id="dSampleFile1099" accept="image/*,.pdf" style="display:none;" onchange="dUploadSample('1099',this)">
+            <button class="btn-export" style="padding:9px 16px;border-radius:10px;" onclick="document.getElementById('dSampleFile1099').click()">📎 Upload Sample</button>
+            <button id="dAutoBtn1099" class="btn-save hidden" style="padding:9px 16px;margin-top:0;" onclick="dAutoReadSample('1099')">🔍 Auto-fill from sample</button>
+            <span id="dSampleStatus1099" style="font-size:12px;color:#9ca3af;margin-left:8px;"></span>
+            <p id="dAutoStatus1099" style="font-size:12px;color:var(--brand);font-weight:600;margin-top:6px;"></p>
+          </div>
+          <div class="form-row">
+            <label class="field-label">Deduction Lines (usually none — contractors handle their own taxes)</label>
+            <div id="dTplLines1099"></div>
+            <button class="btn-addline" onclick="dAddTplLine('1099')">+ Add Deduction Line</button>
+          </div>
+          <button class="btn-save" onclick="dSaveTemplate('1099')">Save 1099 Computation</button>
+        </div>
+      </div>
     </div>
 
     <!-- SETTINGS -->
@@ -287,6 +371,107 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 </div>
 
+<!-- ══ SETUP WIZARD (what a buyer sees on first launch) ══ -->
+<div id="setupView" class="setup-wrap hidden">
+  <div class="setup-card">
+    <div class="setup-progress" id="dSetupProgress"></div>
+
+    <!-- Step 1 -->
+    <div class="setup-step active" id="dStep1">
+      <div class="setup-title">Welcome to Worktrail 👋</div>
+      <div class="setup-sub">This is exactly what you'll set up after buying — 3 quick steps, about 2 minutes.</div>
+      <div class="form-row">
+        <label class="field-label">Business Name</label>
+        <input id="dS1Biz" class="inp" placeholder="e.g. Sunrise Wellness Co." type="text">
+      </div>
+      <div class="form-row">
+        <label class="field-label">Company Logo (optional)</label>
+        <div class="logo-uploader">
+          <div class="logo-drop" id="dLogoDrop" onclick="document.getElementById('dLogoFile').click()"><span>🏢</span></div>
+          <div>
+            <input type="file" id="dLogoFile" accept="image/*" style="display:none;" onchange="dLogoUpload(this)">
+            <button type="button" class="btn-logo" onclick="document.getElementById('dLogoFile').click()">📷 Upload Logo</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="field-label">Brand Color</label>
+        <div class="color-row" id="dColorSwatches"></div>
+      </div>
+      <div class="setup-nav">
+        <button class="btn-next" onclick="dSetupNext(1)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="setup-step" id="dStep2">
+      <div class="setup-title">Admin Password</div>
+      <div class="setup-sub">You'll use this to open the manager dashboard. (Demo — nothing is saved.)</div>
+      <div class="form-row">
+        <label class="field-label">Password</label>
+        <input id="dS2Pass" class="inp" type="password" placeholder="Choose a password">
+      </div>
+      <div class="form-row">
+        <label class="field-label">Confirm Password</label>
+        <input id="dS2Confirm" class="inp" type="password" placeholder="Repeat password">
+      </div>
+      <div class="setup-nav">
+        <button class="btn-back" onclick="dSetupBack(2)">← Back</button>
+        <button class="btn-next" onclick="dSetupNext(2)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="setup-step" id="dStep3">
+      <div class="setup-title">Your Kiosk Link</div>
+      <div class="setup-sub">Pick a custom web address, then you're done. Optionally connect free cloud sync.</div>
+      <div class="form-row">
+        <label class="field-label">Custom URL</label>
+        <input id="dS3Slug" class="inp" type="text" placeholder="sunrise-wellness" oninput="dUpdateUrl()">
+        <div class="url-preview">
+          <code id="dS3UrlPreview"><span class="url-prefix">worktrailhq.com/k/</span>your-business</code>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="field-label">Firebase URL (optional cloud sync)</label>
+        <input id="dS3Fb" class="inp" type="url" placeholder="https://your-app-default-rtdb.firebaseio.com">
+      </div>
+      <div class="setup-nav">
+        <button class="btn-back" onclick="dSetupBack(3)">← Back</button>
+        <button class="btn-next" onclick="dSetupFinish()">Finish Setup ✓</button>
+      </div>
+    </div>
+
+    <!-- Done -->
+    <div class="setup-step" id="dStepDone">
+      <div class="setup-done-badge">
+        <div style="font-size:52px;">🎉</div>
+        <div class="setup-title" style="margin-top:8px;">Your kiosk is ready!</div>
+        <div class="setup-sub">That's the entire buyer setup. Employees can now clock in with their PIN.</div>
+      </div>
+      <button class="btn-next" style="width:100%;" onclick="dSetupToKiosk()">Open the Kiosk →</button>
+      <button class="btn-back" style="width:100%;margin-top:10px;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Buy Worktrail — $69 on Gumroad</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BUY MODAL ══ -->
+<div class="modal-overlay" id="buyModal">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-title">Get Worktrail — $69 one-time</div>
+    <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:8px;">Here's exactly what happens when you buy:</p>
+    <ol style="font-size:13px;color:#4b5563;line-height:1.7;padding-left:18px;margin-bottom:16px;">
+      <li>Pay once on Gumroad — no subscription.</li>
+      <li>Get your Worktrail app file by email.</li>
+      <li>Open it and finish this <strong>3-step setup</strong>.</li>
+      <li>Staff start clocking in. Payroll add-on is optional.</li>
+    </ol>
+    <button class="btn-primary" onclick="closeBuyModal();dStartSetup();">▶ Preview the 3-step setup</button>
+    <button class="btn-primary" style="background:#f59e0b;color:#1a1a1a;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Buy on Gumroad →</button>
+    <button class="btn-save" style="background:#f3f4f6;color:#4b5563;width:100%;" onclick="closeBuyModal()">Keep exploring the demo</button>
+  </div>
+</div>
+
 <!-- Clock-in success modal -->
 <div class="modal-overlay" id="clockModal">
   <div class="modal-box" style="text-align:center;">
@@ -305,9 +490,11 @@ var DEMO_EMPS=[
   {name:'Jordan Smith', position:'Nurse',      code:'1002',rate:16, empType:'w2',   color:'#0f766e'},
   {name:'Taylor Chen',  position:'Consultant', code:'1003',rate:25, empType:'1099', color:'#7c3aed'}
 ];
-/* Sample computation templates (in the full product the admin defines these) */
-var DEMO_TPL_W2=[{label:'FICA (Social Security)',pct:6.2},{label:'Medicare',pct:1.45},{label:'State Withholding',pct:4}];
+/* Admin-defined computation templates: {label, mode:'pct'|'fixed', value} */
+var DEMO_TPL_W2=[{label:'FICA (Social Security)',mode:'pct',value:6.2},{label:'Medicare',mode:'pct',value:1.45},{label:'State Withholding',mode:'pct',value:4}];
 var DEMO_TPL_1099=[];
+function dGetTpl(type){ return type==='1099'?DEMO_TPL_1099:DEMO_TPL_W2; }
+function dSetTpl(type,lines){ if(type==='1099') DEMO_TPL_1099=lines; else DEMO_TPL_W2=lines; }
 var DEMO_TS = (function(){
   var now=new Date(), entries=[];
   for(var d=6;d>=1;d--){
@@ -406,7 +593,7 @@ function dTab(tab,btn){
   });
   if(tab==='records') renderList();
   if(tab==='employees') renderEmployees();
-  if(tab==='payroll') renderPayroll();
+  if(tab==='payroll'){ dSetPayView('report'); dRenderTplEditors(); renderPayroll(); }
 }
 
 /* ─── LIST VIEW ─── */
@@ -561,10 +748,11 @@ function renderEmployees(){
 /* ─── PAYROLL ─── */
 var _lastPayReport=null;
 function demoDeductions(gross,empType){
-  var tpl=empType==='1099'?DEMO_TPL_1099:DEMO_TPL_W2;
+  var tpl=dGetTpl(empType);
   var total=0, parts=[];
   tpl.forEach(function(ln){
-    var amt=Math.round(gross*ln.pct)/100;
+    var amt=ln.mode==='fixed' ? ln.value : gross*ln.value/100;
+    amt=Math.round(amt*100)/100;
     total+=amt; parts.push({label:ln.label,amount:amt});
   });
   return {total:Math.round(total*100)/100, parts:parts};
@@ -656,13 +844,226 @@ function exportPayrollPDF(){
   setTimeout(function(){ w.print(); },400);
 }
 
+/* ─── BUY MODAL ─── */
+function openBuyModal(){ document.getElementById('buyModal').classList.add('open'); }
+function closeBuyModal(){ document.getElementById('buyModal').classList.remove('open'); }
+
+/* ─── SETUP WIZARD (mirrors the buyer's first-launch experience) ─── */
+var DEMO_SETUP_COLORS=['#1a2b8c','#0f766e','#7c3aed','#b91c1c','#0369a1','#065f46','#92400e','#1f2937'];
+var _dStep=1;
+function dSlugify(s){ return (s||'').toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/[\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); }
+function dStartSetup(){
+  _dStep=1;
+  dRenderProgress();
+  dRenderColorSwatches();
+  document.getElementById('dLogoDrop').innerHTML='<span>🏢</span>';
+  document.getElementById('dS1Biz').value='';
+  document.getElementById('dS3Slug').value=''; dUpdateUrl();
+  document.querySelectorAll('#setupView .setup-step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('dStep1').classList.add('active');
+  document.getElementById('mainArea').classList.add('hidden');
+  document.getElementById('setupView').classList.remove('hidden');
+}
+function dRenderProgress(){
+  var p=document.getElementById('dSetupProgress'); p.innerHTML='';
+  for(var i=1;i<=3;i++){ var d=document.createElement('div'); d.className='setup-dot'+(i<_dStep?' done':''); p.appendChild(d); }
+}
+function dRenderColorSwatches(){
+  var c=document.getElementById('dColorSwatches'); c.innerHTML='';
+  DEMO_SETUP_COLORS.forEach(function(col,idx){
+    var s=document.createElement('div');
+    s.className='color-swatch'+(idx===0?' sel':''); s.style.background=col; s.setAttribute('data-color',col);
+    s.onclick=function(){ c.querySelectorAll('.color-swatch').forEach(function(x){ x.classList.remove('sel'); }); s.classList.add('sel'); };
+    c.appendChild(s);
+  });
+}
+function dLogoUpload(input){
+  var f=input.files&&input.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(e){ document.getElementById('dLogoDrop').innerHTML='<img src="'+e.target.result+'" alt="logo">'; };
+  r.readAsDataURL(f); input.value='';
+}
+function dUpdateUrl(){
+  var slug=dSlugify(document.getElementById('dS3Slug').value);
+  document.getElementById('dS3UrlPreview').innerHTML='<span class="url-prefix">worktrailhq.com/k/</span>'+(slug||'your-business');
+}
+function dSetupNext(from){
+  if(from===1){
+    if(!document.getElementById('dS1Biz').value.trim()){ toast('Enter your business name'); return; }
+    var slug=document.getElementById('dS3Slug');
+    if(!slug.value){ slug.value=dSlugify(document.getElementById('dS1Biz').value); dUpdateUrl(); }
+  }
+  if(from===2){
+    var p=document.getElementById('dS2Pass').value, c=document.getElementById('dS2Confirm').value;
+    if(p.length<4){ toast('Password must be at least 4 characters'); return; }
+    if(p!==c){ toast('Passwords do not match'); return; }
+  }
+  _dStep++; dRenderProgress();
+  document.querySelectorAll('#setupView .setup-step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('dStep'+_dStep).classList.add('active');
+}
+function dSetupBack(from){
+  _dStep--; dRenderProgress();
+  document.querySelectorAll('#setupView .setup-step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('dStep'+_dStep).classList.add('active');
+}
+function dSetupFinish(){
+  document.querySelectorAll('#setupView .setup-step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('dStepDone').classList.add('active');
+  var p=document.getElementById('dSetupProgress'); p.querySelectorAll('.setup-dot').forEach(function(d){ d.classList.add('done'); });
+}
+function dSetupToKiosk(){
+  document.getElementById('setupView').classList.add('hidden');
+  document.getElementById('mainArea').classList.remove('hidden');
+  showPin();
+  toast('That’s the whole buyer setup — this easy!');
+}
+
+/* ─── PAYROLL COMPUTATION SETUP (with auto-read OCR) ─── */
+var _dSampleUrl={w2:null,'1099':null};
+function dSetPayView(v){
+  document.getElementById('dPayReportView').classList.toggle('hidden',v!=='report');
+  document.getElementById('dPaySetupView').classList.toggle('hidden',v!=='setup');
+  document.getElementById('dPayBtnReport').classList.toggle('active',v==='report');
+  document.getElementById('dPayBtnSetup').classList.toggle('active',v==='setup');
+  if(v==='setup') dRenderTplEditors();
+  if(v==='report') renderPayroll();
+}
+function dRenderTplEditors(){
+  ['w2','1099'].forEach(function(type){
+    var lines=dGetTpl(type);
+    var wrap=document.getElementById('dTplLines'+(type==='w2'?'W2':'1099'));
+    if(!wrap) return;
+    var html='';
+    lines.forEach(function(ln,i){
+      html+='<div class="tpl-line">'
+        +'<input class="inp" style="flex:2;padding:8px 10px;font-size:13px;" data-fld="label" value="'+String(ln.label).replace(/"/g,'&quot;')+'" placeholder="e.g. State Withholding">'
+        +'<select class="inp" style="flex:0 0 92px;padding:8px 6px;font-size:13px;" data-fld="mode">'
+          +'<option value="pct"'+(ln.mode==='pct'?' selected':'')+'>% of gross</option>'
+          +'<option value="fixed"'+(ln.mode==='fixed'?' selected':'')+'>$ fixed</option>'
+        +'</select>'
+        +'<input class="inp" style="flex:0 0 80px;padding:8px 10px;font-size:13px;" data-fld="value" type="number" step="0.01" min="0" value="'+ln.value+'">'
+        +'<button onclick="dRemoveTplLine(\''+type+'\','+i+')" style="background:#fee2e2;color:var(--danger);border:none;border-radius:8px;width:30px;height:34px;font-weight:700;cursor:pointer;flex-shrink:0;">✕</button>'
+      +'</div>';
+    });
+    if(!lines.length) html='<p style="font-size:12px;color:#9ca3af;padding:4px 0;">No deductions — net pay equals gross.</p>';
+    wrap.innerHTML=html;
+    var st=document.getElementById('dSampleStatus'+(type==='w2'?'W2':'1099'));
+    if(st) st.textContent=_dSampleUrl[type]?'✓ sample uploaded':'No sample uploaded yet.';
+    var ab=document.getElementById('dAutoBtn'+(type==='w2'?'W2':'1099'));
+    if(ab) ab.classList.toggle('hidden',!_dSampleUrl[type]);
+  });
+}
+function dReadTplFromDOM(type){
+  var wrap=document.getElementById('dTplLines'+(type==='w2'?'W2':'1099'));
+  var lines=[];
+  wrap.querySelectorAll('.tpl-line').forEach(function(row){
+    var label=row.querySelector('[data-fld="label"]').value.trim();
+    var mode=row.querySelector('[data-fld="mode"]').value;
+    var value=parseFloat(row.querySelector('[data-fld="value"]').value)||0;
+    if(label) lines.push({label:label,mode:mode,value:value});
+  });
+  return lines;
+}
+function dAddTplLine(type){
+  var lines=dReadTplFromDOM(type); lines.push({label:'',mode:'pct',value:0});
+  dSetTpl(type,lines); dRenderTplEditors();
+}
+function dRemoveTplLine(type,idx){
+  var lines=dReadTplFromDOM(type); lines.splice(idx,1);
+  dSetTpl(type,lines); dRenderTplEditors();
+}
+function dSaveTemplate(type){
+  dSetTpl(type,dReadTplFromDOM(type));
+  toast((type==='w2'?'W-2':'1099')+' computation saved');
+  dRenderTplEditors();
+}
+function dUploadSample(type,input){
+  var f=input.files&&input.files[0]; if(!f) return;
+  if(f.size>4*1024*1024){ toast('Keep the file under 4 MB'); input.value=''; return; }
+  var r=new FileReader();
+  r.onload=function(e){
+    _dSampleUrl[type]=e.target.result;
+    toast('Sample uploaded — tap “Auto-fill from sample”, or add lines by hand');
+    dRenderTplEditors();
+  };
+  r.readAsDataURL(f); input.value='';
+}
+function dAutoReadSample(type){
+  var url=_dSampleUrl[type];
+  if(!url){ toast('Upload a sample first'); return; }
+  var st=document.getElementById('dAutoStatus'+(type==='w2'?'W2':'1099'));
+  if(st) st.textContent='⏳ Reading sample… this can take 10–20 seconds.';
+  ensureOCR(function(ok){
+    if(!ok){ if(st) st.textContent=''; toast('Auto-fill needs internet — add lines manually'); return; }
+    ocrDataUrl(url,function(text){
+      var detected=parseStubText(text);
+      if(!detected.length){ if(st) st.textContent=''; toast('Couldn’t detect lines — add them manually'); return; }
+      var lines=dReadTplFromDOM(type);
+      detected.forEach(function(d){
+        var ex=lines.find(function(l){ return l.label.toLowerCase()===d.label.toLowerCase(); });
+        if(ex){ ex.mode=d.mode; ex.value=d.value; } else lines.push(d);
+      });
+      dSetTpl(type,lines); dRenderTplEditors();
+      if(st) st.textContent='✓ Detected '+detected.length+' line(s) — review & tweak, then Save.';
+      toast('Auto-filled '+detected.length+' line(s) — review, then Save');
+    });
+  });
+}
+
+/* ─── IN-BROWSER OCR (Tesseract.js + pdf.js from CDN) ─── */
+function loadScript(src,cb){ var s=document.createElement('script'); s.src=src; s.onload=function(){cb(true);}; s.onerror=function(){cb(false);}; document.head.appendChild(s); }
+function ensureOCR(cb){ if(window.Tesseract){ cb(true); return; } loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',function(ok){ cb(ok&&!!window.Tesseract); }); }
+function renderPdfFirstPage(dataUrl,cb){
+  import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.min.mjs').then(function(pdfjs){
+    pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.worker.min.mjs';
+    var raw=atob(dataUrl.split(',')[1]); var arr=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+    pdfjs.getDocument({data:arr}).promise.then(function(pdf){
+      pdf.getPage(1).then(function(page){
+        var vp=page.getViewport({scale:2}); var c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+        page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise.then(function(){ cb(c); }).catch(function(){ cb(null); });
+      }).catch(function(){ cb(null); });
+    }).catch(function(){ cb(null); });
+  }).catch(function(){ cb(null); });
+}
+function runTesseract(image,cb){ try{ window.Tesseract.recognize(image,'eng').then(function(res){ cb(res&&res.data?res.data.text:''); }).catch(function(){ cb(''); }); }catch(e){ cb(''); } }
+function ocrDataUrl(dataUrl,cb){ if(dataUrl.indexOf('data:application/pdf')===0){ renderPdfFirstPage(dataUrl,function(c){ c?runTesseract(c,cb):cb(''); }); } else { runTesseract(dataUrl,cb); } }
+function parseStubText(text){
+  var t=(text||'').replace(/\r/g,'');
+  var gm=t.match(/gross\s*(?:pay|wages|earnings)?[^\d\-]{0,14}\$?\s*([\d,]+\.\d{2})/i);
+  var gross=gm?parseFloat(gm[1].replace(/,/g,'')):0;
+  var defs=[
+    {re:/social\s*sec|fica|oasdi/i,label:'FICA (Social Security)'},
+    {re:/medicare/i,label:'Medicare'},
+    {re:/fed(?:eral)?.*(?:tax|withh|w\/h)|\bfit\b/i,label:'Federal Withholding'},
+    {re:/state.*(?:tax|withh|w\/h)|\bsit\b/i,label:'State Withholding'},
+    {re:/disab|\bsdi\b/i,label:'State Disability (SDI)'},
+    {re:/unemploy|\bsui\b/i,label:'Unemployment (SUI)'},
+    {re:/local.*(?:tax|withh)/i,label:'Local Tax'}
+  ];
+  var lines=[],found={};
+  t.split('\n').forEach(function(line){
+    defs.forEach(function(d){
+      if(found[d.label]||!d.re.test(line)) return;
+      var pct=line.match(/(\d+(?:\.\d+)?)\s*%/);
+      if(pct){ lines.push({label:d.label,mode:'pct',value:parseFloat(pct[1])}); found[d.label]=1; return; }
+      var amt=line.match(/\$?\s*([\d,]+\.\d{2})/);
+      if(amt){ var v=parseFloat(amt[1].replace(/,/g,'')); if(gross>0) lines.push({label:d.label,mode:'pct',value:Math.round(v/gross*10000)/100}); else lines.push({label:d.label,mode:'fixed',value:v}); found[d.label]=1; }
+    });
+  });
+  return lines;
+}
+
 /* ─── TOAST ─── */
 var _tt;
 function toast(msg){ var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(function(){ el.classList.remove('show'); },2800); }
 
 /* ─── INIT ─── */
 (function(){
-  document.querySelector('.modal-overlay').addEventListener('click',function(e){ if(e.target===this) closeClockModal(); });
+  var cm=document.getElementById('clockModal');
+  if(cm) cm.addEventListener('click',function(e){ if(e.target===this) closeClockModal(); });
+  var bm=document.getElementById('buyModal');
+  if(bm) bm.addEventListener('click',function(e){ if(e.target===this) closeBuyModal(); });
   renderCal();
 })();
 </script>
