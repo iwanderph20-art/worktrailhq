@@ -640,6 +640,16 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
         <p id="alertStatus" class="text-xs text-gray mt-2"></p>
       </div>
       <div class="settings-section">
+        <h3>Webhook / Integrations</h3>
+        <div class="form-row">
+          <label class="field-label">Webhook URL</label>
+          <input id="setWebhookUrl" class="inp" type="url" placeholder="https://hooks.zapier.com/...">
+          <p class="text-xs text-gray mt-1">Send every clock-in/out as JSON to any URL — connect Zapier, Make, Slack, Google Sheets, or your own system. Works with Zapier "Catch Hook", Make "Custom webhook", and Google Apps Script.</p>
+        </div>
+        <button class="btn-save mt-2" onclick="saveWebhookSettings()">Save & Send Test Event</button>
+        <p id="webhookStatus" class="text-xs text-gray mt-2"></p>
+      </div>
+      <div class="settings-section">
         <h3>Admin Password</h3>
         <div class="form-row">
           <label class="field-label">New Password</label>
@@ -810,6 +820,7 @@ var cfg = {
   get fbUrl(){ return store.get('fb_url')||''; },
   get logo(){ return store.get('biz_logo')||''; },
   get slug(){ return store.get('biz_slug')||''; },
+  get webhookUrl(){ return store.get('webhook_url')||''; },
   get isSetup(){ return !!store.get('setup_done'); }
 };
 
@@ -1341,7 +1352,7 @@ function submitClock(type){
   demoSaveTimesheet(arr);
   if(capturedPhoto&&!DEMO_MODE) savePhoto(ts,capturedPhoto);
   if(!DEMO_MODE&&cfg.fbUrl) fbPut('timesheet',ts,entry);
-  if(!DEMO_MODE) sendClockAlert(currentEmp.name,type,note);
+  if(!DEMO_MODE){ sendClockAlert(currentEmp.name,type,note); sendWebhook(currentEmp,type,ts,note); }
   stopCamera();
   // Show success
   document.getElementById('clockContent').classList.add('hidden');
@@ -1376,6 +1387,45 @@ function sendClockAlert(empName,type,note){
       Note:note||'(none)'
     })
   }).catch(function(){});
+}
+/* ═══════════════════════════════════════════
+   WEBHOOK INTEGRATION (Zapier / Make / Sheets / Slack / your own API)
+   Fires a JSON POST on every clock-in/out. no-cors so it delivers to any
+   endpoint without CORS setup; response is opaque (fire-and-forget).
+═══════════════════════════════════════════ */
+function webhookPayload(emp,type,ts,note){
+  return {
+    event: type==='in' ? 'clock_in' : 'clock_out',
+    business: cfg.bizName,
+    employee: emp.name,
+    position: emp.position||'',
+    employment_type: emp.empType||'w2',
+    type: type,
+    timestamp: ts,
+    time_local: new Date(ts).toLocaleString('en-US'),
+    note: note||'',
+    hasPhoto: !!capturedPhoto
+  };
+}
+function sendWebhook(emp,type,ts,note){
+  var url=cfg.webhookUrl; if(!url) return;
+  try{
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(webhookPayload(emp,type,ts,note))}).catch(function(){});
+  }catch(e){}
+}
+function saveWebhookSettings(){
+  var url=document.getElementById('setWebhookUrl').value.trim();
+  var st=document.getElementById('webhookStatus');
+  if(url&&!/^https?:\/\/.+/i.test(url)){ toast('Enter a valid URL starting with https://'); return; }
+  store.set('webhook_url',url);
+  if(!url){ st.textContent='Webhook disabled.'; toast('Webhook disabled'); return; }
+  // Send a sample event so they can confirm it arrives in their tool
+  var sample={name:'Test Employee',position:'Sample',empType:'w2'};
+  try{
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(Object.assign(webhookPayload(sample,'in',new Date().toISOString(),'Test event from Worktrail'),{test:true}))}).catch(function(){});
+  }catch(e){}
+  st.textContent='✓ Saved. A test event was sent — check your Zap/endpoint to confirm it arrived.';
+  toast('Webhook saved & test sent');
 }
 function saveAlertSettings(){
   var email=document.getElementById('setAlertEmail').value.trim();
@@ -1678,6 +1728,7 @@ function loadSettingsFields(){
   document.getElementById('setTagline').value=cfg.tagline;
   document.getElementById('setFbUrl').value=cfg.fbUrl;
   document.getElementById('setAlertEmail').value=store.get('alert_email')||'';
+  document.getElementById('setWebhookUrl').value=cfg.webhookUrl;
   document.getElementById('setSlug').value=cfg.slug;
   showLogoPreview('setLogoDrop', cfg.logo);
   updateSettingsUrlPreview();
