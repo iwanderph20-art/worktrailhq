@@ -591,6 +591,11 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
           <input id="setTagline" class="inp" type="text">
         </div>
         <div class="form-row">
+          <label class="field-label">Timezone</label>
+          <select id="setTimezone" class="inp"></select>
+          <p class="text-xs text-gray mt-1">All clock-in times, records, and reports display in this timezone.</p>
+        </div>
+        <div class="form-row">
           <label class="field-label">Company Logo</label>
           <div class="logo-uploader">
             <div class="logo-drop" id="setLogoDrop" onclick="document.getElementById('setLogoFile').click()"><span>🏢</span></div>
@@ -821,8 +826,24 @@ var cfg = {
   get logo(){ return store.get('biz_logo')||''; },
   get slug(){ return store.get('biz_slug')||''; },
   get webhookUrl(){ return store.get('webhook_url')||''; },
+  get timezone(){ return store.get('biz_tz')||''; }, // '' = device default
   get isSetup(){ return !!store.get('setup_done'); }
 };
+
+// Inject the admin-selected timezone into any toLocale* options ('' = device local)
+function tzOpts(o){ o=o||{}; if(cfg.timezone) o.timeZone=cfg.timezone; return o; }
+function populateTimezones(selId){
+  var sel=document.getElementById(selId); if(!sel) return;
+  var deviceTz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+  var zones=[];
+  try{ if(Intl.supportedValuesOf) zones=Intl.supportedValuesOf('timeZone'); }catch(e){}
+  if(!zones.length){ zones=['America/New_York','America/Chicago','America/Denver','America/Phoenix','America/Los_Angeles','America/Anchorage','Pacific/Honolulu','America/Toronto','America/Mexico_City','Europe/London','Europe/Paris','Europe/Berlin','Asia/Manila','Asia/Singapore','Asia/Kolkata','Asia/Dubai','Asia/Tokyo','Australia/Sydney']; }
+  var cur=cfg.timezone;
+  var html='<option value="">Auto — device timezone ('+deviceTz+')</option>';
+  zones.forEach(function(z){ html+='<option value="'+z+'"'+(z===cur?' selected':'')+'>'+z.replace(/_/g,' ')+'</option>'; });
+  sel.innerHTML=html;
+  sel.value=cur;
+}
 
 function applyBrandColor(color){
   document.documentElement.style.setProperty('--brand',color);
@@ -1140,7 +1161,7 @@ function startClock(){
   function tick(){
     var now=new Date();
     var el=document.getElementById('pinClock');
-    if(el) el.textContent=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    if(el) el.textContent=now.toLocaleDateString('en-US',tzOpts({weekday:'long',month:'long',day:'numeric'}))+' · '+now.toLocaleTimeString('en-US',tzOpts({hour:'numeric',minute:'2-digit'}));
   }
   tick(); setInterval(tick,1000);
 }
@@ -1359,7 +1380,7 @@ function submitClock(type){
   document.getElementById('clockSuccess').classList.remove('hidden');
   document.getElementById('successIcon').textContent=type==='in'?'✅':'👋';
   document.getElementById('successMsg').textContent=type==='in'?'Clocked In!':'Clocked Out!';
-  document.getElementById('successTime').textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  document.getElementById('successTime').textContent=new Date().toLocaleTimeString('en-US',tzOpts({hour:'numeric',minute:'2-digit'}));
   setTimeout(backToPin, 3000);
 }
 function backToPin(){
@@ -1373,7 +1394,7 @@ function backToPin(){
 ═══════════════════════════════════════════ */
 function sendClockAlert(empName,type,note){
   var email=store.get('alert_email'); if(!email) return;
-  var when=new Date().toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  var when=new Date().toLocaleString('en-US',tzOpts({weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}));
   var action=type==='in'?'clocked IN':'clocked OUT';
   fetch('https://formsubmit.co/ajax/'+encodeURIComponent(email),{
     method:'POST',
@@ -1402,7 +1423,8 @@ function webhookPayload(emp,type,ts,note){
     employment_type: emp.empType||'w2',
     type: type,
     timestamp: ts,
-    time_local: new Date(ts).toLocaleString('en-US'),
+    time_local: new Date(ts).toLocaleString('en-US',tzOpts({})),
+    timezone: cfg.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone,
     note: note||'',
     hasPhoto: !!capturedPhoto
   };
@@ -1508,7 +1530,7 @@ function renderRecords(){
     byDay[s.day].push(s);
   });
   var html='';
-  var tf={hour:'numeric',minute:'2-digit',hour12:true};
+  var tf=tzOpts({hour:'numeric',minute:'2-digit',hour12:true});
   var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   if(!dayOrder.length){ html='<p style="text-align:center;color:var(--gray-400);padding:40px;">No records found for this period.</p>'; }
   dayOrder.forEach(function(day){
@@ -1729,6 +1751,7 @@ function loadSettingsFields(){
   document.getElementById('setFbUrl').value=cfg.fbUrl;
   document.getElementById('setAlertEmail').value=store.get('alert_email')||'';
   document.getElementById('setWebhookUrl').value=cfg.webhookUrl;
+  populateTimezones('setTimezone');
   document.getElementById('setSlug').value=cfg.slug;
   showLogoPreview('setLogoDrop', cfg.logo);
   updateSettingsUrlPreview();
@@ -1743,10 +1766,12 @@ function saveBizSettings(){
   if(!n){ toast('Business name required'); return; }
   store.set('biz_name',n);
   store.set('biz_tagline',document.getElementById('setTagline').value.trim());
+  store.set('biz_tz',document.getElementById('setTimezone').value);
   var sel=document.querySelector('#settingsColorSwatches .color-swatch.sel');
   if(sel){ store.set('biz_color',sel.getAttribute('data-color')); applyBrandColor(cfg.color); }
   document.getElementById('adminBizName').textContent=cfg.bizName;
   document.getElementById('pinBizName').textContent=cfg.bizName;
+  if(_adminTabActive==='records') renderRecords();
   toast('Settings saved');
 }
 function saveFbSettings(){
@@ -1836,7 +1861,7 @@ function renderCalendar(){
 }
 
 function showCalDay(day){
-  var tf = {hour:'numeric',minute:'2-digit',hour12:true};
+  var tf = tzOpts({hour:'numeric',minute:'2-digit',hour12:true});
   var mos=['January','February','March','April','May','June','July','August','September','October','November','December'];
   var allEmps = demoEmployees();
   function empColor(name){
@@ -2193,7 +2218,7 @@ function exportPayrollPDF(){
     +'@media print{body{padding:0;}}'
     +'</style></head><body>'
     +'<h1>'+biz+' — Payroll Report</h1>'
-    +'<h2>Pay period: '+r.from+' to '+r.to+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString('en-US')+'</h2>'
+    +'<h2>Pay period: '+r.from+' to '+r.to+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString('en-US',tzOpts({}))+'</h2>'
     +'<table><tr><th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th></tr>';
   r.rows.forEach(function(row){
     var dedLines=row.ded.parts.map(function(p){ return p.label+': $'+p.amount.toFixed(2); }).join('<br>')||'None';
@@ -2230,8 +2255,8 @@ function exportCSV(){
   var csv='Employee,Type,Date,Time,Note\n';
   rows.forEach(function(e){
     var d=new Date(e.ts);
-    var date=d.toLocaleDateString('en-US');
-    var time=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    var date=d.toLocaleDateString('en-US',tzOpts({}));
+    var time=d.toLocaleTimeString('en-US',tzOpts({hour:'numeric',minute:'2-digit'}));
     csv+='"'+e.name+'","'+(e.type==='in'?'Clock In':'Clock Out')+'","'+date+'","'+time+'","'+(e.note||'')+'"\n';
   });
   var a=document.createElement('a');
