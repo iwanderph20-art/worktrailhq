@@ -915,7 +915,8 @@ function copyText(txt){
 ═══════════════════════════════════════════ */
 var GUMROAD_PAYROLL_PERMALINK = 'worktrail-payroll'; // update when product is live on Gumroad
 
-function isUnlocked(feature){ return !!store.get('unlock_'+feature); }
+// In demo mode every add-on is unlocked so shoppers can see the full product
+function isUnlocked(feature){ return DEMO_MODE || !!store.get('unlock_'+feature); }
 
 function checkUnlockStatus(){
   var unlocked = isUnlocked('payroll');
