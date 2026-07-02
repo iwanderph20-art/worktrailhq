@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShiftDesk — Employee Clock-In Kiosk</title>
+<script>if(location.protocol==='http:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1')location.replace('https:'+location.href.substring(location.protocol.length));</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --brand:#1a2b8c;--brand-dark:#0f1a5c;--brand-light:#e0e7ff;
+  --success:#059669;--warn:#d97706;--danger:#dc2626;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+.screen{display:none;min-height:100vh;}
+.screen.active{display:flex;flex-direction:column;}
+button{cursor:pointer;font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+
+/* ── DEMO BANNER ── */
+#demoBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:500;background:#f59e0b;color:#fff;text-align:center;padding:8px 16px;font-size:13px;font-weight:700;}
+#demoBanner button{background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;padding:3px 12px;font-size:12px;font-weight:700;margin-left:12px;}
+
+/* ── LANDING ── */
+#landingScreen{align-items:center;justify-content:center;background:linear-gradient(135deg,var(--brand) 0%,var(--brand-dark) 100%);}
+.landing-card{background:#fff;border-radius:24px;padding:40px 36px;max-width:440px;width:100%;margin:20px;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.22);}
+.landing-logo{font-size:32px;font-weight:900;color:var(--brand);letter-spacing:-.5px;margin-bottom:4px;}
+.landing-sub{font-size:14px;color:var(--gray-400);margin-bottom:32px;}
+.btn-primary{background:var(--brand);color:#fff;border:none;border-radius:14px;padding:14px 28px;font-size:15px;font-weight:700;width:100%;margin-bottom:10px;transition:opacity .15s;}
+.btn-primary:hover{opacity:.88;}
+.btn-outline{background:transparent;color:var(--brand);border:2px solid var(--brand-light);border-radius:14px;padding:12px 28px;font-size:14px;font-weight:600;width:100%;margin-bottom:10px;transition:all .15s;}
+.btn-outline:hover{background:var(--brand-light);}
+.btn-ghost{background:transparent;border:none;color:var(--gray-400);font-size:13px;text-decoration:underline;}
+.powered{margin-top:28px;font-size:11px;color:var(--gray-400);}
+.powered a{color:var(--gray-400);}
+
+/* ── SETUP WIZARD ── */
+#setupScreen{align-items:center;justify-content:center;background:var(--gray-50);padding:20px;}
+.setup-card{background:#fff;border-radius:24px;padding:36px;max-width:480px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.08);}
+.setup-step{display:none;}.setup-step.active{display:block;}
+.setup-title{font-size:20px;font-weight:800;color:var(--gray-800);margin-bottom:4px;}
+.setup-sub{font-size:13px;color:var(--gray-400);margin-bottom:24px;}
+.setup-progress{display:flex;gap:6px;margin-bottom:28px;}
+.setup-dot{height:4px;flex:1;border-radius:2px;background:var(--gray-200);}
+.setup-dot.done{background:var(--brand);}
+label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;}
+.inp{width:100%;padding:11px 14px;border:1.5px solid var(--gray-200);border-radius:12px;font-size:14px;color:var(--gray-800);outline:none;transition:border-color .15s;}
+.inp:focus{border-color:var(--brand);}
+.color-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.color-swatch{width:36px;height:36px;border-radius:10px;border:3px solid transparent;cursor:pointer;transition:border-color .15s;}
+.color-swatch.sel{border-color:var(--gray-800);}
+.setup-nav{display:flex;gap:10px;margin-top:24px;}
+.btn-back{background:var(--gray-100);color:var(--gray-600);border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:600;}
+.btn-next{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:700;flex:1;}
+
+/* ── PIN SCREEN ── */
+#pinScreen{align-items:center;justify-content:center;min-height:100vh;}
+.pin-wrap{width:100%;max-width:380px;padding:20px;}
+.biz-header{text-align:center;margin-bottom:32px;}
+.biz-logo-img{width:72px;height:72px;border-radius:16px;object-fit:cover;margin-bottom:12px;}
+.biz-name{font-size:22px;font-weight:900;color:var(--brand);}
+.biz-time{font-size:14px;color:var(--gray-400);margin-top:4px;}
+.pin-label{text-align:center;font-size:14px;font-weight:600;color:var(--gray-600);margin-bottom:16px;}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:24px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;background:var(--gray-200);transition:background .15s;}
+.pin-dot.filled{background:var(--brand);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.pin-key{background:#fff;border:1.5px solid var(--gray-200);border-radius:16px;padding:18px;font-size:22px;font-weight:700;color:var(--gray-800);text-align:center;transition:all .1s;box-shadow:0 2px 6px rgba(0,0,0,.06);}
+.pin-key:active{background:var(--brand-light);border-color:var(--brand);transform:scale(.96);}
+.pin-key.del{font-size:16px;color:var(--danger);}
+.pin-key.admin-btn{font-size:12px;color:var(--gray-400);border-style:dashed;}
+.pin-error{text-align:center;color:var(--danger);font-size:13px;font-weight:600;margin-top:12px;min-height:20px;}
+
+/* ── CLOCK SCREEN ── */
+#clockScreen{align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(160deg,var(--brand-light) 0%,#fff 60%);}
+.clock-card{background:#fff;border-radius:24px;padding:28px;max-width:380px;width:100%;margin:20px;box-shadow:0 12px 40px rgba(0,0,0,.1);}
+.emp-greet{font-size:20px;font-weight:800;color:var(--gray-800);margin-bottom:2px;}
+.emp-status{font-size:13px;color:var(--gray-400);margin-bottom:20px;}
+.camera-box{width:100%;aspect-ratio:4/3;background:#000;border-radius:16px;overflow:hidden;position:relative;margin-bottom:16px;}
+.camera-box video,.camera-box canvas{width:100%;height:100%;object-fit:cover;}
+.camera-box .snap-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);}
+.camera-box .snap-overlay.show{display:flex;}
+.snap-btn{background:#fff;border:none;border-radius:50%;width:56px;height:56px;font-size:24px;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+.photo-preview{width:100%;aspect-ratio:4/3;border-radius:16px;object-fit:cover;margin-bottom:16px;display:none;}
+.photo-retake{background:var(--gray-100);color:var(--gray-600);border:none;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:600;margin-bottom:16px;display:none;}
+.clock-actions{display:flex;flex-direction:column;gap:10px;}
+.btn-clock-in{background:var(--brand);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;}
+.btn-clock-out{background:var(--danger);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;}
+.btn-cancel-clock{background:var(--gray-100);color:var(--gray-600);border:none;border-radius:14px;padding:12px;font-size:14px;font-weight:600;}
+.clock-note-inp{width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:12px;font-size:13px;margin-bottom:10px;resize:none;}
+
+/* ── SUCCESS ── */
+.success-wrap{text-align:center;padding:20px 0;}
+.success-icon{font-size:52px;margin-bottom:12px;}
+.success-msg{font-size:18px;font-weight:800;color:var(--gray-800);margin-bottom:4px;}
+.success-time{font-size:13px;color:var(--gray-400);}
+.success-back{background:var(--gray-100);color:var(--gray-600);border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:600;margin-top:20px;}
+
+/* ── ADMIN ── */
+#adminScreen{flex-direction:column;}
+.admin-nav{background:var(--brand);display:flex;align-items:center;padding:0 16px;gap:4px;flex-shrink:0;}
+.admin-logo{color:#fff;font-size:15px;font-weight:900;padding:14px 0;margin-right:12px;letter-spacing:-.3px;}
+.admin-tab{background:transparent;border:none;color:rgba(255,255,255,.6);font-size:13px;font-weight:600;padding:14px 14px;border-bottom:3px solid transparent;transition:all .15s;}
+.admin-tab.active{color:#fff;border-bottom-color:#fff;}
+.admin-body{flex:1;overflow-y:auto;padding:16px;}
+
+/* ── RECORDS ── */
+.rec-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+.rec-filters input,.rec-filters select{padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;color:var(--gray-800);}
+.rec-filters button{padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;border:none;}
+.btn-export{background:var(--gray-100);color:var(--gray-600);}
+.btn-add-entry{background:var(--brand);color:#fff;}
+.day-group{margin-bottom:20px;}
+.day-label{font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding:0 4px;}
+.rec-row{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;}
+.rec-photo{width:48px;height:48px;border-radius:10px;object-fit:cover;flex-shrink:0;border:2px solid var(--gray-200);}
+.rec-photo.in{border-color:#86efac;}
+.rec-photo.out{border-color:#fca5a5;}
+.rec-photo-ph{width:48px;height:48px;border-radius:10px;background:var(--gray-100);border:1.5px dashed var(--gray-200);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;color:var(--gray-400);}
+.rec-info{flex:1;min-width:0;}
+.rec-name{font-size:14px;font-weight:700;color:var(--gray-800);}
+.rec-times{font-size:12px;color:var(--gray-400);margin-top:2px;}
+.rec-hours{font-size:13px;font-weight:700;color:var(--brand);margin-left:auto;flex-shrink:0;}
+.rec-badge{display:inline-block;font-size:10px;font-weight:700;border-radius:6px;padding:2px 7px;margin-left:6px;}
+.badge-in{background:#dcfce7;color:#15803d;}
+.badge-out{background:#fee2e2;color:#dc2626;}
+.badge-manual{background:#fef9c3;color:#92400e;}
+.rec-actions{display:flex;gap:4px;flex-shrink:0;}
+.rec-actions button{font-size:11px;padding:4px 10px;border-radius:7px;border:none;font-weight:600;}
+.btn-edit-rec{background:var(--gray-100);color:var(--gray-600);}
+.btn-del-rec{background:#fee2e2;color:var(--danger);}
+.rec-note{font-size:11px;color:var(--gray-400);margin-top:3px;font-style:italic;}
+.active-badge{background:#dcfce7;color:#15803d;border-radius:8px;padding:3px 8px;font-size:11px;font-weight:700;}
+
+/* ── EMPLOYEES ── */
+.emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
+.emp-card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.emp-card-name{font-size:15px;font-weight:700;color:var(--gray-800);}
+.emp-card-pin{font-size:13px;color:var(--gray-400);margin-top:2px;}
+.emp-card-actions{display:flex;gap:6px;margin-top:12px;}
+.btn-edit-emp{flex:1;background:var(--gray-100);color:var(--gray-600);border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;}
+.btn-del-emp{background:#fee2e2;color:var(--danger);border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:600;}
+.btn-add-emp{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;margin-bottom:16px;}
+
+/* ── SETTINGS ── */
+.settings-section{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.settings-section h3{font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:14px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);}
+.settings-row:last-child{border-bottom:none;}
+.settings-row label{font-size:13px;color:var(--gray-600);}
+.toggle{width:44px;height:24px;border-radius:12px;background:var(--gray-200);border:none;position:relative;transition:background .2s;cursor:pointer;}
+.toggle.on{background:var(--brand);}
+.toggle::after{content:'';width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle.on::after{left:23px;}
+
+/* ── MODALS ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.modal-title{font-size:16px;font-weight:800;color:var(--gray-800);margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;}
+.modal-close{background:none;border:none;font-size:22px;color:var(--gray-400);line-height:1;}
+.form-row{margin-bottom:14px;}
+.form-row .field-label{margin-bottom:6px;}
+.btn-save{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:700;width:100%;margin-top:4px;}
+.btn-danger{background:var(--danger);color:#fff;border:none;border-radius:12px;padding:11px;font-size:14px;font-weight:700;width:100%;}
+
+/* ── LIGHTBOX ── */
+#photoLightbox{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.88);align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+#photoLightbox.open{display:flex;}
+#photoLightboxImg{max-width:90vw;max-height:80vh;border-radius:14px;}
+#photoLightbox p{color:rgba(255,255,255,.6);font-size:13px;}
+#photoLightbox button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:10px;padding:8px 20px;font-size:13px;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1f2937;color:#fff;border-radius:14px;padding:11px 20px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:400;pointer-events:none;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── VIEW TOGGLE ── */
+.view-toggle{display:flex;background:var(--gray-100);border-radius:10px;padding:3px;gap:2px;}
+.view-btn{background:transparent;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--gray-600);cursor:pointer;}
+.view-btn.active{background:#fff;color:var(--brand);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+
+/* ── CALENDAR ── */
+.cal-wrap{background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--gray-100);}
+.cal-title-text{font-size:16px;font-weight:800;color:var(--gray-800);}
+.cal-nav-btn{background:var(--gray-100);border:none;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;color:var(--gray-600);}
+.cal-grid-hdr{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--gray-100);}
+.cal-grid-hdr span{text-align:center;padding:10px 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.cal-cell{min-height:72px;border-right:1px solid var(--gray-50);border-bottom:1px solid var(--gray-50);padding:6px;cursor:pointer;transition:background .15s;position:relative;}
+.cal-cell:nth-child(7n){border-right:none;}
+.cal-cell:hover{background:#f8fafc;}
+.cal-cell.today-cell{background:#eef2ff;}
+.cal-cell.other-month{opacity:.25;pointer-events:none;}
+.cal-date-num{font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:4px;}
+.cal-date-today{background:var(--brand);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;}
+.cal-bubbles{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;}
+.cal-bubble{width:20px;height:20px;border-radius:5px;font-size:8px;font-weight:800;color:#fff;display:flex;align-items:center;justify-content:center;}
+.cal-more-txt{font-size:9px;color:var(--gray-400);margin-top:2px;}
+.cal-detail{padding:16px 20px;border-top:1px solid var(--gray-100);display:none;}
+.cal-detail.open{display:block;}
+.cal-detail-hdr{font-size:14px;font-weight:800;color:var(--gray-800);margin-bottom:10px;}
+
+/* ── PAYROLL ── */
+.pay-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.pay-stat{background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.pay-stat-label{font-size:11px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.pay-stat-val{font-size:22px;font-weight:900;color:var(--brand);}
+.pay-table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.pay-table th{background:var(--gray-50);padding:12px 16px;font-size:11px;font-weight:700;color:var(--gray-600);text-align:left;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--gray-200);}
+.pay-table td{padding:13px 16px;font-size:13px;border-bottom:1px solid var(--gray-100);color:var(--gray-600);}
+.pay-table tr:last-child td{border-bottom:none;}
+.pay-table .total-row td{font-weight:800;color:var(--gray-800);background:#f0fdf4;font-size:14px;}
+.pay-table .emp-cell{font-weight:700;color:var(--gray-800);}
+
+/* ── LOCK OVERLAY ── */
+.tab-lock-wrap{position:relative;}
+.lock-overlay{background:rgba(249,250,251,.95);position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;border-radius:16px;backdrop-filter:blur(3px);}
+.lock-box{text-align:center;padding:28px;max-width:340px;}
+.lock-icon-big{font-size:44px;margin-bottom:10px;}
+.lock-title{font-size:18px;font-weight:800;color:var(--gray-800);margin-bottom:6px;}
+.lock-sub{font-size:13px;color:var(--gray-400);margin-bottom:6px;line-height:1.5;}
+.lock-price{font-size:22px;font-weight:900;color:var(--brand);margin-bottom:18px;}
+.btn-buy-addon{display:inline-block;background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;margin-bottom:12px;}
+.lock-already{font-size:12px;color:var(--gray-400);margin-top:4px;}
+.lock-already button{background:none;border:none;color:var(--brand);font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;}
+
+/* ── UNLOCK SETTINGS ── */
+.addon-locked-box{background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:20px;border:1.5px solid #f59e0b;margin-top:12px;}
+.addon-locked-box h4{font-size:14px;font-weight:800;color:#92400e;margin-bottom:4px;}
+.addon-locked-box p{font-size:12px;color:#92400e;opacity:.85;margin-bottom:12px;line-height:1.5;}
+.addon-unlocked-box{background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:14px;padding:14px 18px;border:1.5px solid #6ee7b7;display:flex;align-items:center;gap:10px;margin-top:12px;}
+.addon-unlocked-box span{font-size:13px;font-weight:700;color:#065f46;}
+
+/* ── UTILS ── */
+.mt-1{margin-top:4px;}.mt-2{margin-top:8px;}.mt-3{margin-top:12px;}.mt-4{margin-top:16px;}
+.text-sm{font-size:13px;}.text-xs{font-size:11px;}.text-gray{color:var(--gray-400);}
+.hidden{display:none!important;}
+.pin-code-display{font-size:22px;font-weight:800;letter-spacing:.15em;color:var(--brand);background:var(--brand-light);border-radius:10px;padding:8px 16px;text-align:center;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<!-- DEMO BANNER -->
+<div id="demoBanner">
+  🎭 Demo Mode — No real data is saved
+  <button onclick="exitDemo()">Exit Demo</button>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- PHOTO LIGHTBOX -->
+<div id="photoLightbox" onclick="closeLightbox()">
+  <img id="photoLightboxImg" src="" alt="">
+  <p id="photoLightboxCap"></p>
+  <button onclick="closeLightbox()">Close</button>
+</div>
+
+<!-- ══════════════════════════════════
+     LANDING SCREEN
+══════════════════════════════════ -->
+<div id="landingScreen" class="screen">
+  <div class="landing-card">
+    <div class="landing-logo">⏱ ShiftDesk</div>
+    <div class="landing-sub">Employee Clock-In Kiosk for Small Business</div>
+    <button class="btn-primary" onclick="startSetup()">Set Up My Kiosk</button>
+    <button class="btn-outline" onclick="startDemo()">Try Live Demo</button>
+    <div class="powered">Powered by <a href="https://worktrailhq.com" target="_blank">WorkTrail HQ</a> &nbsp;·&nbsp; Need help? <a href="mailto:info@worktrailhq.com">Contact us</a></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     SETUP WIZARD
+══════════════════════════════════ -->
+<div id="setupScreen" class="screen">
+  <div class="setup-card">
+    <div class="setup-progress" id="setupProgress"></div>
+
+    <!-- Step 1: Business Info -->
+    <div class="setup-step active" id="step1">
+      <div class="setup-title">Welcome to ShiftDesk</div>
+      <div class="setup-sub">Let's set up your kiosk in 3 steps.</div>
+      <div class="form-row">
+        <label class="field-label">Business Name</label>
+        <input id="s1BizName" class="inp" placeholder="e.g. Sunrise Clinic" type="text">
+      </div>
+      <div class="form-row">
+        <label class="field-label">Tagline (optional)</label>
+        <input id="s1Tagline" class="inp" placeholder="e.g. Employee Check-In" type="text">
+      </div>
+      <div class="form-row">
+        <label class="field-label">Brand Color</label>
+        <div class="color-row" id="colorSwatches"></div>
+      </div>
+      <div class="setup-nav">
+        <button class="btn-next" onclick="setupNext(1)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Admin Password -->
+    <div class="setup-step" id="step2">
+      <div class="setup-title">Admin Password</div>
+      <div class="setup-sub">You'll use this to access the admin dashboard.</div>
+      <div class="form-row">
+        <label class="field-label">Password</label>
+        <input id="s2Pass" class="inp" type="password" placeholder="Choose a password">
+      </div>
+      <div class="form-row">
+        <label class="field-label">Confirm Password</label>
+        <input id="s2Confirm" class="inp" type="password" placeholder="Repeat password">
+      </div>
+      <div class="setup-nav">
+        <button class="btn-back" onclick="setupBack(2)">← Back</button>
+        <button class="btn-next" onclick="setupNext(2)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Firebase (optional) -->
+    <div class="setup-step" id="step3">
+      <div class="setup-title">Cloud Sync (Optional)</div>
+      <div class="setup-sub">Connect a free Firebase Realtime Database to sync data across devices. Skip if you're using a single device.</div>
+      <div class="form-row">
+        <label class="field-label">Firebase Database URL</label>
+        <input id="s3Fb" class="inp" type="url" placeholder="https://your-app-default-rtdb.firebaseio.com">
+        <p class="text-xs text-gray mt-1">Free at firebase.google.com → Create project → Realtime Database</p>
+      </div>
+      <div class="setup-nav">
+        <button class="btn-back" onclick="setupBack(3)">← Back</button>
+        <button class="btn-next" onclick="setupFinish()">Finish Setup ✓</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     PIN SCREEN
+══════════════════════════════════ -->
+<div id="pinScreen" class="screen">
+  <div class="pin-wrap">
+    <div class="biz-header">
+      <img id="pinBizLogo" class="biz-logo-img hidden" src="" alt="">
+      <div class="biz-name" id="pinBizName">ShiftDesk</div>
+      <div class="biz-time" id="pinClock"></div>
+    </div>
+    <div class="pin-label">Enter your PIN to clock in or out</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key admin-btn" onclick="openAdminLogin()">Admin</button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     CLOCK IN/OUT SCREEN
+══════════════════════════════════ -->
+<div id="clockScreen" class="screen">
+  <div class="clock-card">
+    <div id="clockContent">
+      <div class="emp-greet" id="empGreet">Hi, Alex!</div>
+      <div class="emp-status" id="empStatus">You are currently clocked out.</div>
+      <div class="camera-box" id="cameraBox">
+        <video id="cameraFeed" autoplay muted playsinline></video>
+        <div class="snap-overlay" id="snapOverlay">
+          <button class="snap-btn" onclick="snapPhoto()">📷</button>
+        </div>
+      </div>
+      <img id="photoPreview" class="photo-preview" src="" alt="">
+      <button class="photo-retake" id="retakeBtn" onclick="retakePhoto()">↩ Retake Photo</button>
+      <textarea class="clock-note-inp" id="clockNote" rows="2" placeholder="Add a note (optional)..."></textarea>
+      <div class="clock-actions" id="clockActions"></div>
+    </div>
+    <div id="clockSuccess" class="success-wrap hidden">
+      <div class="success-icon" id="successIcon"></div>
+      <div class="success-msg" id="successMsg"></div>
+      <div class="success-time" id="successTime"></div>
+      <button class="success-back" onclick="backToPin()">← Back to PIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     ADMIN SCREEN
+══════════════════════════════════ -->
+<div id="adminScreen" class="screen">
+  <nav class="admin-nav">
+    <span class="admin-logo" id="adminBizName">ShiftDesk</span>
+    <button class="admin-tab active" onclick="adminTab('records',this)">Records</button>
+    <button class="admin-tab" onclick="adminTab('employees',this)">Employees</button>
+    <button class="admin-tab" id="payrollTabBtn" onclick="adminTab('payroll',this)">🔒 Payroll</button>
+    <button class="admin-tab" onclick="adminTab('settings',this)">Settings</button>
+    <button class="admin-tab" onclick="logoutAdmin()" style="margin-left:auto;color:rgba(255,255,255,.5);">Log Out</button>
+  </nav>
+  <div class="admin-body">
+
+    <!-- RECORDS TAB -->
+    <div id="tabRecords">
+      <div class="rec-filters">
+        <input type="date" id="filterFrom">
+        <input type="date" id="filterTo">
+        <select id="filterEmp">
+          <option value="">All Employees</option>
+        </select>
+        <div class="view-toggle">
+          <button class="view-btn active" id="viewBtnList" onclick="setRecordView('list')">List</button>
+          <button class="view-btn" id="viewBtnCal" onclick="setRecordView('cal')">Calendar</button>
+        </div>
+        <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn-add-entry" onclick="openManualEntry()">+ Add Entry</button>
+      </div>
+      <div id="recordsList"></div>
+      <div id="recordsCal" class="hidden">
+        <div class="cal-wrap">
+          <div class="cal-header">
+            <button class="cal-nav-btn" onclick="calPrev()">&#8249;</button>
+            <span class="cal-title-text" id="calTitleText"></span>
+            <button class="cal-nav-btn" onclick="calNext()">&#8250;</button>
+          </div>
+          <div class="cal-grid-hdr">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-detail" id="calDetail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYROLL TAB -->
+    <div id="tabPayroll" class="hidden tab-lock-wrap" style="min-height:400px;">
+      <div class="rec-filters">
+        <input type="date" id="prFrom">
+        <input type="date" id="prTo">
+        <button class="btn-add-entry" style="padding:8px 16px;" onclick="renderPayrollReport()">Generate Report</button>
+      </div>
+      <div class="pay-summary" id="paySummary"></div>
+      <table class="pay-table">
+        <thead><tr>
+          <th>Employee</th><th>Total Hours</th><th>Hourly Rate</th><th>Gross Pay</th>
+        </tr></thead>
+        <tbody id="payTableBody"></tbody>
+      </table>
+      <!-- Lock overlay — hidden when unlocked -->
+      <div class="lock-overlay" id="payrollLockOverlay">
+        <div class="lock-box">
+          <div class="lock-icon-big">🔒</div>
+          <div class="lock-title">Payroll Add-On</div>
+          <div class="lock-sub">Generate pay summaries for your team — hours, rates, and gross pay for any date range.</div>
+          <div class="lock-price">$39 one-time</div>
+          <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/shiftdesk-payroll" target="_blank">Buy on Gumroad →</a>
+          <p class="lock-already">Already purchased? <button onclick="openUnlockModal()">Enter license key</button></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEES TAB -->
+    <div id="tabEmployees" class="hidden">
+      <button class="btn-add-emp" onclick="openAddEmployee()">+ Add Employee</button>
+      <div class="emp-grid" id="empGrid"></div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tabSettings" class="hidden">
+      <div class="settings-section">
+        <h3>Business</h3>
+        <div class="form-row">
+          <label class="field-label">Business Name</label>
+          <input id="setBizName" class="inp" type="text">
+        </div>
+        <div class="form-row">
+          <label class="field-label">Tagline</label>
+          <input id="setTagline" class="inp" type="text">
+        </div>
+        <div class="form-row">
+          <label class="field-label">Brand Color</label>
+          <div class="color-row" id="settingsColorSwatches"></div>
+        </div>
+        <button class="btn-save mt-3" onclick="saveBizSettings()">Save Business Settings</button>
+      </div>
+      <div class="settings-section">
+        <h3>Cloud Sync</h3>
+        <div class="form-row">
+          <label class="field-label">Firebase Database URL</label>
+          <input id="setFbUrl" class="inp" type="url" placeholder="https://...firebaseio.com">
+        </div>
+        <button class="btn-save mt-2" onclick="saveFbSettings()">Save & Connect</button>
+        <p id="fbStatus" class="text-xs text-gray mt-2"></p>
+      </div>
+      <div class="settings-section">
+        <h3>Admin Password</h3>
+        <div class="form-row">
+          <label class="field-label">New Password</label>
+          <input id="setNewPass" class="inp" type="password" placeholder="Enter new password">
+        </div>
+        <button class="btn-save mt-2" onclick="saveNewPassword()">Update Password</button>
+      </div>
+      <div class="settings-section">
+        <h3>Add-Ons</h3>
+        <p class="text-xs text-gray" style="margin-bottom:10px;">Unlock additional features with a license key from Gumroad.</p>
+        <div id="payrollAddonStatus"></div>
+      </div>
+      <div class="settings-section">
+        <h3>Data</h3>
+        <button class="btn-danger" onclick="resetKiosk()" style="max-width:200px;">⚠ Reset All Data</button>
+        <p class="text-xs text-gray mt-2">Clears all employees, records, and settings. Cannot be undone.</p>
+      </div>
+      <p class="text-xs text-gray" style="text-align:center;margin-top:20px;">
+        ShiftDesk · Powered by <a href="https://worktrailhq.com">WorkTrail HQ</a><br>
+        Want custom features? <a href="mailto:info@worktrailhq.com">Contact us for a quote</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     MODALS
+══════════════════════════════════ -->
+
+<!-- Admin Login -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal-box">
+    <div class="modal-title">Admin Login <button class="modal-close" onclick="closeModal('adminLoginModal')">✕</button></div>
+    <div class="form-row">
+      <label class="field-label">Password</label>
+      <input id="adminPassInput" class="inp" type="password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')checkAdminLogin()">
+    </div>
+    <button class="btn-save" onclick="checkAdminLogin()">Log In</button>
+    <p id="adminLoginErr" class="text-xs mt-2" style="color:var(--danger);text-align:center;"></p>
+  </div>
+</div>
+
+<!-- Add/Edit Employee -->
+<div class="modal-overlay" id="empModal">
+  <div class="modal-box">
+    <div class="modal-title"><span id="empModalTitle">Add Employee</span> <button class="modal-close" onclick="closeModal('empModal')">✕</button></div>
+    <input type="hidden" id="empEditCode">
+    <div class="form-row">
+      <label class="field-label">Full Name</label>
+      <input id="empName" class="inp" type="text" placeholder="e.g. Alex Rivera">
+    </div>
+    <div class="form-row">
+      <label class="field-label">PIN (4 digits)</label>
+      <input id="empPin" class="inp" type="text" maxlength="4" pattern="[0-9]{4}" placeholder="e.g. 1234">
+      <div class="pin-code-display hidden" id="empPinDisplay"></div>
+    </div>
+    <div class="form-row">
+      <label class="field-label">Hourly Rate (optional, for payroll)</label>
+      <input id="empRate" class="inp" type="number" min="0" step="0.01" placeholder="e.g. 15.00">
+    </div>
+    <button class="btn-save" onclick="saveEmployee()">Save Employee</button>
+  </div>
+</div>
+
+<!-- Manual Entry -->
+<div class="modal-overlay" id="manualModal">
+  <div class="modal-box">
+    <div class="modal-title">Add Manual Entry <button class="modal-close" onclick="closeModal('manualModal')">✕</button></div>
+    <div class="form-row">
+      <label class="field-label">Employee</label>
+      <select id="manualEmp" class="inp"></select>
+    </div>
+    <div class="form-row">
+      <label class="field-label">Type</label>
+      <select id="manualType" class="inp">
+        <option value="in">Clock In</option>
+        <option value="out">Clock Out</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="field-label">Date & Time</label>
+      <input id="manualDt" class="inp" type="datetime-local">
+    </div>
+    <div class="form-row">
+      <label class="field-label">Note</label>
+      <input id="manualNote" class="inp" type="text" placeholder="Optional note...">
+    </div>
+    <button class="btn-save" onclick="saveManualEntry()">Add Entry</button>
+  </div>
+</div>
+
+<!-- Edit Entry -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <div class="modal-title">Edit Entry <button class="modal-close" onclick="closeModal('editModal')">✕</button></div>
+    <input type="hidden" id="editTs">
+    <div class="form-row">
+      <label class="field-label">Type</label>
+      <select id="editType" class="inp">
+        <option value="in">Clock In</option>
+        <option value="out">Clock Out</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="field-label">Date & Time</label>
+      <input id="editDt" class="inp" type="datetime-local">
+    </div>
+    <div class="form-row">
+      <label class="field-label">Note</label>
+      <input id="editNote" class="inp" type="text" placeholder="Optional note...">
+    </div>
+    <button class="btn-save" onclick="saveEditEntry()">Save Changes</button>
+  </div>
+</div>
+
+<!-- Unlock License Key Modal -->
+<div class="modal-overlay" id="unlockModal">
+  <div class="modal-box">
+    <div class="modal-title">Unlock Payroll Add-On <button class="modal-close" onclick="closeModal('unlockModal')">✕</button></div>
+    <p class="text-xs text-gray" style="margin-bottom:14px;line-height:1.5;">Enter the license key from your Gumroad purchase email to unlock Payroll.</p>
+    <div class="form-row">
+      <label class="field-label">License Key</label>
+      <input id="unlockKeyInput" class="inp" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" style="letter-spacing:.05em;">
+    </div>
+    <p id="unlockStatus" class="text-xs mt-2" style="color:var(--danger);min-height:16px;"></p>
+    <button class="btn-save" onclick="submitUnlockKey()">Verify &amp; Unlock</button>
+    <p class="text-xs text-gray mt-2" style="text-align:center;">Don't have it yet? <a href="https://worktrailhq.gumroad.com/l/shiftdesk-payroll" target="_blank" style="color:var(--brand);">Buy for $39 on Gumroad →</a></p>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG & STORE
+═══════════════════════════════════════════ */
+var BRAND_COLORS = [
+  '#1a2b8c','#0f766e','#7c3aed','#b91c1c','#0369a1','#065f46','#92400e','#1f2937'
+];
+var DEMO_MODE = false;
+var currentEmp = null;
+var capturedPhoto = null;
+var cameraStream = null;
+var _adminTabActive = 'records';
+
+var store = {
+  get: function(k){ return localStorage.getItem('sd_'+k); },
+  set: function(k,v){ localStorage.setItem('sd_'+k,v); },
+  getJ: function(k,d){ try{ var v=JSON.parse(localStorage.getItem('sd_'+k)); return v!=null?v:d; }catch(e){ return d; } },
+  setJ: function(k,v){ localStorage.setItem('sd_'+k,JSON.stringify(v)); },
+  clear: function(){ Object.keys(localStorage).filter(function(k){ return k.startsWith('sd_'); }).forEach(function(k){ localStorage.removeItem(k); }); }
+};
+
+var cfg = {
+  get bizName(){ return store.get('biz_name')||'ShiftDesk'; },
+  get tagline(){ return store.get('biz_tagline')||'Employee Clock-In'; },
+  get color(){ return store.get('biz_color')||'#1a2b8c'; },
+  get fbUrl(){ return store.get('fb_url')||''; },
+  get isSetup(){ return !!store.get('setup_done'); }
+};
+
+function applyBrandColor(color){
+  document.documentElement.style.setProperty('--brand',color);
+  var d=parseInt(color.slice(1),16);
+  var r=((d>>16)&255)*0.7|0, g=((d>>8)&255)*0.7|0, b=(d&255)*0.7|0;
+  document.documentElement.style.setProperty('--brand-dark','rgb('+r+','+g+','+b+')');
+  var rl=Math.min(255,((d>>16)&255)+180), gl=Math.min(255,((d>>8)&255)+180), bl=Math.min(255,(d&255)+180);
+  document.documentElement.style.setProperty('--brand-light','rgb('+rl+','+gl+','+bl+')');
+}
+
+/* ═══════════════════════════════════════════
+   FEATURE FLAGS & GUMROAD UNLOCK
+═══════════════════════════════════════════ */
+var GUMROAD_PAYROLL_PERMALINK = 'shiftdesk-payroll'; // update when product is live on Gumroad
+
+function isUnlocked(feature){ return !!store.get('unlock_'+feature); }
+
+function checkUnlockStatus(){
+  var unlocked = isUnlocked('payroll');
+  var btn = document.getElementById('payrollTabBtn');
+  if(btn) btn.textContent = unlocked ? '💰 Payroll' : '🔒 Payroll';
+  var overlay = document.getElementById('payrollLockOverlay');
+  if(overlay) overlay.style.display = unlocked ? 'none' : '';
+  renderUnlockSettings();
+}
+
+function renderUnlockSettings(){
+  var el = document.getElementById('payrollAddonStatus'); if(!el) return;
+  if(isUnlocked('payroll')){
+    el.innerHTML = '<div class="addon-unlocked-box"><span style="font-size:20px;">✅</span><span>Payroll Add-On is <strong>unlocked</strong>.</span></div>';
+  } else {
+    el.innerHTML = '<div class="addon-locked-box">'
+      +'<h4>💰 Payroll Add-On — $39</h4>'
+      +'<p>Generate pay summaries: total hours, hourly rate, and gross pay per employee. Purchase on Gumroad, then enter your license key below.</p>'
+      +'<a href="https://worktrailhq.gumroad.com/l/shiftdesk-payroll" target="_blank" style="display:inline-block;background:#f59e0b;color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;text-decoration:none;margin-right:8px;">Buy on Gumroad →</a>'
+      +'<button onclick="openUnlockModal()" style="background:transparent;border:1.5px solid #f59e0b;color:#92400e;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;">Enter License Key</button>'
+    +'</div>';
+  }
+}
+
+function openUnlockModal(){
+  document.getElementById('unlockKeyInput').value='';
+  document.getElementById('unlockStatus').textContent='';
+  openModal('unlockModal');
+  setTimeout(function(){ document.getElementById('unlockKeyInput').focus(); },200);
+}
+
+function submitUnlockKey(){
+  var key = document.getElementById('unlockKeyInput').value.trim();
+  if(!key){ toast('Enter your license key'); return; }
+  document.getElementById('unlockStatus').textContent='Verifying…';
+  document.getElementById('unlockStatus').style.color='var(--gray-400)';
+  fetch('https://api.gumroad.com/v2/licenses/verify',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'product_permalink='+encodeURIComponent(GUMROAD_PAYROLL_PERMALINK)+'&license_key='+encodeURIComponent(key)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.success){
+      store.set('unlock_payroll', key);
+      closeModal('unlockModal');
+      checkUnlockStatus();
+      toast('Payroll unlocked! Thank you.');
+    } else {
+      document.getElementById('unlockStatus').textContent='Invalid license key. Check your Gumroad purchase email.';
+      document.getElementById('unlockStatus').style.color='var(--danger)';
+    }
+  })
+  .catch(function(){
+    document.getElementById('unlockStatus').textContent='Could not verify — check your internet connection and try again.';
+    document.getElementById('unlockStatus').style.color='var(--danger)';
+  });
+}
+
+/* ═══════════════════════════════════════════
+   PHOTO STORAGE (IndexedDB)
+═══════════════════════════════════════════ */
+var photoDB = null;
+function initPhotoDB(cb){
+  if(photoDB){ if(cb)cb(); return; }
+  try{
+    var req=indexedDB.open('shiftdesk_photos',1);
+    req.onupgradeneeded=function(e){ e.target.result.createObjectStore('photos',{keyPath:'ts'}); };
+    req.onsuccess=function(e){ photoDB=e.target.result; if(cb)cb(); };
+    req.onerror=function(){ if(cb)cb(); };
+  }catch(e){ if(cb)cb(); }
+}
+function savePhoto(ts,url){
+  initPhotoDB(function(){
+    if(!photoDB)return;
+    try{ photoDB.transaction('photos','readwrite').objectStore('photos').put({ts:String(ts),data:url}); }catch(e){}
+  });
+}
+function loadPhoto(ts,cb){
+  initPhotoDB(function(){
+    if(!photoDB){ cb(null); return; }
+    try{
+      var req=photoDB.transaction('photos','readonly').objectStore('photos').get(String(ts));
+      req.onsuccess=function(e){ cb(e.target.result?e.target.result.data:null); };
+      req.onerror=function(){ cb(null); };
+    }catch(e){ cb(null); }
+  });
+}
+function deletePhoto(ts){
+  initPhotoDB(function(){
+    if(!photoDB)return;
+    try{ photoDB.transaction('photos','readwrite').objectStore('photos').delete(String(ts)); }catch(e){}
+  });
+}
+
+/* ═══════════════════════════════════════════
+   FIREBASE
+═══════════════════════════════════════════ */
+function fbPut(path,key,data){
+  var url=cfg.fbUrl; if(!url)return;
+  var k=String(key).replace(/[.#$/\[\]]/g,'_');
+  fetch(url+'/sd/'+path+'/'+k+'.json',{method:'PUT',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}}).catch(function(){});
+}
+function fbGet(path,cb){
+  var url=cfg.fbUrl; if(!url){ cb(null); return; }
+  fetch(url+'/sd/'+path+'.json').then(function(r){ return r.json(); }).then(cb).catch(function(){ cb(null); });
+}
+function syncFromCloud(cb){
+  if(!cfg.fbUrl){ if(cb)cb(); return; }
+  fbGet('timesheet',function(data){
+    if(data&&typeof data==='object'){
+      var cloud=Object.values(data).filter(Boolean);
+      var local=store.getJ('timesheet',[]);
+      var merged={};
+      local.forEach(function(e){ merged[e.ts]=e; });
+      cloud.forEach(function(e){ if(e&&e.ts) merged[e.ts]=e; });
+      store.setJ('timesheet',Object.values(merged).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }));
+    }
+    if(cb)cb();
+  });
+}
+
+/* ═══════════════════════════════════════════
+   DEMO MODE
+═══════════════════════════════════════════ */
+var DEMO_EMPLOYEES = [
+  {name:'Alex Rivera', code:'1001'},
+  {name:'Jordan Smith', code:'1002'},
+  {name:'Taylor Chen',  code:'1003'},
+  {name:'Morgan Lee',   code:'1004'},
+  {name:'Sam Park',     code:'1005'}
+];
+function genDemoTimesheet(){
+  var now=new Date(), entries=[];
+  // Past 5 days
+  for(var d=4;d>=1;d--){
+    var day=new Date(now); day.setDate(day.getDate()-d);
+    DEMO_EMPLOYEES.forEach(function(emp,i){
+      var inH=8+i%2, inM=(i*13)%60;
+      var outH=inH+7+(i%3===0?1:0), outM=(i*7+15)%60;
+      var inDt=new Date(day); inDt.setHours(inH,inM,0,0);
+      var outDt=new Date(day); outDt.setHours(outH,outM,0,0);
+      entries.push({name:emp.name,type:'in',ts:inDt.toISOString(),hasPhoto:false,note:'',manual:false});
+      entries.push({name:emp.name,type:'out',ts:outDt.toISOString(),hasPhoto:false,note:'',manual:false});
+    });
+  }
+  // Today: first 3 clocked in, no clock-out yet
+  DEMO_EMPLOYEES.slice(0,3).forEach(function(emp,i){
+    var inDt=new Date(now); inDt.setHours(8+i,15+i*10,0,0);
+    if(inDt>now) inDt=new Date(now.getTime()-3600000*(i+1));
+    entries.push({name:emp.name,type:'in',ts:inDt.toISOString(),hasPhoto:false,note:'',manual:false});
+  });
+  return entries;
+}
+function startDemo(){
+  DEMO_MODE=true;
+  store.setJ('_demo_employees',DEMO_EMPLOYEES);
+  store.setJ('_demo_timesheet',genDemoTimesheet());
+  document.getElementById('demoBanner').style.display='';
+  applyBrandColor('#1a2b8c');
+  document.getElementById('pinBizName').textContent='Demo Business';
+  document.getElementById('adminBizName').textContent='Demo Business';
+  showScreen('pinScreen');
+  startClock();
+}
+function exitDemo(){
+  DEMO_MODE=false;
+  store.setJ('_demo_employees',[]);
+  store.setJ('_demo_timesheet',[]);
+  document.getElementById('demoBanner').style.display='none';
+  init();
+}
+function demoEmployees(){ return DEMO_MODE ? store.getJ('_demo_employees',[]) : store.getJ('employees',[]); }
+function demoTimesheet(){ return DEMO_MODE ? store.getJ('_demo_timesheet',[]) : store.getJ('timesheet',[]); }
+function demoSaveTimesheet(arr){ DEMO_MODE ? store.setJ('_demo_timesheet',arr) : store.setJ('timesheet',arr); }
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+function init(){
+  initPhotoDB();
+  applyBrandColor(cfg.color);
+  if(!cfg.isSetup){
+    showScreen('landingScreen');
+  } else {
+    document.getElementById('pinBizName').textContent=cfg.bizName;
+    document.getElementById('adminBizName').textContent=cfg.bizName;
+    showScreen('pinScreen');
+    startClock();
+    if(cfg.fbUrl) syncFromCloud(function(){});
+  }
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  var el=document.getElementById(id);
+  if(el) el.classList.add('active');
+  if(id==='pinScreen') resetPin();
+}
+
+/* ═══════════════════════════════════════════
+   CLOCK (live time display)
+═══════════════════════════════════════════ */
+function startClock(){
+  function tick(){
+    var now=new Date();
+    var el=document.getElementById('pinClock');
+    if(el) el.textContent=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  }
+  tick(); setInterval(tick,1000);
+}
+
+/* ═══════════════════════════════════════════
+   SETUP WIZARD
+═══════════════════════════════════════════ */
+var setupStep=1, setupTotalSteps=3;
+function renderSetupProgress(){
+  var p=document.getElementById('setupProgress'); p.innerHTML='';
+  for(var i=1;i<=setupTotalSteps;i++){
+    var d=document.createElement('div');
+    d.className='setup-dot'+(i<setupStep?' done':'');
+    p.appendChild(d);
+  }
+}
+function renderColorSwatches(containerId, onSelect){
+  var c=document.getElementById(containerId); if(!c) return;
+  c.innerHTML='';
+  BRAND_COLORS.forEach(function(col){
+    var s=document.createElement('div');
+    s.className='color-swatch';
+    s.style.background=col;
+    s.setAttribute('data-color',col);
+    s.onclick=function(){
+      c.querySelectorAll('.color-swatch').forEach(function(x){ x.classList.remove('sel'); });
+      s.classList.add('sel');
+      if(onSelect) onSelect(col);
+    };
+    c.appendChild(s);
+  });
+  // Mark first as selected by default
+  c.querySelector('.color-swatch').classList.add('sel');
+}
+function startSetup(){
+  setupStep=1;
+  renderSetupProgress();
+  renderColorSwatches('colorSwatches', function(col){ applyBrandColor(col); });
+  document.querySelectorAll('.setup-step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('step1').classList.add('active');
+  showScreen('setupScreen');
+}
+function setupNext(from){
+  if(from===1){
+    var n=document.getElementById('s1BizName').value.trim();
+    if(!n){ toast('Please enter your business name'); return; }
+    store.set('biz_name',n);
+    store.set('biz_tagline',document.getElementById('s1Tagline').value.trim());
+    var sel=document.querySelector('#colorSwatches .color-swatch.sel');
+    var col=sel?sel.getAttribute('data-color'):BRAND_COLORS[0];
+    store.set('biz_color',col); applyBrandColor(col);
+  }
+  if(from===2){
+    var p=document.getElementById('s2Pass').value, c=document.getElementById('s2Confirm').value;
+    if(p.length<4){ toast('Password must be at least 4 characters'); return; }
+    if(p!==c){ toast('Passwords do not match'); return; }
+    store.set('admin_pass',btoa(p));
+  }
+  setupStep++;
+  renderSetupProgress();
+  document.querySelectorAll('.setup-step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('step'+setupStep).classList.add('active');
+}
+function setupBack(from){
+  setupStep--;
+  renderSetupProgress();
+  document.querySelectorAll('.setup-step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('step'+setupStep).classList.add('active');
+}
+function setupFinish(){
+  var fb=document.getElementById('s3Fb').value.trim().replace(/\/+$/,'');
+  if(fb) store.set('fb_url',fb);
+  store.set('setup_done','1');
+  toast('Kiosk ready!');
+  init();
+}
+
+/* ═══════════════════════════════════════════
+   PIN SCREEN
+═══════════════════════════════════════════ */
+var pinBuffer='';
+function resetPin(){ pinBuffer=''; renderDots(); document.getElementById('pinError').textContent=''; }
+function pinKey(k){
+  if(pinBuffer.length>=4) return;
+  pinBuffer+=k; renderDots();
+  if(pinBuffer.length===4) setTimeout(checkPin,100);
+}
+function pinDel(){ pinBuffer=pinBuffer.slice(0,-1); renderDots(); }
+function renderDots(){
+  document.querySelectorAll('#pinDots .pin-dot').forEach(function(d,i){
+    d.classList.toggle('filled',i<pinBuffer.length);
+  });
+}
+function checkPin(){
+  var emps=demoEmployees();
+  var match=emps.find(function(e){ return e.code===pinBuffer; });
+  if(match){ currentEmp=match; openClockScreen(); }
+  else{ document.getElementById('pinError').textContent='Incorrect PIN. Please try again.'; setTimeout(resetPin,1200); }
+}
+
+/* ═══════════════════════════════════════════
+   ADMIN LOGIN
+═══════════════════════════════════════════ */
+function openAdminLogin(){
+  if(DEMO_MODE){ openAdminPanel(); return; }
+  document.getElementById('adminPassInput').value='';
+  document.getElementById('adminLoginErr').textContent='';
+  openModal('adminLoginModal');
+  setTimeout(function(){ document.getElementById('adminPassInput').focus(); },200);
+}
+function checkAdminLogin(){
+  var pass=document.getElementById('adminPassInput').value;
+  var stored=store.get('admin_pass');
+  if(stored && btoa(pass)===stored){ closeModal('adminLoginModal'); openAdminPanel(); }
+  else{ document.getElementById('adminLoginErr').textContent='Incorrect password.'; }
+}
+function openAdminPanel(){
+  showScreen('adminScreen');
+  document.getElementById('adminBizName').textContent=DEMO_MODE?'Demo Business':cfg.bizName;
+  checkUnlockStatus();
+  adminTab('records', document.querySelector('.admin-tab'));
+  loadSettingsFields();
+}
+function logoutAdmin(){ showScreen('pinScreen'); resetPin(); }
+
+/* ═══════════════════════════════════════════
+   CLOCK IN / OUT
+═══════════════════════════════════════════ */
+function isClocked(empName){
+  var ts=demoTimesheet();
+  var ins=ts.filter(function(e){ return e.name===empName&&e.type==='in'; });
+  var outs=ts.filter(function(e){ return e.name===empName&&e.type==='out'; });
+  if(!ins.length) return false;
+  var lastIn=new Date(ins[ins.length-1].ts);
+  var hasOut=outs.some(function(e){ return new Date(e.ts)>lastIn; });
+  return !hasOut;
+}
+function openClockScreen(){
+  capturedPhoto=null;
+  document.getElementById('clockNote').value='';
+  document.getElementById('clockContent').classList.remove('hidden');
+  document.getElementById('clockSuccess').classList.add('hidden');
+  var clocked=isClocked(currentEmp.name);
+  document.getElementById('empGreet').textContent='Hi, '+currentEmp.name.split(' ')[0]+'!';
+  document.getElementById('empStatus').textContent=clocked?'You are currently clocked IN.':'You are currently clocked out.';
+  var actions=document.getElementById('clockActions');
+  if(clocked){
+    actions.innerHTML='<button class="btn-clock-out" onclick="submitClock(\'out\')">Clock Out</button>'
+      +'<button class="btn-cancel-clock" onclick="backToPin()">Cancel</button>';
+  } else {
+    actions.innerHTML='<button class="btn-clock-in" onclick="submitClock(\'in\')">Clock In</button>'
+      +'<button class="btn-cancel-clock" onclick="backToPin()">Cancel</button>';
+  }
+  showScreen('clockScreen');
+  startCamera();
+}
+function startCamera(){
+  document.getElementById('cameraBox').style.display='';
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('retakeBtn').style.display='none';
+  document.getElementById('snapOverlay').classList.remove('show');
+  if(cameraStream){ cameraStream.getTracks().forEach(function(t){ t.stop(); }); cameraStream=null; }
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false})
+      .then(function(stream){
+        cameraStream=stream;
+        var v=document.getElementById('cameraFeed');
+        v.srcObject=stream; v.play();
+        document.getElementById('snapOverlay').classList.add('show');
+      }).catch(function(){ document.getElementById('cameraBox').style.display='none'; });
+  } else {
+    document.getElementById('cameraBox').style.display='none';
+  }
+}
+function snapPhoto(){
+  var v=document.getElementById('cameraFeed');
+  var c=document.createElement('canvas');
+  c.width=v.videoWidth||320; c.height=v.videoHeight||240;
+  c.getContext('2d').drawImage(v,0,0);
+  capturedPhoto=c.toDataURL('image/jpeg',0.4);
+  var p=document.getElementById('photoPreview');
+  p.src=capturedPhoto; p.style.display='';
+  document.getElementById('retakeBtn').style.display='';
+  document.getElementById('cameraBox').style.display='none';
+  if(cameraStream){ cameraStream.getTracks().forEach(function(t){ t.stop(); }); cameraStream=null; }
+}
+function retakePhoto(){
+  capturedPhoto=null;
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('retakeBtn').style.display='none';
+  startCamera();
+}
+function stopCamera(){
+  if(cameraStream){ cameraStream.getTracks().forEach(function(t){ t.stop(); }); cameraStream=null; }
+}
+function submitClock(type){
+  var ts=new Date().toISOString();
+  var note=document.getElementById('clockNote').value.trim();
+  var entry={name:currentEmp.name,type:type,ts:ts,hasPhoto:!!capturedPhoto,note:note,manual:false};
+  var arr=demoTimesheet();
+  arr.push(entry);
+  demoSaveTimesheet(arr);
+  if(capturedPhoto&&!DEMO_MODE) savePhoto(ts,capturedPhoto);
+  if(!DEMO_MODE&&cfg.fbUrl) fbPut('timesheet',ts,entry);
+  stopCamera();
+  // Show success
+  document.getElementById('clockContent').classList.add('hidden');
+  document.getElementById('clockSuccess').classList.remove('hidden');
+  document.getElementById('successIcon').textContent=type==='in'?'✅':'👋';
+  document.getElementById('successMsg').textContent=type==='in'?'Clocked In!':'Clocked Out!';
+  document.getElementById('successTime').textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  setTimeout(backToPin, 3000);
+}
+function backToPin(){
+  stopCamera();
+  currentEmp=null; capturedPhoto=null;
+  showScreen('pinScreen'); resetPin();
+}
+
+/* ═══════════════════════════════════════════
+   ADMIN — RECORDS
+═══════════════════════════════════════════ */
+function adminTab(tab, btn){
+  _adminTabActive=tab;
+  document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  ['records','employees','payroll','settings'].forEach(function(t){
+    var el=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(el) el.classList.toggle('hidden', t!==tab);
+  });
+  if(tab==='records'){ _recView='list'; setRecordView('list'); }
+  if(tab==='employees') renderEmployees();
+  if(tab==='payroll'){ checkUnlockStatus(); initPayrollDates(); if(isUnlocked('payroll')) renderPayrollReport(); }
+  if(tab==='settings'){ loadSettingsFields(); checkUnlockStatus(); }
+}
+function initRecordFilters(){
+  var now=new Date();
+  var pad=function(n){ return n<10?'0'+n:''+n; };
+  var today=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  var w=new Date(now); w.setDate(w.getDate()-6);
+  var wStr=w.getFullYear()+'-'+pad(w.getMonth()+1)+'-'+pad(w.getDate());
+  var ff=document.getElementById('filterFrom'), ft=document.getElementById('filterTo');
+  if(ff&&!ff.value) ff.value=wStr;
+  if(ft&&!ft.value) ft.value=today;
+  var sel=document.getElementById('filterEmp');
+  if(sel){
+    var prev=sel.value;
+    sel.innerHTML='<option value="">All Employees</option>';
+    demoEmployees().forEach(function(e){
+      sel.innerHTML+='<option value="'+e.name+'"'+(e.name===prev?' selected':'')+'>'+e.name+'</option>';
+    });
+  }
+}
+function renderRecords(){
+  if(!cfg.isSetup&&!DEMO_MODE) return;
+  initRecordFilters();
+  var from=new Date((document.getElementById('filterFrom').value||'2000-01-01')+'T00:00:00');
+  var to=new Date((document.getElementById('filterTo').value||'2099-12-31')+'T23:59:59');
+  var empF=document.getElementById('filterEmp').value;
+  var ts=demoTimesheet().filter(function(e){
+    var d=new Date(e.ts);
+    return d>=from&&d<=to&&(!empF||e.name===empF);
+  });
+  // Group by employee+day, pairing in/out
+  var sessions={}, order=[];
+  ts.sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
+  ts.forEach(function(e){
+    var day=new Date(e.ts).toDateString();
+    var key=e.name+'||'+day;
+    if(!sessions[key]){ sessions[key]={ins:[],outs:[],name:e.name,day:day}; order.push(key); }
+    if(e.type==='in') sessions[key].ins.push(e);
+    else if(e.type==='out') sessions[key].outs.push(e);
+  });
+  // Group by day label
+  var byDay={}, dayOrder=[];
+  order.forEach(function(k){
+    var s=sessions[k];
+    if(!byDay[s.day]){ byDay[s.day]=[]; dayOrder.push(s.day); }
+    byDay[s.day].push(s);
+  });
+  var html='';
+  var tf={hour:'numeric',minute:'2-digit',hour12:true};
+  var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if(!dayOrder.length){ html='<p style="text-align:center;color:var(--gray-400);padding:40px;">No records found for this period.</p>'; }
+  dayOrder.forEach(function(day){
+    var dt=new Date(day);
+    var label=mos[dt.getMonth()]+' '+dt.getDate()+', '+dt.getFullYear();
+    var isToday=day===new Date().toDateString();
+    html+='<div class="day-group"><div class="day-label">'+label+(isToday?' — Today':'')+'</div>';
+    byDay[day].forEach(function(s){
+      // Pair sessions
+      var maxPairs=Math.max(s.ins.length, s.outs.length, 1);
+      for(var i=0;i<maxPairs;i++){
+        var inE=s.ins[i]||null, outE=s.outs[i]||null;
+        var inTime=inE?new Date(inE.ts).toLocaleTimeString('en-US',tf):'—';
+        var outTime=outE?new Date(outE.ts).toLocaleTimeString('en-US',tf):(i===0&&!outE&&inE?'<span class="active-badge">Active</span>':'—');
+        var hrs='';
+        if(inE&&outE){ var h=(new Date(outE.ts)-new Date(inE.ts))/3600000; hrs=h.toFixed(2)+' hrs'; }
+        var safeInTs=inE?String(inE.ts).replace(/'/g,''):'';
+        var safeOutTs=outE?String(outE.ts).replace(/'/g,''):'';
+        // Photo placeholders (async-loaded below)
+        var inPhId=inE?'rpi-'+inE.ts.replace(/[:.]/g,''):'';
+        var outPhId=outE?'rpo-'+outE.ts.replace(/[:.]/g,''):'';
+        var inPh=inE&&inE.hasPhoto
+          ?'<img id="'+inPhId+'" src="" class="rec-photo in" onclick="showPhoto(\''+safeInTs+'\',\''+s.name+' — In\')" style="opacity:.35;cursor:pointer;transition:opacity .2s;">'
+          :'<div class="rec-photo-ph">👤</div>';
+        var outPh=outE&&outE.hasPhoto
+          ?'<img id="'+outPhId+'" src="" class="rec-photo out" onclick="showPhoto(\''+safeOutTs+'\',\''+s.name+' — Out\')" style="opacity:.35;cursor:pointer;transition:opacity .2s;">'
+          :'<div class="rec-photo-ph" style="border-color:#fca5a5;">👤</div>';
+        var manualB=(inE&&inE.manual)?'<span class="rec-badge badge-manual">Manual</span>':'';
+        var noteText=((inE&&inE.note)||(outE&&outE.note));
+        html+='<div class="rec-row">'
+          +inPh+outPh
+          +'<div class="rec-info">'
+            +'<div class="rec-name">'+s.name+manualB+'</div>'
+            +'<div class="rec-times">In: '+inTime+' &nbsp;·&nbsp; Out: '+outTime+'</div>'
+            +(noteText?'<div class="rec-note">'+noteText+'</div>':'')
+          +'</div>'
+          +(hrs?'<div class="rec-hours">'+hrs+'</div>':'')
+          +'<div class="rec-actions">'
+            +(inE?'<button class="btn-edit-rec" onclick="openEditEntry(\''+safeInTs+'\')">Edit In</button>':'')
+            +(outE?'<button class="btn-edit-rec" onclick="openEditEntry(\''+safeOutTs+'\')">Edit Out</button>':'')
+            +(inE?'<button class="btn-del-rec" onclick="deleteEntry(\''+safeInTs+'\')">Del</button>':'')
+          +'</div>'
+        +'</div>';
+      }
+    });
+    html+='</div>';
+  });
+  document.getElementById('recordsList').innerHTML=html;
+  // Async-load photos
+  if(!DEMO_MODE){
+    ts.filter(function(e){ return e.hasPhoto; }).forEach(function(e){
+      var id=(e.type==='in'?'rpi-':'rpo-')+e.ts.replace(/[:.]/g,'');
+      loadPhoto(e.ts,function(url){
+        var el=document.getElementById(id);
+        if(el&&url){ el.src=url; el.style.opacity='1'; }
+      });
+    });
+  }
+}
+function deleteEntry(ts){
+  if(!confirm('Delete this entry?')) return;
+  var arr=demoTimesheet().filter(function(e){ return String(e.ts)!==String(ts); });
+  demoSaveTimesheet(arr);
+  if(!DEMO_MODE){
+    deletePhoto(ts);
+    if(cfg.fbUrl) fetch(cfg.fbUrl+'/sd/timesheet/'+ts.replace(/[.#$/\[\]]/g,'_')+'.json',{method:'DELETE'}).catch(function(){});
+  }
+  renderRecords();
+  toast('Entry deleted');
+}
+
+/* ═══════════════════════════════════════════
+   EDIT / MANUAL ENTRY
+═══════════════════════════════════════════ */
+function openEditEntry(ts){
+  var arr=demoTimesheet();
+  var e=arr.find(function(r){ return String(r.ts)===String(ts); });
+  if(!e){ toast('Entry not found'); return; }
+  var dt=new Date(ts);
+  var pad=function(n){ return n<10?'0'+n:''+n; };
+  var local=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+'T'+pad(dt.getHours())+':'+pad(dt.getMinutes());
+  document.getElementById('editTs').value=ts;
+  document.getElementById('editType').value=e.type;
+  document.getElementById('editDt').value=local;
+  document.getElementById('editNote').value=e.note||'';
+  openModal('editModal');
+}
+function saveEditEntry(){
+  var origTs=document.getElementById('editTs').value;
+  var newType=document.getElementById('editType').value;
+  var rawDt=document.getElementById('editDt').value;
+  if(!rawDt){ toast('Select a date and time'); return; }
+  var newNote=document.getElementById('editNote').value.trim();
+  var arr=demoTimesheet();
+  arr.forEach(function(r){
+    if(String(r.ts)===String(origTs)){
+      r.type=newType; r.note=newNote;
+      var inputDt=new Date(rawDt);
+      if(Math.abs(new Date(origTs)-inputDt)>60000){
+        r.ts=inputDt.toISOString();
+        if(!DEMO_MODE){ deletePhoto(origTs); if(cfg.fbUrl) fetch(cfg.fbUrl+'/sd/timesheet/'+origTs.replace(/[.#$/\[\]]/g,'_')+'.json',{method:'DELETE'}).catch(function(){}); }
+      }
+      if(!DEMO_MODE&&cfg.fbUrl) fbPut('timesheet',r.ts,r);
+    }
+  });
+  demoSaveTimesheet(arr);
+  closeModal('editModal'); renderRecords(); toast('Entry updated');
+}
+function openManualEntry(){
+  var sel=document.getElementById('manualEmp');
+  sel.innerHTML='';
+  demoEmployees().forEach(function(e){
+    sel.innerHTML+='<option value="'+e.name+'">'+e.name+'</option>';
+  });
+  var now=new Date();
+  var pad=function(n){ return n<10?'0'+n:''+n; };
+  document.getElementById('manualDt').value=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'T'+pad(now.getHours())+':'+pad(now.getMinutes());
+  document.getElementById('manualNote').value='';
+  openModal('manualModal');
+}
+function saveManualEntry(){
+  var name=document.getElementById('manualEmp').value;
+  var type=document.getElementById('manualType').value;
+  var dt=document.getElementById('manualDt').value;
+  if(!name||!dt){ toast('Fill in all fields'); return; }
+  var ts=new Date(dt).toISOString();
+  var entry={name:name,type:type,ts:ts,hasPhoto:false,note:document.getElementById('manualNote').value.trim(),manual:true};
+  var arr=demoTimesheet(); arr.push(entry); demoSaveTimesheet(arr);
+  if(!DEMO_MODE&&cfg.fbUrl) fbPut('timesheet',ts,entry);
+  closeModal('manualModal'); renderRecords(); toast('Entry added');
+}
+
+/* ═══════════════════════════════════════════
+   EMPLOYEES
+═══════════════════════════════════════════ */
+function renderEmployees(){
+  var emps=demoEmployees();
+  var html='';
+  if(!emps.length){ html='<p style="color:var(--gray-400);font-size:13px;">No employees yet. Add one to get started.</p>'; }
+  emps.forEach(function(e){
+    html+='<div class="emp-card">'
+      +'<div class="emp-card-name">'+e.name+'</div>'
+      +'<div class="emp-card-pin">PIN: <strong>'+e.code+'</strong>'+(e.rate?' &nbsp;·&nbsp; $'+parseFloat(e.rate).toFixed(2)+'/hr':'')+'</div>'
+      +'<div class="emp-card-actions">'
+        +'<button class="btn-edit-emp" onclick="openEditEmployee(\''+e.code+'\')">Edit</button>'
+        +'<button class="btn-del-emp" onclick="deleteEmployee(\''+e.code+'\')">Delete</button>'
+      +'</div>'
+    +'</div>';
+  });
+  document.getElementById('empGrid').innerHTML=html;
+}
+function openAddEmployee(){
+  document.getElementById('empModalTitle').textContent='Add Employee';
+  document.getElementById('empEditCode').value='';
+  document.getElementById('empName').value='';
+  document.getElementById('empPin').value='';
+  document.getElementById('empRate').value='';
+  document.getElementById('empPinDisplay').classList.add('hidden');
+  openModal('empModal');
+}
+function openEditEmployee(code){
+  var emps=demoEmployees();
+  var e=emps.find(function(x){ return x.code===code; });
+  if(!e) return;
+  document.getElementById('empModalTitle').textContent='Edit Employee';
+  document.getElementById('empEditCode').value=code;
+  document.getElementById('empName').value=e.name;
+  document.getElementById('empPin').value=e.code;
+  document.getElementById('empRate').value=e.rate||'';
+  document.getElementById('empPinDisplay').textContent=e.code;
+  document.getElementById('empPinDisplay').classList.remove('hidden');
+  openModal('empModal');
+}
+function saveEmployee(){
+  var name=document.getElementById('empName').value.trim();
+  var pin=document.getElementById('empPin').value.trim();
+  var rate=parseFloat(document.getElementById('empRate').value)||0;
+  var editCode=document.getElementById('empEditCode').value;
+  if(!name){ toast('Enter employee name'); return; }
+  if(!/^\d{4}$/.test(pin)){ toast('PIN must be exactly 4 digits'); return; }
+  var emps=DEMO_MODE?store.getJ('_demo_employees',[]):store.getJ('employees',[]);
+  var dup=emps.find(function(e){ return e.code===pin&&e.code!==editCode; });
+  if(dup){ toast('PIN '+pin+' is already used by '+dup.name); return; }
+  var empObj={name:name,code:pin,rate:rate};
+  if(editCode){
+    emps=emps.map(function(e){ return e.code===editCode?empObj:e; });
+  } else {
+    emps.push(empObj);
+  }
+  DEMO_MODE?store.setJ('_demo_employees',emps):store.setJ('employees',emps);
+  if(!DEMO_MODE&&cfg.fbUrl) fbPut('employees',pin,empObj);
+  closeModal('empModal'); renderEmployees(); toast('Employee saved');
+}
+function deleteEmployee(code){
+  if(!confirm('Delete this employee? Their clock-in records will remain.')) return;
+  var emps=(DEMO_MODE?store.getJ('_demo_employees',[]):store.getJ('employees',[])).filter(function(e){ return e.code!==code; });
+  DEMO_MODE?store.setJ('_demo_employees',emps):store.setJ('employees',emps);
+  if(!DEMO_MODE&&cfg.fbUrl) fetch(cfg.fbUrl+'/sd/employees/'+code+'.json',{method:'DELETE'}).catch(function(){});
+  renderEmployees(); toast('Employee removed');
+}
+
+/* ═══════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════ */
+function loadSettingsFields(){
+  document.getElementById('setBizName').value=cfg.bizName;
+  document.getElementById('setTagline').value=cfg.tagline;
+  document.getElementById('setFbUrl').value=cfg.fbUrl;
+  renderColorSwatches('settingsColorSwatches',function(col){ applyBrandColor(col); });
+  var cur=cfg.color;
+  document.querySelectorAll('#settingsColorSwatches .color-swatch').forEach(function(s){
+    if(s.getAttribute('data-color')===cur) s.classList.add('sel');
+  });
+}
+function saveBizSettings(){
+  var n=document.getElementById('setBizName').value.trim();
+  if(!n){ toast('Business name required'); return; }
+  store.set('biz_name',n);
+  store.set('biz_tagline',document.getElementById('setTagline').value.trim());
+  var sel=document.querySelector('#settingsColorSwatches .color-swatch.sel');
+  if(sel){ store.set('biz_color',sel.getAttribute('data-color')); applyBrandColor(cfg.color); }
+  document.getElementById('adminBizName').textContent=cfg.bizName;
+  document.getElementById('pinBizName').textContent=cfg.bizName;
+  toast('Settings saved');
+}
+function saveFbSettings(){
+  var url=document.getElementById('setFbUrl').value.trim().replace(/\/+$/,'');
+  store.set('fb_url',url);
+  document.getElementById('fbStatus').textContent=url?'Connected: '+url:'Cloud sync disabled.';
+  if(url) syncFromCloud(function(){ renderRecords(); toast('Synced from cloud'); });
+  else toast('Cloud sync disabled');
+}
+function saveNewPassword(){
+  var p=document.getElementById('setNewPass').value;
+  if(p.length<4){ toast('Password must be at least 4 characters'); return; }
+  store.set('admin_pass',btoa(p));
+  document.getElementById('setNewPass').value='';
+  toast('Password updated');
+}
+function resetKiosk(){
+  if(!confirm('Are you sure? This will delete ALL employees, records, and settings. This cannot be undone.')) return;
+  store.clear(); location.reload();
+}
+
+/* ═══════════════════════════════════════════
+   RECORDS — LIST / CALENDAR TOGGLE
+═══════════════════════════════════════════ */
+var _recView = 'list';
+function setRecordView(v){
+  _recView = v;
+  document.getElementById('recordsList').classList.toggle('hidden', v!=='list');
+  document.getElementById('recordsCal').classList.toggle('hidden', v!=='cal');
+  document.getElementById('viewBtnList').classList.toggle('active', v==='list');
+  document.getElementById('viewBtnCal').classList.toggle('active', v==='cal');
+  if(v==='list') renderRecords();
+  if(v==='cal') renderCalendar();
+}
+
+/* ═══════════════════════════════════════════
+   CALENDAR VIEW
+═══════════════════════════════════════════ */
+var _calYear = new Date().getFullYear(), _calMonth = new Date().getMonth();
+var BRAND_COLORS_CAL = ['#1a2b8c','#0f766e','#7c3aed','#b91c1c','#0369a1','#065f46','#92400e','#1f2937'];
+
+function calPrev(){ _calMonth--; if(_calMonth<0){ _calMonth=11; _calYear--; } renderCalendar(); }
+function calNext(){ _calMonth++; if(_calMonth>11){ _calMonth=0; _calYear++; } renderCalendar(); }
+
+function renderCalendar(){
+  var mos=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calTitleText').textContent = mos[_calMonth]+' '+_calYear;
+  // Build day → employee names map
+  var allEmps = demoEmployees();
+  function empColor(name){
+    var i = allEmps.findIndex(function(e){ return e.name===name; });
+    return BRAND_COLORS_CAL[Math.max(0,i) % BRAND_COLORS_CAL.length];
+  }
+  function initials(name){ return name.split(' ').map(function(w){ return w[0]; }).join('').slice(0,2).toUpperCase(); }
+  var dayMap = {};
+  demoTimesheet().forEach(function(e){
+    if(e.type!=='in') return;
+    var d = new Date(e.ts);
+    if(d.getFullYear()!==_calYear || d.getMonth()!==_calMonth) return;
+    var k = d.getDate();
+    if(!dayMap[k]) dayMap[k] = [];
+    if(!dayMap[k].find(function(n){ return n===e.name; })) dayMap[k].push(e.name);
+  });
+  var today = new Date();
+  var daysInMonth = new Date(_calYear, _calMonth+1, 0).getDate();
+  var firstDay = new Date(_calYear, _calMonth, 1).getDay();
+  var html = '';
+  for(var i=0; i<firstDay; i++) html += '<div class="cal-cell other-month"></div>';
+  for(var d=1; d<=daysInMonth; d++){
+    var isToday = today.getDate()===d && today.getMonth()===_calMonth && today.getFullYear()===_calYear;
+    var names = dayMap[d] || [];
+    var dateEl = isToday
+      ? '<div class="cal-date-today">'+d+'</div>'
+      : '<div class="cal-date-num">'+d+'</div>';
+    var bubbles = names.slice(0,4).map(function(n){
+      return '<div class="cal-bubble" style="background:'+empColor(n)+'" title="'+n+'">'+initials(n)+'</div>';
+    }).join('');
+    var more = names.length>4 ? '<div class="cal-more-txt">+' + (names.length-4) + ' more</div>' : '';
+    html += '<div class="cal-cell'+(isToday?' today-cell':'')+(names.length?' has-data':'')+'" onclick="showCalDay('+d+')">'
+      + dateEl
+      + (names.length ? '<div class="cal-bubbles">'+bubbles+'</div>'+more : '')
+    +'</div>';
+  }
+  document.getElementById('calGrid').innerHTML = html;
+  document.getElementById('calDetail').classList.remove('open');
+  document.getElementById('calDetail').innerHTML = '';
+}
+
+function showCalDay(day){
+  var tf = {hour:'numeric',minute:'2-digit',hour12:true};
+  var mos=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var allEmps = demoEmployees();
+  function empColor(name){
+    var i = allEmps.findIndex(function(e){ return e.name===name; });
+    return BRAND_COLORS_CAL[Math.max(0,i) % BRAND_COLORS_CAL.length];
+  }
+  function initials(name){ return name.split(' ').map(function(w){ return w[0]; }).join('').slice(0,2).toUpperCase(); }
+  var dayTs = demoTimesheet().filter(function(e){
+    var d = new Date(e.ts);
+    return d.getFullYear()===_calYear && d.getMonth()===_calMonth && d.getDate()===day;
+  });
+  if(!dayTs.length){ document.getElementById('calDetail').classList.remove('open'); return; }
+  var byEmp = {};
+  dayTs.forEach(function(e){
+    if(!byEmp[e.name]) byEmp[e.name]={ins:[],outs:[]};
+    if(e.type==='in') byEmp[e.name].ins.push(e);
+    else byEmp[e.name].outs.push(e);
+  });
+  var html = '<div class="cal-detail-hdr">'+mos[_calMonth]+' '+day+', '+_calYear+'</div>';
+  Object.keys(byEmp).forEach(function(name){
+    var s = byEmp[name];
+    var inE = s.ins[0], outE = s.outs[0];
+    var inT = inE ? new Date(inE.ts).toLocaleTimeString('en-US',tf) : '—';
+    var outT = outE ? new Date(outE.ts).toLocaleTimeString('en-US',tf) : '<span class="active-badge">Active</span>';
+    var hrs = (inE&&outE) ? ((new Date(outE.ts)-new Date(inE.ts))/3600000).toFixed(2)+' hrs' : '';
+    html += '<div class="rec-row" style="margin-bottom:8px;">'
+      +'<div style="width:40px;height:40px;border-radius:10px;background:'+empColor(name)+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">'+initials(name)+'</div>'
+      +'<div class="rec-info">'
+        +'<div class="rec-name">'+name+'</div>'
+        +'<div class="rec-times">In: '+inT+' &nbsp;·&nbsp; Out: '+outT+'</div>'
+      +'</div>'
+      +(hrs?'<div class="rec-hours">'+hrs+'</div>':'')
+    +'</div>';
+  });
+  var det = document.getElementById('calDetail');
+  det.innerHTML = html; det.classList.add('open');
+}
+
+/* ═══════════════════════════════════════════
+   PAYROLL
+═══════════════════════════════════════════ */
+function initPayrollDates(){
+  var now = new Date(), pad = function(n){ return n<10?'0'+n:''+n; };
+  var today = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  var m1 = new Date(now.getFullYear(), now.getMonth(), 1);
+  var from = m1.getFullYear()+'-'+pad(m1.getMonth()+1)+'-01';
+  var pf = document.getElementById('prFrom'), pt = document.getElementById('prTo');
+  if(pf && !pf.value) pf.value = from;
+  if(pt && !pt.value) pt.value = today;
+}
+
+function renderPayrollReport(){
+  var pf = document.getElementById('prFrom').value;
+  var pt = document.getElementById('prTo').value;
+  if(!pf||!pt){ toast('Select a date range'); return; }
+  var from = new Date(pf+'T00:00:00'), to = new Date(pt+'T23:59:59');
+  var emps = demoEmployees();
+  var ts = demoTimesheet().filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
+  var empMap = {};
+  emps.forEach(function(e){ empMap[e.name]={name:e.name,rate:parseFloat(e.rate)||0,ins:[],outs:[],hours:0}; });
+  ts.forEach(function(e){
+    if(!empMap[e.name]) empMap[e.name]={name:e.name,rate:0,ins:[],outs:[],hours:0};
+    if(e.type==='in') empMap[e.name].ins.push(new Date(e.ts));
+    else empMap[e.name].outs.push(new Date(e.ts));
+  });
+  var totalHrs=0, totalPay=0, empCount=0;
+  Object.values(empMap).forEach(function(d){
+    d.hours=0;
+    d.ins.forEach(function(inT){
+      var outT=d.outs.find(function(o){ return o>inT; });
+      if(outT) d.hours+=(outT-inT)/3600000;
+    });
+    if(d.hours>0) empCount++;
+    totalHrs+=d.hours;
+    totalPay+=d.hours*d.rate;
+  });
+  // Summary
+  var sumHtml='<div class="pay-stat"><div class="pay-stat-label">Total Hours</div><div class="pay-stat-val">'+totalHrs.toFixed(1)+'h</div></div>'
+    +'<div class="pay-stat"><div class="pay-stat-label">Employees</div><div class="pay-stat-val">'+empCount+'</div></div>'
+    +(totalPay>0?'<div class="pay-stat"><div class="pay-stat-label">Est. Gross Pay</div><div class="pay-stat-val">$'+(totalPay.toFixed(0))+'</div></div>':'');
+  document.getElementById('paySummary').innerHTML=sumHtml;
+  // Table rows
+  var rows='';
+  Object.values(empMap).filter(function(d){ return d.hours>0; }).sort(function(a,b){ return b.hours-a.hours; }).forEach(function(d){
+    var pay=d.hours*d.rate;
+    rows+='<tr>'
+      +'<td class="emp-cell">'+d.name+'</td>'
+      +'<td>'+d.hours.toFixed(2)+' hrs</td>'
+      +'<td>'+(d.rate?'$'+d.rate.toFixed(2)+'/hr':'<span style="color:var(--gray-400);font-size:11px;">not set</span>')+'</td>'
+      +'<td style="font-weight:700;color:#065f46;">'+(d.rate?'$'+pay.toFixed(2):'—')+'</td>'
+    +'</tr>';
+  });
+  if(!rows) rows='<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:24px;">No records in this period.</td></tr>';
+  else if(totalPay>0) rows+='<tr class="total-row"><td>Total</td><td>'+totalHrs.toFixed(2)+' hrs</td><td>—</td><td>$'+totalPay.toFixed(2)+'</td></tr>';
+  document.getElementById('payTableBody').innerHTML=rows;
+}
+
+/* ═══════════════════════════════════════════
+   CSV EXPORT
+═══════════════════════════════════════════ */
+function exportCSV(){
+  var ts=demoTimesheet();
+  var from=new Date((document.getElementById('filterFrom').value||'2000-01-01')+'T00:00:00');
+  var to=new Date((document.getElementById('filterTo').value||'2099-12-31')+'T23:59:59');
+  var empF=document.getElementById('filterEmp').value;
+  var rows=ts.filter(function(e){
+    var d=new Date(e.ts);
+    return d>=from&&d<=to&&(!empF||e.name===empF);
+  });
+  if(!rows.length){ toast('No records to export'); return; }
+  var csv='Employee,Type,Date,Time,Note\n';
+  rows.forEach(function(e){
+    var d=new Date(e.ts);
+    var date=d.toLocaleDateString('en-US');
+    var time=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    csv+='"'+e.name+'","'+(e.type==='in'?'Clock In':'Clock Out')+'","'+date+'","'+time+'","'+(e.note||'')+'"\n';
+  });
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='shiftdesk-records-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click(); toast('CSV exported');
+}
+
+/* ═══════════════════════════════════════════
+   PHOTO LIGHTBOX
+═══════════════════════════════════════════ */
+function showPhoto(ts,caption){
+  if(DEMO_MODE){ toast('Photos not available in demo mode'); return; }
+  loadPhoto(ts,function(url){
+    if(!url){ toast('Photo not found'); return; }
+    document.getElementById('photoLightboxImg').src=url;
+    document.getElementById('photoLightboxCap').textContent=caption||'';
+    document.getElementById('photoLightbox').classList.add('open');
+  });
+}
+function closeLightbox(){ document.getElementById('photoLightbox').classList.remove('open'); }
+
+/* ═══════════════════════════════════════════
+   MODALS & UTILS
+═══════════════════════════════════════════ */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(function(m){
+  m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('open'); });
+});
+var _toastTimer;
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){ el.classList.remove('show'); },2800);
+}
+
+/* ═══════════════════════════════════════════
+   EMPLOYEE PIN INPUT — show/hide display
+═══════════════════════════════════════════ */
+document.getElementById('empPin').addEventListener('input',function(){
+  var v=this.value.replace(/\D/g,'').slice(0,4);
+  this.value=v;
+  var disp=document.getElementById('empPinDisplay');
+  if(v.length===4){ disp.textContent=v; disp.classList.remove('hidden'); }
+  else { disp.classList.add('hidden'); }
+});
+
+/* ═══════════════════════════════════════════
+   START
+═══════════════════════════════════════════ */
+// Script is at bottom of body so DOM is already ready — call init directly
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>

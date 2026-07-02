@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShiftDesk — Live Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--brand:#1a2b8c;--brand-dark:#0f1a5c;--brand-light:#e0e7ff;--danger:#dc2626;--success:#059669;--warn:#d97706;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#1f2937;}
+
+/* BUY BAR */
+#buyBar{background:linear-gradient(90deg,#1a2b8c,#4f46e5);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2);}
+#buyBar .buy-msg{font-size:14px;font-weight:600;}
+#buyBar .buy-msg span{opacity:.75;font-size:13px;display:block;margin-top:2px;}
+.buy-btn{background:#f59e0b;color:#1a1a1a;border:none;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer;transition:opacity .15s;}
+.buy-btn:hover{opacity:.9;}
+.demo-tag{background:rgba(255,255,255,.15);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;}
+
+/* NAV */
+.admin-nav{background:var(--brand);display:flex;align-items:center;padding:0 16px;gap:4px;}
+.admin-logo{color:#fff;font-size:15px;font-weight:900;padding:14px 0;margin-right:12px;}
+.admin-tab{background:transparent;border:none;color:rgba(255,255,255,.6);font-size:13px;font-weight:600;padding:14px 14px;border-bottom:3px solid transparent;cursor:pointer;}
+.admin-tab.active{color:#fff;border-bottom-color:#fff;}
+
+/* BODY */
+.admin-body{padding:16px;max-width:900px;margin:0 auto;}
+
+/* FILTERS */
+.rec-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+.rec-filters input,.rec-filters select{padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;background:#fff;}
+.rec-filters button{padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;border:none;cursor:pointer;}
+.btn-export{background:#f3f4f6;color:#4b5563;}
+.view-toggle{display:flex;background:#f3f4f6;border-radius:10px;padding:3px;gap:2px;}
+.view-btn{background:transparent;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;}
+.view-btn.active{background:#fff;color:var(--brand);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+
+/* RECORDS */
+.day-group{margin-bottom:20px;}
+.day-label{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding:0 4px;}
+.rec-row{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;}
+.rec-ph{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0;}
+.rec-info{flex:1;}
+.rec-name{font-size:14px;font-weight:700;color:#111827;}
+.rec-times{font-size:12px;color:#9ca3af;margin-top:2px;}
+.rec-hrs{font-size:13px;font-weight:700;color:var(--brand);margin-left:auto;flex-shrink:0;}
+.badge-active{background:#dcfce7;color:#15803d;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;}
+.rec-note{font-size:11px;color:#9ca3af;margin-top:3px;font-style:italic;}
+
+/* CALENDAR */
+.cal-wrap{background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f3f4f6;}
+.cal-title{font-size:16px;font-weight:800;color:#111827;}
+.cal-nav{background:#f3f4f6;border:none;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;color:#4b5563;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.cal-day-hdr{text-align:center;padding:10px 4px;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #f3f4f6;}
+.cal-cell{min-height:80px;border-right:1px solid #f9fafb;border-bottom:1px solid #f9fafb;padding:6px;cursor:pointer;transition:background .15s;position:relative;}
+.cal-cell:nth-child(7n){border-right:none;}
+.cal-cell:hover{background:#f8fafc;}
+.cal-cell.today{background:#eef2ff;}
+.cal-cell.other-month{opacity:.3;}
+.cal-cell.has-data{cursor:pointer;}
+.cal-date{font-size:12px;font-weight:700;color:#374151;margin-bottom:4px;}
+.cal-cell.today .cal-date{background:var(--brand);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.cal-bubbles{display:flex;flex-wrap:wrap;gap:3px;}
+.cal-bubble{width:22px;height:22px;border-radius:6px;font-size:9px;font-weight:800;color:#fff;display:flex;align-items:center;justify-content:center;}
+.cal-more{font-size:9px;color:#9ca3af;margin-top:2px;}
+.cal-detail{padding:16px 20px;border-top:1px solid #f3f4f6;display:none;}
+.cal-detail.open{display:block;}
+.cal-detail-title{font-size:14px;font-weight:800;color:#111827;margin-bottom:12px;}
+
+/* EMPLOYEES */
+.emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.emp-card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;}
+.emp-avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;}
+.emp-info{flex:1;}
+.emp-name{font-size:14px;font-weight:700;color:#111827;}
+.emp-pin{font-size:12px;color:#9ca3af;margin-top:2px;}
+.emp-status{font-size:11px;font-weight:600;margin-top:4px;}
+.status-in{color:var(--success);}
+.status-out{color:#9ca3af;}
+
+/* PAYROLL */
+.payroll-table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.payroll-table th{background:#f8fafc;padding:12px 16px;font-size:11px;font-weight:700;color:#6b7280;text-align:left;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e5e7eb;}
+.payroll-table td{padding:14px 16px;font-size:13px;border-bottom:1px solid #f3f4f6;color:#374151;}
+.payroll-table tr:last-child td{border-bottom:none;}
+.payroll-table .total-row td{font-weight:800;color:#111827;background:#f0fdf4;font-size:14px;}
+.pay-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+.pay-stat{background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.pay-stat-label{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.pay-stat-val{font-size:22px;font-weight:900;color:var(--brand);}
+
+/* SETTINGS */
+.settings-section{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.settings-section h3{font-size:14px;font-weight:800;color:#111827;margin-bottom:14px;}
+.inp{width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:12px;font-size:14px;color:#111827;outline:none;}
+.inp:focus{border-color:var(--brand);}
+.btn-save{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;}
+.unlock-box{background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:20px;border:1.5px solid #f59e0b;}
+.unlock-box h4{font-size:14px;font-weight:800;color:#92400e;margin-bottom:4px;}
+.unlock-box p{font-size:12px;color:#92400e;margin-bottom:12px;opacity:.8;}
+.btn-unlock{background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;}
+.unlocked-box{background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:14px;padding:16px;border:1.5px solid #6ee7b7;display:flex;align-items:center;gap:10px;}
+.unlocked-box span{font-size:13px;font-weight:700;color:#065f46;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:360px;}
+.modal-title{font-size:15px;font-weight:800;color:#111827;margin-bottom:16px;}
+.btn-primary{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;}
+
+/* PIN SCREEN */
+.pin-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 52px);background:linear-gradient(135deg,var(--brand) 0%,var(--brand-dark) 100%);}
+.pin-card{background:#fff;border-radius:24px;padding:32px;max-width:340px;width:100%;margin:20px;}
+.pin-biz{text-align:center;margin-bottom:24px;}
+.pin-biz-name{font-size:20px;font-weight:900;color:var(--brand);}
+.pin-biz-time{font-size:13px;color:#9ca3af;margin-top:4px;}
+.pin-label{text-align:center;font-size:13px;font-weight:600;color:#6b7280;margin-bottom:14px;}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:22px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;background:#e5e7eb;transition:background .15s;}
+.pin-dot.filled{background:var(--brand);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.pin-key{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:14px;padding:16px;font-size:20px;font-weight:700;color:#111827;text-align:center;cursor:pointer;transition:all .1s;}
+.pin-key:active{background:var(--brand-light);border-color:var(--brand);}
+.pin-key.del{font-size:14px;color:var(--danger);}
+.pin-key.admin-key{font-size:11px;color:#9ca3af;border-style:dashed;}
+.pin-error{text-align:center;color:var(--danger);font-size:12px;font-weight:600;margin-top:10px;min-height:18px;}
+.pin-hint{text-align:center;font-size:11px;color:#9ca3af;margin-top:14px;}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#1f2937;color:#fff;border-radius:14px;padding:11px 20px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:400;pointer-events:none;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.hidden{display:none!important;}
+.mt-1{margin-top:6px;} .mt-2{margin-top:12px;}
+.field-label{font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- BUY BAR -->
+<div id="buyBar">
+  <div>
+    <div class="buy-msg">⏱ ShiftDesk — Employee Clock-In Kiosk
+      <span>You're viewing the live demo. All data is fake — explore freely.</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="demo-tag">🎭 DEMO</span>
+    <button class="buy-btn" onclick="window.open('https://worktrailhq.com','_blank')">Get ShiftDesk — $69 →</button>
+  </div>
+</div>
+
+<!-- MAIN AREA - switches between PIN and Admin -->
+<div id="mainArea">
+
+<!-- PIN SCREEN -->
+<div id="pinView" class="pin-screen">
+  <div class="pin-card">
+    <div class="pin-biz">
+      <div class="pin-biz-name">☀️ Sunrise Wellness Co.</div>
+      <div class="pin-biz-time" id="demoClockTick"></div>
+    </div>
+    <div class="pin-label">Enter your PIN to clock in or out</div>
+    <div class="pin-dots" id="demoPinDots">
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="dPin('1')">1</button>
+      <button class="pin-key" onclick="dPin('2')">2</button>
+      <button class="pin-key" onclick="dPin('3')">3</button>
+      <button class="pin-key" onclick="dPin('4')">4</button>
+      <button class="pin-key" onclick="dPin('5')">5</button>
+      <button class="pin-key" onclick="dPin('6')">6</button>
+      <button class="pin-key" onclick="dPin('7')">7</button>
+      <button class="pin-key" onclick="dPin('8')">8</button>
+      <button class="pin-key" onclick="dPin('9')">9</button>
+      <button class="pin-key admin-key" onclick="openDemoAdmin()">Admin</button>
+      <button class="pin-key" onclick="dPin('0')">0</button>
+      <button class="pin-key del" onclick="dPinDel()">⌫</button>
+    </div>
+    <div class="pin-error" id="demoPinError"></div>
+    <div class="pin-hint">Demo PINs: 1001 · 1002 · 1003 · 1004 · 1005</div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminView" class="hidden">
+  <nav class="admin-nav">
+    <span class="admin-logo">☀️ Sunrise Wellness Co.</span>
+    <button class="admin-tab active" onclick="dTab('records',this)">Records</button>
+    <button class="admin-tab" onclick="dTab('employees',this)">Employees</button>
+    <button class="admin-tab" onclick="dTab('payroll',this)">💰 Payroll</button>
+    <button class="admin-tab" onclick="dTab('settings',this)">Settings</button>
+    <button class="admin-tab" onclick="showPin()" style="margin-left:auto;color:rgba(255,255,255,.5);">← Kiosk View</button>
+  </nav>
+  <div class="admin-body">
+
+    <!-- RECORDS -->
+    <div id="dTabRecords">
+      <div class="rec-filters">
+        <input type="date" id="dFilterFrom">
+        <input type="date" id="dFilterTo">
+        <select id="dFilterEmp"><option value="">All Employees</option></select>
+        <div class="view-toggle">
+          <button class="view-btn active" id="btnList" onclick="setView('list')">List</button>
+          <button class="view-btn" id="btnCal" onclick="setView('cal')">Calendar</button>
+        </div>
+        <button class="btn-export" onclick="toast('CSV export available in full version')">⬇ CSV</button>
+      </div>
+      <div id="dListView"></div>
+      <div id="dCalView" class="hidden">
+        <div class="cal-wrap">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="calPrev()">‹</button>
+            <span class="cal-title" id="calTitle"></span>
+            <button class="cal-nav" onclick="calNext()">›</button>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-detail" id="calDetail"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEES -->
+    <div id="dTabEmployees" class="hidden">
+      <div class="emp-grid" id="dEmpGrid"></div>
+    </div>
+
+    <!-- PAYROLL -->
+    <div id="dTabPayroll" class="hidden">
+      <div class="rec-filters" style="margin-bottom:20px;">
+        <input type="date" id="prFrom">
+        <input type="date" id="prTo">
+        <button class="btn-save" style="padding:8px 16px;margin-top:0;" onclick="renderPayroll()">Generate Report</button>
+      </div>
+      <div class="pay-summary" id="paySummary"></div>
+      <table class="payroll-table" id="payTable">
+        <thead><tr>
+          <th>Employee</th><th>Total Hours</th><th>Rate</th><th>Gross Pay</th>
+        </tr></thead>
+        <tbody id="payBody"></tbody>
+      </table>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="dTabSettings" class="hidden">
+      <div class="settings-section">
+        <h3>Business Info</h3>
+        <div style="margin-bottom:12px;"><label class="field-label">Business Name</label><input class="inp" value="Sunrise Wellness Co." readonly></div>
+        <div><label class="field-label">Brand Color</label><input class="inp" value="#1a2b8c" readonly></div>
+        <button class="btn-save">Save Settings</button>
+      </div>
+      <div class="settings-section">
+        <h3>🔓 Add-Ons &amp; Unlocks</h3>
+        <div class="unlocked-box">
+          <span style="font-size:20px;">✅</span>
+          <span>Payroll Add-On is <strong>unlocked</strong> — License key verified.</span>
+        </div>
+        <p style="font-size:11px;color:#9ca3af;margin-top:10px;">In the real product, features are locked until you enter a valid license key purchased on Gumroad.</p>
+      </div>
+      <div class="settings-section">
+        <h3>Cloud Sync</h3>
+        <label class="field-label">Firebase URL</label>
+        <input class="inp" value="https://sunrise-wellness-rtdb.firebaseio.com" readonly>
+        <button class="btn-save">Save</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- Clock-in success modal -->
+<div class="modal-overlay" id="clockModal">
+  <div class="modal-box" style="text-align:center;">
+    <div style="font-size:48px;margin-bottom:12px;" id="clockIcon"></div>
+    <div style="font-size:18px;font-weight:800;color:#111827;margin-bottom:4px;" id="clockMsg"></div>
+    <div style="font-size:13px;color:#9ca3af;" id="clockTime"></div>
+    <button class="btn-primary" onclick="closeClockModal()" style="margin-top:20px;">← Back to Kiosk</button>
+  </div>
+</div>
+
+<script>
+/* ─── DEMO DATA ─── */
+var COLORS=['#1a2b8c','#0f766e','#7c3aed','#b91c1c','#0369a1','#065f46'];
+var DEMO_EMPS=[
+  {name:'Alex Rivera',  code:'1001',rate:18, color:'#1a2b8c'},
+  {name:'Jordan Smith', code:'1002',rate:16, color:'#0f766e'},
+  {name:'Taylor Chen',  code:'1003',rate:17, color:'#7c3aed'},
+  {name:'Morgan Lee',   code:'1004',rate:15, color:'#b91c1c'},
+  {name:'Sam Park',     code:'1005',rate:16, color:'#0369a1'}
+];
+var DEMO_TS = (function(){
+  var now=new Date(), entries=[];
+  for(var d=6;d>=1;d--){
+    var day=new Date(now); day.setDate(day.getDate()-d);
+    DEMO_EMPS.forEach(function(emp,i){
+      var inH=8+i%2, inM=(i*11)%60, outH=inH+7+(i%3===0?1:0), outM=(i*7+20)%60;
+      var inDt=new Date(day); inDt.setHours(inH,inM,0,0);
+      var outDt=new Date(day); outDt.setHours(outH,outM,0,0);
+      entries.push({name:emp.name,type:'in', ts:new Date(inDt).toISOString(),note:''});
+      entries.push({name:emp.name,type:'out',ts:new Date(outDt).toISOString(),note:''});
+    });
+  }
+  // Today: first 3 clocked in, no clock-out
+  DEMO_EMPS.slice(0,3).forEach(function(emp,i){
+    var inDt=new Date(now); inDt.setHours(8+i,10+i*15,0,0);
+    if(inDt>now) inDt=new Date(now.getTime()-3600000*(i+2));
+    entries.push({name:emp.name,type:'in',ts:new Date(inDt).toISOString(),note:''});
+  });
+  return entries;
+})();
+
+function empByName(name){ return DEMO_EMPS.find(function(e){ return e.name===name; })||{color:'#6b7280',name:name}; }
+function initials(name){ return name.split(' ').map(function(w){ return w[0]; }).join('').slice(0,2).toUpperCase(); }
+
+/* ─── CLOCK ─── */
+(function tick(){
+  var el=document.getElementById('demoClockTick'); if(!el) return;
+  el.textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  setTimeout(tick,1000);
+})();
+
+/* ─── PIN ─── */
+var pinBuf='';
+function dPin(k){
+  if(pinBuf.length>=4) return;
+  pinBuf+=k; renderPinDots();
+  if(pinBuf.length===4) setTimeout(checkDemoPin,100);
+}
+function dPinDel(){ pinBuf=pinBuf.slice(0,-1); renderPinDots(); }
+function renderPinDots(){
+  document.querySelectorAll('#demoPinDots .pin-dot').forEach(function(d,i){ d.classList.toggle('filled',i<pinBuf.length); });
+}
+function checkDemoPin(){
+  var match=DEMO_EMPS.find(function(e){ return e.code===pinBuf; });
+  if(match){
+    var isIn=isClocked(match.name);
+    document.getElementById('clockIcon').textContent=isIn?'👋':'✅';
+    document.getElementById('clockMsg').textContent=match.name+(isIn?' — Clocked Out!'>' — Clocked In!');
+    document.getElementById('clockTime').textContent='Demo: '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    document.getElementById('clockModal').classList.add('open');
+  } else {
+    document.getElementById('demoPinError').textContent='Incorrect PIN. Try: 1001–1005';
+    setTimeout(function(){ pinBuf=''; renderPinDots(); document.getElementById('demoPinError').textContent=''; },1500);
+  }
+}
+function closeClockModal(){ document.getElementById('clockModal').classList.remove('open'); pinBuf=''; renderPinDots(); }
+function isClocked(name){
+  var ins=DEMO_TS.filter(function(e){ return e.name===name&&e.type==='in'; });
+  var outs=DEMO_TS.filter(function(e){ return e.name===name&&e.type==='out'; });
+  if(!ins.length) return false;
+  var lastIn=new Date(ins[ins.length-1].ts);
+  return !outs.some(function(e){ return new Date(e.ts)>lastIn; });
+}
+
+/* ─── SCREENS ─── */
+function showPin(){ document.getElementById('pinView').classList.remove('hidden'); document.getElementById('adminView').classList.add('hidden'); }
+function openDemoAdmin(){ document.getElementById('pinView').classList.add('hidden'); document.getElementById('adminView').classList.remove('hidden'); initAdmin(); }
+
+/* ─── ADMIN INIT ─── */
+function initAdmin(){
+  // Populate employee filter
+  var sel=document.getElementById('dFilterEmp');
+  sel.innerHTML='<option value="">All Employees</option>';
+  DEMO_EMPS.forEach(function(e){ sel.innerHTML+='<option value="'+e.name+'">'+e.name+'</option>'; });
+  // Default date range: last 7 days
+  var now=new Date(), pad=function(n){ return n<10?'0'+n:''+n; };
+  var today=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  var w=new Date(now); w.setDate(w.getDate()-6);
+  var wStr=w.getFullYear()+'-'+pad(w.getMonth()+1)+'-'+pad(w.getDate());
+  document.getElementById('dFilterFrom').value=wStr;
+  document.getElementById('dFilterTo').value=today;
+  // Payroll defaults
+  var m=new Date(now.getFullYear(),now.getMonth(),1);
+  document.getElementById('prFrom').value=m.getFullYear()+'-'+pad(m.getMonth()+1)+'-01';
+  document.getElementById('prTo').value=today;
+  dTab('records',document.querySelector('.admin-tab'));
+}
+
+/* ─── TAB SWITCHING ─── */
+function dTab(tab,btn){
+  document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  ['records','employees','payroll','settings'].forEach(function(t){
+    var el=document.getElementById('dTab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(el) el.classList.toggle('hidden',t!==tab);
+  });
+  if(tab==='records') renderList();
+  if(tab==='employees') renderEmployees();
+  if(tab==='payroll') renderPayroll();
+}
+
+/* ─── LIST VIEW ─── */
+var _curView='list';
+function setView(v){
+  _curView=v;
+  document.getElementById('dListView').classList.toggle('hidden',v!=='list');
+  document.getElementById('dCalView').classList.toggle('hidden',v!=='cal');
+  document.getElementById('btnList').classList.toggle('active',v==='list');
+  document.getElementById('btnCal').classList.toggle('active',v==='cal');
+  if(v==='list') renderList();
+  if(v==='cal') renderCal();
+}
+function getFiltered(){
+  var from=new Date((document.getElementById('dFilterFrom').value||'2000-01-01')+'T00:00:00');
+  var to=new Date((document.getElementById('dFilterTo').value||'2099-12-31')+'T23:59:59');
+  var ef=document.getElementById('dFilterEmp').value;
+  return DEMO_TS.filter(function(e){
+    var d=new Date(e.ts);
+    return d>=from&&d<=to&&(!ef||e.name===ef);
+  });
+}
+function renderList(){
+  var ts=getFiltered().slice().sort(function(a,b){ return new Date(b.ts)-new Date(a.ts); });
+  var byDay={},dayOrder=[];
+  ts.forEach(function(e){
+    var day=new Date(e.ts).toDateString();
+    if(!byDay[day]){ byDay[day]={}; dayOrder.push(day); }
+    if(!byDay[day][e.name]) byDay[day][e.name]={ins:[],outs:[],name:e.name};
+    if(e.type==='in') byDay[day][e.name].ins.push(e);
+    else byDay[day][e.name].outs.push(e);
+  });
+  var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var tf={hour:'numeric',minute:'2-digit',hour12:true};
+  var html='';
+  if(!dayOrder.length) html='<p style="text-align:center;color:#9ca3af;padding:40px 0;">No records found for this period.</p>';
+  dayOrder.forEach(function(day){
+    var dt=new Date(day);
+    var label=mos[dt.getMonth()]+' '+dt.getDate()+', '+dt.getFullYear();
+    var isToday=day===new Date().toDateString();
+    html+='<div class="day-group"><div class="day-label">'+label+(isToday?' — Today':'')+'</div>';
+    Object.values(byDay[day]).forEach(function(s){
+      var emp=empByName(s.name);
+      var inE=s.ins[0]||null, outE=s.outs[0]||null;
+      var inTime=inE?new Date(inE.ts).toLocaleTimeString('en-US',tf):'—';
+      var outTime=outE?new Date(outE.ts).toLocaleTimeString('en-US',tf):(inE&&isToday?'<span class="badge-active">Active Now</span>':'—');
+      var hrs='';
+      if(inE&&outE){ var h=(new Date(outE.ts)-new Date(inE.ts))/3600000; hrs=h.toFixed(2)+' hrs'; }
+      html+='<div class="rec-row">'
+        +'<div class="rec-ph" style="background:'+emp.color+';">'+initials(s.name)+'</div>'
+        +'<div class="rec-info">'
+          +'<div class="rec-name">'+s.name+'</div>'
+          +'<div class="rec-times">In: '+inTime+' &nbsp;·&nbsp; Out: '+outTime+'</div>'
+        +'</div>'
+        +(hrs?'<div class="rec-hrs">'+hrs+'</div>':'')
+      +'</div>';
+    });
+    html+='</div>';
+  });
+  document.getElementById('dListView').innerHTML=html;
+}
+
+/* ─── CALENDAR VIEW ─── */
+var calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
+function calPrev(){ calMonth--; if(calMonth<0){ calMonth=11; calYear--; } renderCal(); }
+function calNext(){ calMonth++; if(calMonth>11){ calMonth=0; calYear++; } renderCal(); }
+function renderCal(){
+  var mos=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calTitle').textContent=mos[calMonth]+' '+calYear;
+  // Build day→employees map
+  var dayMap={};
+  DEMO_TS.forEach(function(e){
+    if(e.type!=='in') return;
+    var d=new Date(e.ts);
+    if(d.getFullYear()!==calYear||d.getMonth()!==calMonth) return;
+    var key=d.getDate();
+    if(!dayMap[key]) dayMap[key]=[];
+    if(!dayMap[key].find(function(n){ return n===e.name; })) dayMap[key].push(e.name);
+  });
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var html=days.map(function(d){ return '<div class="cal-day-hdr">'+d+'</div>'; }).join('');
+  var first=new Date(calYear,calMonth,1).getDay();
+  var daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  var today=new Date();
+  // Empty cells before first
+  for(var i=0;i<first;i++) html+='<div class="cal-cell other-month"></div>';
+  for(var d=1;d<=daysInMonth;d++){
+    var isToday=today.getDate()===d&&today.getMonth()===calMonth&&today.getFullYear()===calYear;
+    var names=dayMap[d]||[];
+    var bubbles=names.slice(0,4).map(function(n){ var e=empByName(n); return '<div class="cal-bubble" style="background:'+e.color+';" title="'+n+'">'+initials(n)+'</div>'; }).join('');
+    var more=names.length>4?'<div class="cal-more">+'+( names.length-4)+' more</div>':'';
+    html+='<div class="cal-cell'+(isToday?' today':'')+(names.length?' has-data':'')+'" onclick="showCalDay('+d+')">'
+      +'<div class="cal-date">'+(isToday?'<div style="background:var(--brand);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;">'+d+'</div>':d)+'</div>'
+      +(names.length?'<div class="cal-bubbles">'+bubbles+'</div>'+more:'')
+    +'</div>';
+  }
+  document.getElementById('calGrid').innerHTML=html;
+  document.getElementById('calDetail').classList.remove('open');
+  document.getElementById('calDetail').innerHTML='';
+}
+function showCalDay(day){
+  var tf={hour:'numeric',minute:'2-digit',hour12:true};
+  var mos=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var dayTs=DEMO_TS.filter(function(e){
+    var d=new Date(e.ts);
+    return d.getFullYear()===calYear&&d.getMonth()===calMonth&&d.getDate()===day;
+  });
+  if(!dayTs.length){ document.getElementById('calDetail').classList.remove('open'); return; }
+  var byEmp={};
+  dayTs.forEach(function(e){
+    if(!byEmp[e.name]) byEmp[e.name]={ins:[],outs:[]};
+    if(e.type==='in') byEmp[e.name].ins.push(e);
+    else byEmp[e.name].outs.push(e);
+  });
+  var html='<div class="cal-detail-title">'+mos[calMonth]+' '+day+', '+calYear+'</div>';
+  Object.keys(byEmp).forEach(function(name){
+    var s=byEmp[name], emp=empByName(name);
+    var inE=s.ins[0], outE=s.outs[0];
+    var inT=inE?new Date(inE.ts).toLocaleTimeString('en-US',tf):'—';
+    var outT=outE?new Date(outE.ts).toLocaleTimeString('en-US',tf):'Active';
+    var hrs=inE&&outE?((new Date(outE.ts)-new Date(inE.ts))/3600000).toFixed(2)+' hrs':'—';
+    html+='<div class="rec-row" style="margin-bottom:8px;">'
+      +'<div class="rec-ph" style="background:'+emp.color+';width:40px;height:40px;font-size:14px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;">'+initials(name)+'</div>'
+      +'<div class="rec-info">'
+        +'<div class="rec-name">'+name+'</div>'
+        +'<div class="rec-times">In: '+inT+' &nbsp;·&nbsp; Out: '+outT+'</div>'
+      +'</div>'
+      +'<div class="rec-hrs">'+hrs+'</div>'
+    +'</div>';
+  });
+  var det=document.getElementById('calDetail');
+  det.innerHTML=html; det.classList.add('open');
+}
+
+/* ─── EMPLOYEES ─── */
+function renderEmployees(){
+  var html='';
+  DEMO_EMPS.forEach(function(e){
+    var clocked=isClocked(e.name);
+    html+='<div class="emp-card">'
+      +'<div class="emp-avatar" style="background:'+e.color+';">'+initials(e.name)+'</div>'
+      +'<div class="emp-info">'
+        +'<div class="emp-name">'+e.name+'</div>'
+        +'<div class="emp-pin">PIN: '+e.code+'</div>'
+        +'<div class="emp-status '+(clocked?'status-in':'status-out')+'">'+(clocked?'● Clocked In':'○ Clocked Out')+'</div>'
+      +'</div>'
+    +'</div>';
+  });
+  document.getElementById('dEmpGrid').innerHTML=html;
+}
+
+/* ─── PAYROLL ─── */
+function renderPayroll(){
+  var from=new Date((document.getElementById('prFrom').value||'2000-01-01')+'T00:00:00');
+  var to=new Date((document.getElementById('prTo').value||'2099-12-31')+'T23:59:59');
+  var ts=DEMO_TS.filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
+  var byEmp={};
+  DEMO_EMPS.forEach(function(e){ byEmp[e.name]={hours:0,rate:e.rate,ins:[],outs:[]}; });
+  ts.forEach(function(e){
+    if(!byEmp[e.name]) return;
+    if(e.type==='in') byEmp[e.name].ins.push(new Date(e.ts));
+    else byEmp[e.name].outs.push(new Date(e.ts));
+  });
+  // Pair sessions
+  var totalHrs=0, totalPay=0;
+  Object.keys(byEmp).forEach(function(name){
+    var d=byEmp[name]; d.hours=0;
+    d.ins.forEach(function(inT){
+      var matchOut=d.outs.find(function(outT){ return outT>inT; });
+      if(matchOut) d.hours+=(matchOut-inT)/3600000;
+    });
+    totalHrs+=d.hours; totalPay+=d.hours*d.rate;
+  });
+  // Summary cards
+  var sumHtml='<div class="pay-stat"><div class="pay-stat-label">Total Hours</div><div class="pay-stat-val">'+totalHrs.toFixed(1)+'h</div></div>'
+    +'<div class="pay-stat"><div class="pay-stat-label">Employees</div><div class="pay-stat-val">'+DEMO_EMPS.length+'</div></div>'
+    +'<div class="pay-stat"><div class="pay-stat-label">Est. Gross Pay</div><div class="pay-stat-val">$'+totalPay.toFixed(0)+'</div></div>';
+  document.getElementById('paySummary').innerHTML=sumHtml;
+  // Table
+  var rows='';
+  Object.keys(byEmp).forEach(function(name){
+    var d=byEmp[name], pay=d.hours*d.rate;
+    rows+='<tr><td><strong>'+name+'</strong></td><td>'+d.hours.toFixed(2)+' hrs</td><td>$'+d.rate.toFixed(2)+'/hr</td><td style="font-weight:700;color:#065f46;">$'+pay.toFixed(2)+'</td></tr>';
+  });
+  rows+='<tr class="total-row"><td>Total</td><td>'+totalHrs.toFixed(2)+' hrs</td><td>—</td><td>$'+totalPay.toFixed(2)+'</td></tr>';
+  document.getElementById('payBody').innerHTML=rows;
+}
+
+/* ─── TOAST ─── */
+var _tt;
+function toast(msg){ var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(function(){ el.classList.remove('show'); },2800); }
+
+/* ─── INIT ─── */
+(function(){
+  document.querySelector('.modal-overlay').addEventListener('click',function(e){ if(e.target===this) closeClockModal(); });
+  renderCal();
+})();
+</script>
+</body>
+</html>
