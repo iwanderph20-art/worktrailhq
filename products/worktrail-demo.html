@@ -172,6 +172,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* COMPUTATION SETUP */
 .tpl-line{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
 .btn-addline{background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;margin-top:6px;}
+
+/* CLOCK-IN (photo capture) */
+.clock-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 52px);background:linear-gradient(160deg,var(--brand-light) 0%,#fff 60%);}
+.clock-card{background:#fff;border-radius:24px;padding:26px;max-width:360px;width:100%;margin:20px;box-shadow:0 12px 40px rgba(16,24,64,.12);}
+.clock-greet{font-size:20px;font-weight:800;color:#111827;}
+.clock-status{font-size:13px;color:#9ca3af;margin-bottom:16px;}
+.cam-box{width:100%;aspect-ratio:4/3;background:#0f172a;border-radius:16px;overflow:hidden;position:relative;margin-bottom:14px;display:flex;align-items:center;justify-content:center;}
+.cam-box video{width:100%;height:100%;object-fit:cover;}
+.cam-ph{color:#fff;text-align:center;font-size:12px;opacity:.85;padding:24px;line-height:1.5;}
+.snap-btn{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#fff;border:none;border-radius:50%;width:54px;height:54px;font-size:22px;box-shadow:0 4px 16px rgba(0,0,0,.25);cursor:pointer;}
+.cam-preview{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:16px;margin-bottom:12px;border:3px solid #86efac;}
+.btn-retake{background:#f3f4f6;color:#4b5563;border:none;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px;display:block;width:100%;}
+.btn-clockin{background:var(--brand);color:#fff;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;width:100%;cursor:pointer;}
+.btn-clockout{background:var(--danger);color:#fff;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;width:100%;cursor:pointer;}
+.btn-cancelclock{background:#f3f4f6;color:#4b5563;border:none;border-radius:12px;padding:11px;width:100%;font-weight:600;cursor:pointer;margin-top:10px;}
 </style>
 </head>
 <body>
@@ -356,8 +371,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="settings-section">
         <h3>📧 Clock-In Email Alerts</h3>
         <label class="field-label">Admin Email</label>
-        <input class="inp" value="owner@sunrisewellness.com" readonly>
-        <p style="font-size:11px;color:#9ca3af;margin-top:8px;">In the full product, the admin gets an email every time an employee clocks in or out — free, no server needed.</p>
+        <input id="dAdminEmail" class="inp" type="email" value="owner@sunrisewellness.com" placeholder="you@yourbusiness.com">
+        <button class="btn-save" onclick="dSaveAdminEmail()">Save &amp; Turn On Alerts</button>
+        <p id="dAlertStatus" style="font-size:11px;color:#065f46;font-weight:600;margin-top:8px;"></p>
+        <p style="font-size:11px;color:#9ca3af;margin-top:6px;">Register your email and the admin gets a message every time an employee clocks in or out — free, no server needed (uses FormSubmit in the full product).</p>
       </div>
       <div class="settings-section">
         <h3>Cloud Sync</h3>
@@ -369,6 +386,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   </div>
 </div>
+</div>
+
+<!-- ══ CLOCK-IN SCREEN (photo capture of surroundings) ══ -->
+<div id="clockView" class="clock-screen hidden">
+  <div class="clock-card">
+    <div class="clock-greet" id="clockGreet">Hi!</div>
+    <div class="clock-status" id="clockStatus"></div>
+    <div class="cam-box" id="camBox">
+      <video id="camFeed" autoplay muted playsinline></video>
+      <button class="snap-btn" id="snapBtn" onclick="snapDemoPhoto()">📷</button>
+    </div>
+    <img id="camPreview" class="cam-preview hidden" src="" alt="">
+    <button id="retakeBtn" class="btn-retake hidden" onclick="retakeDemoPhoto()">↩ Retake photo</button>
+    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-bottom:12px;">📸 A photo of your surroundings is captured with every clock-in — so owners know who's on-site.</p>
+    <div id="clockActionWrap"></div>
+    <button class="btn-cancelclock" onclick="cancelDemoClock()">Cancel</button>
+  </div>
 </div>
 
 <!-- ══ SETUP WIZARD (what a buyer sees on first launch) ══ -->
@@ -475,10 +509,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- Clock-in success modal -->
 <div class="modal-overlay" id="clockModal">
   <div class="modal-box" style="text-align:center;">
+    <img id="clockPhoto" class="hidden" src="" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:14px;border:3px solid #86efac;margin:0 auto 12px;display:block;">
     <div style="font-size:48px;margin-bottom:12px;" id="clockIcon"></div>
     <div style="font-size:18px;font-weight:800;color:#111827;margin-bottom:4px;" id="clockMsg"></div>
     <div style="font-size:13px;color:#9ca3af;" id="clockTime"></div>
-    <button class="btn-primary" onclick="closeClockModal()" style="margin-top:20px;">← Back to Kiosk</button>
+    <div id="clockEmailNote" style="font-size:12px;color:#065f46;font-weight:600;background:#f0fdf4;border-radius:10px;padding:8px 12px;margin-top:12px;"></div>
+    <button class="btn-primary" onclick="closeClockModal()" style="margin-top:16px;">← Back to Kiosk</button>
   </div>
 </div>
 
@@ -541,22 +577,98 @@ function renderPinDots(){
 }
 function checkDemoPin(){
   var match=DEMO_EMPS.find(function(e){ return e.code===pinBuf; });
-  if(match){
-    var isIn=isClocked(match.name);
-    var type=isIn?'out':'in';
-    // Actually record it so the demo behaves like the real kiosk — Records,
-    // Calendar and Payroll all reflect this clock-in/out immediately.
-    DEMO_TS.push({name:match.name,type:type,ts:new Date().toISOString(),note:''});
-    document.getElementById('clockIcon').textContent=isIn?'👋':'✅';
-    document.getElementById('clockMsg').textContent=match.name+(isIn?' — Clocked Out!':' — Clocked In!');
-    document.getElementById('clockTime').textContent='Demo · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+' · ✓ saved to Records';
-    document.getElementById('clockModal').classList.add('open');
-  } else {
+  if(match){ demoCurrentEmp=match; openDemoClock(); }
+  else {
     document.getElementById('demoPinError').textContent='Incorrect PIN. Try: 1001–1003';
     setTimeout(function(){ pinBuf=''; renderPinDots(); document.getElementById('demoPinError').textContent=''; },1500);
   }
 }
 function closeClockModal(){ document.getElementById('clockModal').classList.remove('open'); pinBuf=''; renderPinDots(); toast('Tap Admin → Records to see it logged'); }
+
+/* ─── CLOCK-IN SCREEN + PHOTO CAPTURE ─── */
+var demoCurrentEmp=null, demoCameraStream=null, demoCapturedPhoto=null;
+var demoAdminEmail='owner@sunrisewellness.com';
+var _demoPhotos={};
+function openDemoClock(){
+  demoCapturedPhoto=null;
+  var isIn=isClocked(demoCurrentEmp.name);
+  document.getElementById('clockGreet').textContent='Hi, '+demoCurrentEmp.name.split(' ')[0]+'!';
+  document.getElementById('clockStatus').textContent=isIn?'You are currently clocked IN.':'You are currently clocked out.';
+  document.getElementById('clockActionWrap').innerHTML = isIn
+    ? '<button class="btn-clockout" onclick="submitDemoClock(\'out\')">Clock Out</button>'
+    : '<button class="btn-clockin" onclick="submitDemoClock(\'in\')">Clock In</button>';
+  document.getElementById('pinView').classList.add('hidden');
+  document.getElementById('clockView').classList.remove('hidden');
+  startDemoCamera();
+}
+function startDemoCamera(){
+  var box=document.getElementById('camBox');
+  box.innerHTML='<video id="camFeed" autoplay muted playsinline></video><button class="snap-btn" id="snapBtn" onclick="snapDemoPhoto()">📷</button>';
+  document.getElementById('camPreview').classList.add('hidden');
+  document.getElementById('retakeBtn').classList.add('hidden');
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false})
+      .then(function(stream){
+        demoCameraStream=stream;
+        var v=document.getElementById('camFeed');
+        if(v){ v.srcObject=stream; v.play(); }
+      })
+      .catch(function(){ showCamPlaceholder(); });
+  } else { showCamPlaceholder(); }
+}
+function showCamPlaceholder(){
+  // Camera unavailable (e.g. opened from file:// without HTTPS) — still show the concept
+  document.getElementById('camBox').innerHTML='<div class="cam-ph">📷 Camera preview appears here on a real device.<br>Enable camera permission (needs HTTPS) to snap a photo — or just tap Clock In to continue the demo.</div>';
+}
+function snapDemoPhoto(){
+  var v=document.getElementById('camFeed');
+  if(!v||!v.videoWidth){ toast('Camera not ready'); return; }
+  var c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  demoCapturedPhoto=c.toDataURL('image/jpeg',0.5);
+  stopDemoCamera();
+  var p=document.getElementById('camPreview'); p.src=demoCapturedPhoto; p.classList.remove('hidden');
+  document.getElementById('camBox').innerHTML='';
+  document.getElementById('camBox').style.display='none';
+  document.getElementById('retakeBtn').classList.remove('hidden');
+}
+function retakeDemoPhoto(){
+  demoCapturedPhoto=null;
+  document.getElementById('camBox').style.display='';
+  startDemoCamera();
+}
+function stopDemoCamera(){ if(demoCameraStream){ demoCameraStream.getTracks().forEach(function(t){ t.stop(); }); demoCameraStream=null; } }
+function cancelDemoClock(){
+  stopDemoCamera();
+  document.getElementById('camBox').style.display='';
+  document.getElementById('clockView').classList.add('hidden');
+  document.getElementById('pinView').classList.remove('hidden');
+  pinBuf=''; renderPinDots();
+}
+function submitDemoClock(type){
+  var ts=new Date().toISOString();
+  DEMO_TS.push({name:demoCurrentEmp.name,type:type,ts:ts,note:'',hasPhoto:!!demoCapturedPhoto});
+  if(demoCapturedPhoto) _demoPhotos[ts]=demoCapturedPhoto;
+  stopDemoCamera();
+  document.getElementById('camBox').style.display='';
+  document.getElementById('clockView').classList.add('hidden');
+  document.getElementById('pinView').classList.remove('hidden');
+  // Success modal
+  var ph=document.getElementById('clockPhoto');
+  if(demoCapturedPhoto){ ph.src=demoCapturedPhoto; ph.classList.remove('hidden'); } else { ph.classList.add('hidden'); }
+  document.getElementById('clockIcon').textContent=type==='out'?'👋':'✅';
+  document.getElementById('clockMsg').textContent=demoCurrentEmp.name+(type==='out'?' — Clocked Out!':' — Clocked In!');
+  document.getElementById('clockTime').textContent='Demo · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+' · ✓ saved to Records';
+  document.getElementById('clockEmailNote').textContent='📧 Alert emailed to '+demoAdminEmail;
+  document.getElementById('clockModal').classList.add('open');
+}
+function dSaveAdminEmail(){
+  var v=document.getElementById('dAdminEmail').value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ toast('Enter a valid email address'); return; }
+  demoAdminEmail=v;
+  document.getElementById('dAlertStatus').textContent='✓ Alerts on — clock-ins will be emailed to '+v;
+  toast('Saved — you’ll get an email on every clock-in/out');
+}
 function isClocked(name){
   var ins=DEMO_TS.filter(function(e){ return e.name===name&&e.type==='in'; });
   var outs=DEMO_TS.filter(function(e){ return e.name===name&&e.type==='out'; });
@@ -566,8 +678,8 @@ function isClocked(name){
 }
 
 /* ─── SCREENS ─── */
-function showPin(){ document.getElementById('pinView').classList.remove('hidden'); document.getElementById('adminView').classList.add('hidden'); }
-function openDemoAdmin(){ document.getElementById('pinView').classList.add('hidden'); document.getElementById('adminView').classList.remove('hidden'); initAdmin(); }
+function showPin(){ stopDemoCamera(); document.getElementById('clockView').classList.add('hidden'); document.getElementById('pinView').classList.remove('hidden'); document.getElementById('adminView').classList.add('hidden'); }
+function openDemoAdmin(){ stopDemoCamera(); document.getElementById('clockView').classList.add('hidden'); document.getElementById('pinView').classList.add('hidden'); document.getElementById('adminView').classList.remove('hidden'); var ae=document.getElementById('dAdminEmail'); if(ae) ae.value=demoAdminEmail; initAdmin(); }
 
 /* ─── ADMIN INIT ─── */
 function initAdmin(){
@@ -648,10 +760,14 @@ function renderList(){
       var outTime=outE?new Date(outE.ts).toLocaleTimeString('en-US',tf):(inE&&isToday?'<span class="badge-active">Active Now</span>':'—');
       var hrs='';
       if(inE&&outE){ var h=(new Date(outE.ts)-new Date(inE.ts))/3600000; hrs=h.toFixed(2)+' hrs'; }
+      var snap=inE&&_demoPhotos[inE.ts];
+      var avatar=snap
+        ? '<img class="rec-ph" style="object-fit:cover;border:2px solid #86efac;" src="'+snap+'" alt="clock-in photo" title="Clock-in photo">'
+        : '<div class="rec-ph" style="background:'+emp.color+';">'+initials(s.name)+'</div>';
       html+='<div class="rec-row">'
-        +'<div class="rec-ph" style="background:'+emp.color+';">'+initials(s.name)+'</div>'
+        +avatar
         +'<div class="rec-info">'
-          +'<div class="rec-name">'+s.name+'</div>'
+          +'<div class="rec-name">'+s.name+(snap?' <span style="font-size:11px;">📷</span>':'')+'</div>'
           +'<div class="rec-times">In: '+inTime+' &nbsp;·&nbsp; Out: '+outTime+'</div>'
         +'</div>'
         +(hrs?'<div class="rec-hrs">'+hrs+'</div>':'')
