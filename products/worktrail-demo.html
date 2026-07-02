@@ -507,12 +507,14 @@ var DEMO_TS = (function(){
       entries.push({name:emp.name,type:'out',ts:new Date(outDt).toISOString(),note:''});
     });
   }
-  // Today: first 3 clocked in, no clock-out
-  DEMO_EMPS.slice(0,3).forEach(function(emp,i){
-    var inDt=new Date(now); inDt.setHours(8+i,10+i*15,0,0);
-    if(inDt>now) inDt=new Date(now.getTime()-3600000*(i+2));
-    entries.push({name:emp.name,type:'in',ts:new Date(inDt).toISOString(),note:''});
-  });
+  // Today: mix the state so both actions are demonstrable —
+  // Alex is still clocked in (tapping clocks OUT); Jordan already did a full
+  // shift (tapping clocks back IN); Taylor hasn't clocked in yet (taps to clock IN).
+  var alex=DEMO_EMPS[0], jordan=DEMO_EMPS[1];
+  entries.push({name:alex.name,type:'in',ts:new Date(now.getTime()-3*3600000).toISOString(),note:''});
+  var jIn=new Date(now); jIn.setHours(8,5,0,0); if(jIn>now) jIn=new Date(now.getTime()-6*3600000);
+  entries.push({name:jordan.name,type:'in',ts:jIn.toISOString(),note:''});
+  entries.push({name:jordan.name,type:'out',ts:new Date(now.getTime()-2*3600000).toISOString(),note:''});
   return entries;
 })();
 
@@ -541,16 +543,20 @@ function checkDemoPin(){
   var match=DEMO_EMPS.find(function(e){ return e.code===pinBuf; });
   if(match){
     var isIn=isClocked(match.name);
+    var type=isIn?'out':'in';
+    // Actually record it so the demo behaves like the real kiosk — Records,
+    // Calendar and Payroll all reflect this clock-in/out immediately.
+    DEMO_TS.push({name:match.name,type:type,ts:new Date().toISOString(),note:''});
     document.getElementById('clockIcon').textContent=isIn?'👋':'✅';
     document.getElementById('clockMsg').textContent=match.name+(isIn?' — Clocked Out!':' — Clocked In!');
-    document.getElementById('clockTime').textContent='Demo: '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    document.getElementById('clockTime').textContent='Demo · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+' · ✓ saved to Records';
     document.getElementById('clockModal').classList.add('open');
   } else {
     document.getElementById('demoPinError').textContent='Incorrect PIN. Try: 1001–1003';
     setTimeout(function(){ pinBuf=''; renderPinDots(); document.getElementById('demoPinError').textContent=''; },1500);
   }
 }
-function closeClockModal(){ document.getElementById('clockModal').classList.remove('open'); pinBuf=''; renderPinDots(); }
+function closeClockModal(){ document.getElementById('clockModal').classList.remove('open'); pinBuf=''; renderPinDots(); toast('Tap Admin → Records to see it logged'); }
 function isClocked(name){
   var ins=DEMO_TS.filter(function(e){ return e.name===name&&e.type==='in'; });
   var outs=DEMO_TS.filter(function(e){ return e.name===name&&e.type==='out'; });
