@@ -527,7 +527,10 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
             <label class="field-label">Sample Salary Computation (photo or PDF from your accountant)</label>
             <input type="file" id="sampleFileW2" accept="image/*,.pdf" style="display:none;" onchange="uploadSample('w2',this)">
             <button class="btn-export" style="padding:9px 16px;border-radius:10px;" onclick="document.getElementById('sampleFileW2').click()">📎 Upload Sample</button>
+            <button id="autoBtnW2" class="btn-add-entry hidden" style="padding:9px 16px;border-radius:10px;margin-left:6px;" onclick="autoReadSample('w2')">🔍 Auto-fill from sample</button>
             <span id="sampleStatusW2" class="text-xs text-gray" style="margin-left:8px;"></span>
+            <p id="autoStatusW2" class="text-xs mt-1" style="color:var(--brand);font-weight:600;"></p>
+            <p class="text-xs text-gray mt-1">Auto-fill scans the sample and drops in the deduction lines for you to review — or just add them by hand below. You choose.</p>
           </div>
           <div class="form-row">
             <label class="field-label">Deduction Lines (applied to gross pay)</label>
@@ -542,7 +545,10 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
             <label class="field-label">Sample Salary Computation (photo or PDF from your accountant)</label>
             <input type="file" id="sampleFile1099" accept="image/*,.pdf" style="display:none;" onchange="uploadSample('1099',this)">
             <button class="btn-export" style="padding:9px 16px;border-radius:10px;" onclick="document.getElementById('sampleFile1099').click()">📎 Upload Sample</button>
+            <button id="autoBtn1099" class="btn-add-entry hidden" style="padding:9px 16px;border-radius:10px;margin-left:6px;" onclick="autoReadSample('1099')">🔍 Auto-fill from sample</button>
             <span id="sampleStatus1099" class="text-xs text-gray" style="margin-left:8px;"></span>
+            <p id="autoStatus1099" class="text-xs mt-1" style="color:var(--brand);font-weight:600;"></p>
+            <p class="text-xs text-gray mt-1">Auto-fill scans the sample and drops in the deduction lines for you to review — or just add them by hand below. You choose.</p>
           </div>
           <div class="form-row">
             <label class="field-label">Deduction Lines (usually none — contractors handle their own taxes)</label>
@@ -1875,6 +1881,8 @@ function renderTemplateEditors(){
       st.style.color='#065f46'; st.style.cursor='pointer'; st.style.textDecoration='underline';
       st.onclick=function(){ viewSample(type); };
     } else { st.style.color=''; st.style.cursor=''; st.style.textDecoration=''; st.onclick=null; }
+    var ab=document.getElementById('autoBtn'+(type==='w2'?'W2':'1099'));
+    if(ab) ab.classList.toggle('hidden', !tpl.sampleName);
   });
 }
 function readTplLinesFromDOM(type){
@@ -1919,7 +1927,7 @@ function uploadSample(type,input){
     tpl.lines=readTplLinesFromDOM(type);
     tpl.sampleName=f.name;
     store.setJ('pay_tpl_'+type,tpl);
-    toast('Sample uploaded — now enter its deduction lines below');
+    toast('Sample uploaded — tap “Auto-fill from sample”, or add lines by hand');
     renderTemplateEditors();
   };
   reader.readAsDataURL(f);
@@ -1936,6 +1944,107 @@ function viewSample(type){
       document.getElementById('photoLightboxCap').textContent=(type==='w2'?'W-2':'1099')+' sample salary computation';
       document.getElementById('photoLightbox').classList.add('open');
     }
+  });
+}
+
+/* ── Auto-read a sample stub with in-browser OCR (Tesseract.js) ──
+   No backend, no per-use cost. Needs internet the first time to fetch the
+   engine from a CDN; falls back to manual entry if offline or unreadable. */
+function loadScript(src,cb){
+  var s=document.createElement('script'); s.src=src;
+  s.onload=function(){ cb(true); }; s.onerror=function(){ cb(false); };
+  document.head.appendChild(s);
+}
+function ensureOCR(cb){
+  if(window.Tesseract){ cb(true); return; }
+  loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',function(ok){
+    cb(ok && !!window.Tesseract);
+  });
+}
+// Render page 1 of a PDF data URL to a canvas so OCR can read it
+function renderPdfFirstPage(dataUrl,cb){
+  import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.min.mjs').then(function(pdfjs){
+    pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.worker.min.mjs';
+    var raw=atob(dataUrl.split(',')[1]);
+    var arr=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+    pdfjs.getDocument({data:arr}).promise.then(function(pdf){
+      pdf.getPage(1).then(function(page){
+        var vp=page.getViewport({scale:2});
+        var c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+        page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise
+          .then(function(){ cb(c); }).catch(function(){ cb(null); });
+      }).catch(function(){ cb(null); });
+    }).catch(function(){ cb(null); });
+  }).catch(function(){ cb(null); });
+}
+function runTesseract(image,cb){
+  try{
+    window.Tesseract.recognize(image,'eng')
+      .then(function(res){ cb(res&&res.data?res.data.text:''); })
+      .catch(function(){ cb(''); });
+  }catch(e){ cb(''); }
+}
+function ocrDataUrl(dataUrl,cb){
+  if(dataUrl.indexOf('data:application/pdf')===0){
+    renderPdfFirstPage(dataUrl,function(canvas){ canvas ? runTesseract(canvas,cb) : cb(''); });
+  } else {
+    runTesseract(dataUrl,cb);
+  }
+}
+// Turn raw OCR text into deduction lines. Detects common payroll items and
+// reads either a percentage or a dollar amount (converted to % if gross is found).
+function parseStubText(text){
+  var t=(text||'').replace(/\r/g,'');
+  var gm=t.match(/gross\s*(?:pay|wages|earnings)?[^\d\-]{0,14}\$?\s*([\d,]+\.\d{2})/i);
+  var gross=gm?parseFloat(gm[1].replace(/,/g,'')):0;
+  var defs=[
+    {re:/social\s*sec|fica|oasdi/i,                                   label:'FICA (Social Security)'},
+    {re:/medicare/i,                                                  label:'Medicare'},
+    {re:/fed(?:eral)?.*(?:tax|withh|w\/h)|\bfit\b/i,                  label:'Federal Withholding'},
+    {re:/state.*(?:tax|withh|w\/h)|\bsit\b/i,                         label:'State Withholding'},
+    {re:/disab|\bsdi\b/i,                                             label:'State Disability (SDI)'},
+    {re:/unemploy|\bsui\b/i,                                          label:'Unemployment (SUI)'},
+    {re:/local.*(?:tax|withh)/i,                                      label:'Local Tax'}
+  ];
+  var lines=[], found={};
+  t.split('\n').forEach(function(line){
+    defs.forEach(function(d){
+      if(found[d.label] || !d.re.test(line)) return;
+      var pct=line.match(/(\d+(?:\.\d+)?)\s*%/);
+      if(pct){ lines.push({label:d.label,mode:'pct',value:parseFloat(pct[1])}); found[d.label]=1; return; }
+      var amt=line.match(/\$?\s*([\d,]+\.\d{2})/);
+      if(amt){
+        var v=parseFloat(amt[1].replace(/,/g,''));
+        if(gross>0) lines.push({label:d.label,mode:'pct',value:Math.round(v/gross*10000)/100});
+        else        lines.push({label:d.label,mode:'fixed',value:v});
+        found[d.label]=1;
+      }
+    });
+  });
+  return lines;
+}
+function autoReadSample(type){
+  var st=document.getElementById('autoStatus'+(type==='w2'?'W2':'1099'));
+  loadPhoto('paysample_'+type,function(dataUrl){
+    if(!dataUrl){ toast('Upload a sample first'); return; }
+    if(st) st.textContent='⏳ Reading sample… this can take 10–20 seconds.';
+    ensureOCR(function(ok){
+      if(!ok){ if(st) st.textContent=''; toast('Auto-fill needs internet — add lines manually'); return; }
+      ocrDataUrl(dataUrl,function(text){
+        var detected=parseStubText(text);
+        if(!detected.length){ if(st) st.textContent=''; toast('Couldn’t detect lines — add them manually'); return; }
+        var tpl=getTemplate(type);
+        tpl.lines=readTplLinesFromDOM(type);
+        detected.forEach(function(d){
+          var ex=tpl.lines.find(function(l){ return l.label.toLowerCase()===d.label.toLowerCase(); });
+          if(ex){ ex.mode=d.mode; ex.value=d.value; } else tpl.lines.push(d);
+        });
+        store.setJ('pay_tpl_'+type,tpl);
+        renderTemplateEditors();
+        if(st) st.textContent='✓ Detected '+detected.length+' line(s) — review & tweak, then Save.';
+        toast('Auto-filled '+detected.length+' line(s) — review, then Save');
+      });
+    });
   });
 }
 
