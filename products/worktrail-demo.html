@@ -357,6 +357,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="settings-section">
         <h3>Business Info</h3>
         <div style="margin-bottom:12px;"><label class="field-label">Business Name</label><input class="inp" value="Sunrise Wellness Co." readonly></div>
+        <div style="margin-bottom:12px;"><label class="field-label">Timezone</label><select id="dTimezone" class="inp" onchange="dSetTimezone(this.value)"></select><p style="font-size:11px;color:#9ca3af;margin-top:6px;">Try it — switch timezones and watch the Records times update.</p></div>
         <div><label class="field-label">Brand Color</label><input class="inp" value="#1a2b8c" readonly></div>
         <button class="btn-save">Save Settings</button>
       </div>
@@ -560,7 +561,7 @@ function initials(name){ return name.split(' ').map(function(w){ return w[0]; })
 /* ─── CLOCK ─── */
 (function tick(){
   var el=document.getElementById('demoClockTick'); if(!el) return;
-  el.textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  el.textContent=new Date().toLocaleDateString('en-US',dTzOpts({weekday:'long',month:'long',day:'numeric'}))+' · '+new Date().toLocaleTimeString('en-US',dTzOpts({hour:'numeric',minute:'2-digit'}));
   setTimeout(tick,1000);
 })();
 
@@ -658,7 +659,7 @@ function submitDemoClock(type){
   if(demoCapturedPhoto){ ph.src=demoCapturedPhoto; ph.classList.remove('hidden'); } else { ph.classList.add('hidden'); }
   document.getElementById('clockIcon').textContent=type==='out'?'👋':'✅';
   document.getElementById('clockMsg').textContent=demoCurrentEmp.name+(type==='out'?' — Clocked Out!':' — Clocked In!');
-  document.getElementById('clockTime').textContent='Demo · '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+' · ✓ saved to Records';
+  document.getElementById('clockTime').textContent='Demo · '+new Date().toLocaleTimeString('en-US',dTzOpts({hour:'numeric',minute:'2-digit'}))+' · ✓ saved to Records';
   document.getElementById('clockEmailNote').textContent='📧 Alert emailed to '+demoAdminEmail;
   document.getElementById('clockModal').classList.add('open');
 }
@@ -745,7 +746,7 @@ function renderList(){
     else byDay[day][e.name].outs.push(e);
   });
   var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var tf={hour:'numeric',minute:'2-digit',hour12:true};
+  var tf=dTzOpts({hour:'numeric',minute:'2-digit',hour12:true});
   var html='';
   if(!dayOrder.length) html='<p style="text-align:center;color:#9ca3af;padding:40px 0;">No records found for this period.</p>';
   dayOrder.forEach(function(day){
@@ -817,7 +818,7 @@ function renderCal(){
   document.getElementById('calDetail').innerHTML='';
 }
 function showCalDay(day){
-  var tf={hour:'numeric',minute:'2-digit',hour12:true};
+  var tf=dTzOpts({hour:'numeric',minute:'2-digit',hour12:true});
   var mos=['January','February','March','April','May','June','July','August','September','October','November','December'];
   var dayTs=DEMO_TS.filter(function(e){
     var d=new Date(e.ts);
@@ -945,7 +946,7 @@ function exportPayrollPDF(){
     +'@media print{body{padding:0;}}'
     +'</style></head><body>'
     +'<h1>Sunrise Wellness Co. — Payroll Report (DEMO)</h1>'
-    +'<h2>Pay period: '+r.from+' to '+r.to+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString('en-US')+'</h2>'
+    +'<h2>Pay period: '+r.from+' to '+r.to+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString('en-US',dTzOpts({}))+'</h2>'
     +'<table><tr><th>Employee</th><th>Type</th><th>Hours</th><th>Rate</th><th>Gross</th><th>Deductions</th><th>Net Pay</th></tr>';
   r.rows.forEach(function(row){
     var dedLines=row.ded.parts.map(function(p){ return p.label+': $'+p.amount.toFixed(2); }).join('<br>')||'None';
@@ -1176,6 +1177,20 @@ function parseStubText(text){
   return lines;
 }
 
+/* ─── TIMEZONE ─── */
+var demoTz='';
+function dTzOpts(o){ o=o||{}; if(demoTz) o.timeZone=demoTz; return o; }
+function dPopulateTz(){
+  var sel=document.getElementById('dTimezone'); if(!sel) return;
+  var deviceTz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+  var zones=[]; try{ if(Intl.supportedValuesOf) zones=Intl.supportedValuesOf('timeZone'); }catch(e){}
+  if(!zones.length) zones=['America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Pacific/Honolulu','Europe/London','Asia/Manila','Asia/Tokyo','Australia/Sydney'];
+  var html='<option value="">Auto — device timezone ('+deviceTz+')</option>';
+  zones.forEach(function(z){ html+='<option value="'+z+'">'+z.replace(/_/g,' ')+'</option>'; });
+  sel.innerHTML=html;
+}
+function dSetTimezone(v){ demoTz=v; if(document.getElementById('dTabRecords')) renderList(); renderCal(); toast('Timezone updated — see Records'); }
+
 /* ─── TOAST ─── */
 var _tt;
 function toast(msg){ var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(function(){ el.classList.remove('show'); },2800); }
@@ -1186,6 +1201,7 @@ function toast(msg){ var el=document.getElementById('toast'); el.textContent=msg
   if(cm) cm.addEventListener('click',function(e){ if(e.target===this) closeClockModal(); });
   var bm=document.getElementById('buyModal');
   if(bm) bm.addEventListener('click',function(e){ if(e.target===this) closeBuyModal(); });
+  dPopulateTz();
   renderCal();
 })();
 </script>
