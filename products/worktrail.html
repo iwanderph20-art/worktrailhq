@@ -578,7 +578,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
           <div class="lock-sub">Set up your own W-2 and 1099 salary computations, then generate gross-to-net pay reports with PDF export.</div>
           <div class="lock-price">$39 one-time</div>
           <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank">Buy Payroll — $39 →</a>
-          <p class="text-xs text-gray" style="margin:8px 0 4px;">Or get the bundle: <a href="https://worktrailhq.gumroad.com/l/worktrail-bundle" target="_blank" style="color:var(--brand);font-weight:700;">Worktrail + Payroll for $89 →</a></p>
+          <p class="text-xs text-gray" style="margin:8px 0 4px;">Best value: <a href="https://worktrailhq.gumroad.com/l/worktrail-complete" target="_blank" style="color:var(--brand);font-weight:700;">Complete package — $119</a> (Worktrail + hosting setup + payroll)</p>
           <p class="lock-already">Already purchased? <button onclick="openUnlockModal()">Enter license key</button></p>
         </div>
       </div>
@@ -1016,8 +1016,11 @@ function copyShareLink(){
 /* ═══════════════════════════════════════════
    FEATURE FLAGS & GUMROAD UNLOCK
 ═══════════════════════════════════════════ */
-var GUMROAD_PAYROLL_PERMALINK = 'worktrail-payroll'; // $39 payroll add-on
-var GUMROAD_BUNDLE_PERMALINK  = 'worktrail-bundle';  // $89 Worktrail + Payroll bundle
+// Any package that INCLUDES payroll issues a Gumroad license key that unlocks it:
+//   worktrail-payroll  = $39 standalone add-on
+//   worktrail-complete = $119 promo (Worktrail + hosting setup + payroll)
+// The $89 hosted package does NOT include payroll, so it's not listed here.
+var GUMROAD_PAYROLL_PERMALINKS = ['worktrail-payroll','worktrail-complete'];
 
 // In demo mode every add-on is unlocked so shoppers can see the full product
 function isUnlocked(feature){ return DEMO_MODE || !!store.get('unlock_'+feature); }
@@ -1064,24 +1067,26 @@ function submitUnlockKey(){
   if(!key){ toast('Enter your license key'); return; }
   var st=document.getElementById('unlockStatus');
   st.textContent='Verifying…'; st.style.color='var(--gray-400)';
-  // A key can come from the $39 payroll add-on OR the $89 bundle — accept either.
-  verifyGumroadKey(GUMROAD_PAYROLL_PERMALINK,key).then(function(d1){
-    if(d1.success) return d1;
-    return verifyGumroadKey(GUMROAD_BUNDLE_PERMALINK,key);
-  }).then(function(data){
-    if(data && data.success){
-      store.set('unlock_payroll', key);
-      closeModal('unlockModal');
-      checkUnlockStatus();
-      toast('Payroll unlocked! Thank you.');
-    } else {
+  // Try the key against every package that includes payroll, in sequence.
+  (function tryNext(i){
+    if(i>=GUMROAD_PAYROLL_PERMALINKS.length){
       st.textContent='Invalid license key. Check your Gumroad purchase email.';
-      st.style.color='var(--danger)';
+      st.style.color='var(--danger)'; return;
     }
-  }).catch(function(){
-    st.textContent='Could not verify — check your internet connection and try again.';
-    st.style.color='var(--danger)';
-  });
+    verifyGumroadKey(GUMROAD_PAYROLL_PERMALINKS[i],key).then(function(data){
+      if(data && data.success){
+        store.set('unlock_payroll', key);
+        closeModal('unlockModal');
+        checkUnlockStatus();
+        toast('Payroll unlocked! Thank you.');
+      } else {
+        tryNext(i+1);
+      }
+    }).catch(function(){
+      st.textContent='Could not verify — check your internet connection and try again.';
+      st.style.color='var(--danger)';
+    });
+  })(0);
 }
 
 /* ═══════════════════════════════════════════

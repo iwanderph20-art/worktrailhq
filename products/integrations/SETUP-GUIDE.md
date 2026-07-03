@@ -122,13 +122,17 @@ and clock in from anywhere.
 
 ## Which package do I need?
 
-- **Worktrail — $69:** clock-in/out, photo capture, records, calendar, CSV/PDF
-  export, email alerts, webhook integrations.
-- **Payroll add-on — $39:** define your W-2/1099 deductions (auto-read a sample
-  stub), generate gross-to-net pay reports with PDF.
-- **Bundle — $89:** Worktrail + Payroll together (saves $19).
+- **Worktrail — $69:** the app (clock-in/out, photos, records, calendar, CSV/PDF,
+  email alerts, webhooks). You host it yourself, free.
+- **Worktrail + Done-for-you Hosting — $89:** adds a $29 one-time setup — we host
+  your kiosk at `worktrailhq.com/k/you` and hand you one ready link.
+- **Complete — $119 (promo):** Worktrail + hosting setup + Payroll. Everything,
+  done for you.
 
-Already bought the add-on or bundle? Admin → **Payroll → Enter license key** to unlock.
+À la carte: **Payroll add-on — $39** · **Hosting setup — $29** one-time.
+
+Already bought a package that includes Payroll? Admin → **Payroll → Enter license
+key** to unlock.
 
 ---
 

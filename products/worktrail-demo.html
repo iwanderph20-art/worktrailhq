@@ -500,20 +500,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="modal-box" style="max-width:400px;">
     <div class="modal-title">Get Worktrail — $69 one-time</div>
     <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:8px;">Here's exactly what happens when you buy:</p>
-    <ol style="font-size:13px;color:#4b5563;line-height:1.7;padding-left:18px;margin-bottom:14px;">
-      <li>Pay once on Gumroad — no subscription.</li>
-      <li>Get your Worktrail app file by email.</li>
-      <li>Open it and finish this <strong>3-step setup</strong>.</li>
-      <li>Staff start clocking in. Payroll add-on is optional.</li>
-    </ol>
-    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#065f46;">
-      💡 <strong>Best value:</strong> get <strong>Worktrail + Payroll for $89</strong> (vs. $69 + $39 separately).
+    <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:12px;">Pay once — no subscription. Pick the package that fits:</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;">
+        <div style="font-weight:800;color:#111827;">Worktrail — $69</div>
+        <div style="font-size:12px;color:#6b7280;">The app. You host it yourself (free, ~2 min with our guide).</div>
+        <button class="btn-primary" style="margin-top:8px;padding:9px;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Get Worktrail — $69 →</button>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;">
+        <div style="font-weight:800;color:#111827;">Worktrail + Done-for-you Hosting — $89</div>
+        <div style="font-size:12px;color:#6b7280;">We host your kiosk and hand you one ready link. ($69 + $29 setup.)</div>
+        <button class="btn-primary" style="margin-top:8px;padding:9px;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail-hosted','_blank')">Get Hosted — $89 →</button>
+      </div>
+      <div style="border:2px solid #059669;border-radius:12px;padding:12px 14px;background:#f0fdf4;">
+        <div style="font-weight:800;color:#065f46;">Complete — $119 <span style="font-size:11px;background:#059669;color:#fff;border-radius:6px;padding:1px 7px;margin-left:4px;">BEST VALUE</span></div>
+        <div style="font-size:12px;color:#065f46;opacity:.85;">Worktrail + hosting setup + Payroll. Everything, done for you.</div>
+        <button class="btn-primary" style="margin-top:8px;padding:9px;background:#059669;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail-complete','_blank')">Get Complete — $119 →</button>
+      </div>
     </div>
-    <button class="btn-primary" onclick="closeBuyModal();dStartSetup();">▶ Preview the 3-step setup</button>
-    <button class="btn-primary" style="background:#059669;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail-bundle','_blank')">Get the Bundle — $89 →</button>
-    <button class="btn-primary" style="background:#f59e0b;color:#1a1a1a;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Just Worktrail — $69 →</button>
+    <button class="btn-primary" style="background:#f59e0b;color:#1a1a1a;" onclick="closeBuyModal();dStartSetup();">▶ Preview the 3-step setup first</button>
     <button class="btn-save" style="background:#f3f4f6;color:#4b5563;width:100%;" onclick="closeBuyModal()">Keep exploring the demo</button>
-    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;">Questions or feedback? <a href="mailto:support@worktrailhq.com" style="color:var(--brand);">support@worktrailhq.com</a></p>
+    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;">Add Payroll anytime for $39 · Questions? <a href="mailto:support@worktrailhq.com" style="color:var(--brand);">support@worktrailhq.com</a></p>
   </div>
 </div>
 
