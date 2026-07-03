@@ -357,28 +357,38 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
       </div>
     </div>
 
-    <!-- Step 3: Custom URL + Firebase (optional) -->
+    <!-- Step 3: Connect cloud sync (required) -->
     <div class="setup-step" id="step3">
-      <div class="setup-title">Your Kiosk Link</div>
-      <div class="setup-sub">Pick a custom web address for your kiosk.</div>
+      <div class="setup-title">Connect Cloud Sync</div>
+      <div class="setup-sub">This is what lets your staff clock in from <strong>any device</strong> — their own phones, a shared tablet, your laptop — all sharing the same live data through one link. It's free, and your data stays in <strong>your</strong> account (we never see it).</div>
+      <div style="background:var(--brand-light);border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+        <p class="text-xs" style="color:var(--brand-dark);font-weight:700;margin-bottom:8px;">Create your free database (about 2 minutes):</p>
+        <ol class="text-xs" style="color:var(--gray-600);line-height:1.8;padding-left:18px;margin:0;">
+          <li>Open <a href="https://console.firebase.google.com" target="_blank" style="color:var(--brand);font-weight:700;">console.firebase.google.com</a> and sign in with any Google account.</li>
+          <li>Click <strong>Add project</strong> → give it a name → continue (skip Analytics).</li>
+          <li>In the left menu: <strong>Build → Realtime Database → Create Database</strong>.</li>
+          <li>Pick a location → choose <strong>Start in test mode</strong> → Enable.</li>
+          <li>Copy the URL shown at the top (ends in <em>firebaseio.com</em>) and paste it below.</li>
+        </ol>
+      </div>
       <div class="form-row">
-        <label class="field-label">Custom URL</label>
+        <label class="field-label">Firebase Database URL</label>
+        <input id="s3Fb" class="inp" type="url" placeholder="https://your-app-default-rtdb.firebaseio.com">
+      </div>
+      <div class="form-row">
+        <label class="field-label">Custom URL (optional)</label>
         <input id="s3Slug" class="inp" type="text" placeholder="sunrise-clinic" oninput="updateSetupUrlPreview()">
         <div class="url-preview">
           <code id="s3UrlPreview"><span class="url-prefix">worktrailhq.com/k/</span>your-business</code>
           <button type="button" class="btn-copy-url" onclick="copyText(document.getElementById('s3UrlPreview').textContent)">Copy</button>
         </div>
-        <p class="text-xs text-gray mt-1">Share this link so staff can open the kiosk on any device. Letters, numbers, and dashes only.</p>
-      </div>
-      <div class="form-row mt-3">
-        <label class="field-label">Firebase Database URL (optional)</label>
-        <input id="s3Fb" class="inp" type="url" placeholder="https://your-app-default-rtdb.firebaseio.com">
-        <p class="text-xs text-gray mt-1">Free cloud sync across devices. Skip if you use a single device. firebase.google.com → Realtime Database</p>
       </div>
       <div class="setup-nav">
         <button class="btn-back" onclick="setupBack(3)">← Back</button>
         <button class="btn-next" onclick="setupFinish()">Finish Setup ✓</button>
       </div>
+      <p class="text-xs text-gray" style="text-align:center;margin-top:12px;">Stuck? <a href="mailto:support@worktrailhq.com?subject=Firebase%20setup%20help" style="color:var(--brand);">Email us and we'll set it up with you.</a><br>
+      <a href="#" onclick="skipCloudSetup();return false;" style="color:var(--gray-400);">Use on a single device only (not recommended) →</a></p>
     </div>
   </div>
 </div>
@@ -1305,10 +1315,25 @@ function setupBack(from){
 }
 function setupFinish(){
   var fb=document.getElementById('s3Fb').value.trim().replace(/\/+$/,'');
-  if(fb) store.set('fb_url',fb);
+  // Cloud sync is the standard path — require a valid Firebase URL so every
+  // device shares the same live data through one link.
+  if(!fb){ toast('Add your Firebase URL so all devices sync — or use the single-device link below'); return; }
+  if(!/^https:\/\/[^ ]+\.(firebaseio\.com|firebasedatabase\.app)/i.test(fb)){
+    toast('That doesn’t look like a Firebase URL (should end in firebaseio.com)'); return;
+  }
+  store.set('fb_url',fb);
   store.set('biz_slug', slugify(document.getElementById('s3Slug').value));
   store.set('setup_done','1');
-  toast('Kiosk ready!');
+  toast('Kiosk ready — synced across all devices!');
+  init();
+}
+// Escape hatch for genuinely single-device use (no cross-device sync)
+function skipCloudSetup(){
+  if(!confirm('Single-device mode: records save only on THIS device and staff cannot clock in from their own phones. Continue without cloud sync?')) return;
+  store.set('fb_url','');
+  store.set('biz_slug', slugify(document.getElementById('s3Slug').value));
+  store.set('setup_done','1');
+  toast('Kiosk ready (single device)');
   init();
 }
 

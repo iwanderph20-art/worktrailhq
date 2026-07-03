@@ -6,38 +6,37 @@ connect it to tools you already use.
 
 ---
 
-## Part 1 — Get it running (2 minutes)
+## Part 1 — Get it running (about 5 minutes)
 
-You have two ways to run Worktrail. Pick one:
+Worktrail is designed to run **synced across every device**, so employees can clock
+in from **their own phones** (or a shared tablet, or your laptop) and everything
+lands in one place. This uses a **free Google Firebase** database that **you own** —
+we never see or store your data. This is the standard setup; do this.
 
-### Option A — Single device (simplest)
-Best if one tablet/computer at the front desk is your kiosk.
-1. Double-click `worktrail.html` (or drag it into Chrome/Safari/Edge).
-2. Click **Set Up My Kiosk** and follow the 3 steps (business name, logo, color →
-   admin password → done).
-3. Add your employees (Admin → Employees) and give each a 4-digit PIN.
-4. Staff tap their PIN to clock in/out.
-
-Data is saved **on that device only**. Great for a single kiosk; if the device is
-wiped, the data goes with it — so if you want a backup or multiple devices, use
-Option B.
-
-### Option B — Multiple devices, synced (recommended)
-Best if staff clock in from more than one device, or you want the admin dashboard
-on your phone while the kiosk runs on a tablet. Uses a **free Google Firebase**
-database that **you own** — we never see or store your data.
-
-1. Go to **firebase.google.com** → sign in with a Google account → **Create a project**
-   (any name). Skip Google Analytics if asked.
-2. In the left menu: **Build → Realtime Database → Create Database**. Choose a
-   location, then **Start in test mode** for now.
-3. Copy the database URL at the top — it looks like
+### Step 1 — Create your free Firebase database (about 2 minutes)
+1. Go to **console.firebase.google.com** and sign in with any Google account.
+2. Click **Add project** → give it any name → continue (skip Google Analytics).
+3. In the left menu: **Build → Realtime Database → Create Database**.
+4. Pick a location → choose **Start in test mode** → **Enable**.
+5. Copy the database URL at the top — it looks like
    `https://your-project-default-rtdb.firebaseio.com`.
-4. In Worktrail: **Admin → Settings → Cloud Sync** → paste the URL → **Save & Connect**.
-5. **Set your security rules** (important — see Part 2).
-6. In **Settings → Kiosk Link → Share with Employees**, copy the generated link and
-   send it to staff. Anyone who opens that link is automatically connected to the
-   same synced data. Done.
+
+### Step 2 — Set up Worktrail
+1. Open `worktrail.html` (double-click it, or host it — see Part 4).
+2. Click **Set Up My Kiosk** and follow the 3 steps: business name/logo/color →
+   admin password → **paste your Firebase URL** on the last step → Finish.
+3. **Set your database security rules** (important — see Part 2).
+4. Add your employees (Admin → Employees) and give each a 4-digit PIN.
+
+### Step 3 — Share ONE link with all staff
+In **Admin → Settings → Kiosk Link → Share with Employees**, copy the generated
+link and send it to everyone. **Whoever opens that link — on any phone or tablet —
+is automatically connected to the same synced data.** That's the whole trick: one
+link, everyone synced, no accounts for employees.
+
+> **Single-device only?** During setup you can choose "Use on a single device only,"
+> but then records stay on that one device and staff can't clock in from their own
+> phones. We recommend the synced setup above for almost everyone.
 
 ---
 
@@ -89,14 +88,35 @@ Every clock-in/out is sent as JSON in real time. Use it with:
 See `WEBHOOK-GUIDE.md` for step-by-step.
 
 ### 3. Read directly from your Firebase (for developers)
-If you chose Option B, your clock data sits in your Firebase Realtime Database under
-the `sd/timesheet` path. Your own scripts, a BI tool, or Zapier's Firebase
-integration can read it directly.
+Your clock data sits in your Firebase Realtime Database under the `sd/timesheet`
+path. Your own scripts, a BI tool, or Zapier's Firebase integration can read it
+directly.
 
 **A note on how it works:** Worktrail runs in the browser, so webhook/exports
 happen while the kiosk is open and in use — which is exactly when clock-ins occur.
 For 95% of small businesses that's perfect. Need always-on, enterprise-grade sync
 or a custom integration? Email **support@worktrailhq.com** for a quote.
+
+---
+
+## Part 4 — Put your kiosk online (so the shared link works everywhere)
+
+For staff to open the **same link on their own phones**, the `worktrail.html` file
+must live at a public web address. Pick any free host (2 minutes, no coding):
+
+- **Netlify Drop** — go to **app.netlify.com/drop** and drag `worktrail.html` in.
+  You instantly get a public URL. Easiest option.
+- **Cloudflare Pages / GitHub Pages** — free static hosting if you already use them.
+- **Your existing website** — upload the file to your own domain (e.g.
+  `yourbusiness.com/kiosk.html`) and point staff there.
+
+Once it's online, redo **Settings → Kiosk Link → Share with Employees** so the link
+uses your public address. Send that link to staff — they bookmark it on their phones
+and clock in from anywhere.
+
+> Opening the file by double-click (`file://…`) works only on that one computer, and
+> phone cameras stay off. A public **https://** address makes the shared link and
+> photo capture work on every device.
 
 ---
 
