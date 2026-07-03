@@ -640,9 +640,15 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
         <div class="form-row">
           <label class="field-label">Firebase Database URL</label>
           <input id="setFbUrl" class="inp" type="url" placeholder="https://...firebaseio.com">
+          <p class="text-xs text-gray mt-1">Free at firebase.google.com → create a project → Realtime Database → copy the URL. This connects your devices and powers the shareable employee link.</p>
         </div>
         <button class="btn-save mt-2" onclick="saveFbSettings()">Save & Connect</button>
         <p id="fbStatus" class="text-xs text-gray mt-2"></p>
+        <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-top:12px;">
+          <p class="text-xs" style="color:#92400e;line-height:1.6;margin:0;">🔒 <strong>Important — set your database rules.</strong> Your data lives in <em>your</em> Firebase, not ours. In the Firebase console → Realtime Database → Rules, lock it to your kiosk. A simple starting point (anyone with the link can read/write — fine for a shared kiosk):<br>
+          <code style="display:block;background:#fff;border-radius:6px;padding:6px 8px;margin-top:6px;font-size:11px;color:#1f2937;">{ "rules": { ".read": true, ".write": true } }</code>
+          For tighter control, see the setup guide. <a href="mailto:support@worktrailhq.com?subject=Firebase%20setup%20help" style="color:#92400e;font-weight:700;">Need help? Email us.</a></p>
+        </div>
       </div>
       <div class="settings-section">
         <h3>Clock-In Email Alerts</h3>
