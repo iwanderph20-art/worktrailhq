@@ -295,7 +295,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
     <div class="landing-sub">Employee Clock-In Kiosk for Small Business</div>
     <button class="btn-primary" onclick="startSetup()">Set Up My Kiosk</button>
     <button class="btn-outline" onclick="startDemo()">Try Live Demo</button>
-    <div class="powered">Powered by <a href="https://worktrailhq.com" target="_blank">WorkTrail HQ</a> &nbsp;·&nbsp; Need help? <a href="mailto:info@worktrailhq.com">Contact us</a></div>
+    <div class="powered">Powered by <a href="https://worktrailhq.com" target="_blank">WorkTrail HQ</a> &nbsp;·&nbsp; Support & feedback: <a href="mailto:support@worktrailhq.com">support@worktrailhq.com</a></div>
   </div>
 </div>
 
@@ -472,6 +472,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
           <button class="view-btn" id="viewBtnCal" onclick="setRecordView('cal')">Calendar</button>
         </div>
         <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn-export" onclick="exportRecordsPDF()">⬇ PDF</button>
         <button class="btn-add-entry" onclick="openManualEntry()">+ Add Entry</button>
       </div>
       <div id="recordsList"></div>
@@ -566,7 +567,8 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
           <div class="lock-title">Payroll Add-On</div>
           <div class="lock-sub">Set up your own W-2 and 1099 salary computations, then generate gross-to-net pay reports with PDF export.</div>
           <div class="lock-price">$39 one-time</div>
-          <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank">Buy on Gumroad →</a>
+          <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank">Buy Payroll — $39 →</a>
+          <p class="text-xs text-gray" style="margin:8px 0 4px;">Or get the bundle: <a href="https://worktrailhq.gumroad.com/l/worktrail-bundle" target="_blank" style="color:var(--brand);font-weight:700;">Worktrail + Payroll for $89 →</a></p>
           <p class="lock-already">Already purchased? <button onclick="openUnlockModal()">Enter license key</button></p>
         </div>
       </div>
@@ -624,6 +626,14 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
           <p class="text-xs text-gray mt-1">Share this link so staff can open the kiosk on any device. Letters, numbers, and dashes only.</p>
         </div>
         <button class="btn-save mt-2" onclick="saveSlugSettings()">Save Kiosk Link</button>
+        <hr style="border:none;border-top:1px solid var(--gray-100);margin:18px 0;">
+        <label class="field-label">Share with Employees</label>
+        <p class="text-xs text-gray mt-1" style="margin-bottom:8px;">This is the live link your staff open to clock in. It carries your cloud settings so <strong>every device stays in sync automatically</strong>.</p>
+        <div class="url-preview">
+          <code id="shareLink" style="font-size:12px;">Set up cloud sync below to generate a synced link</code>
+          <button type="button" class="btn-copy-url" onclick="copyShareLink()">Copy</button>
+        </div>
+        <p id="shareLinkNote" class="text-xs text-gray mt-1"></p>
       </div>
       <div class="settings-section">
         <h3>Cloud Sync</h3>
@@ -668,13 +678,19 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
         <div id="payrollAddonStatus"></div>
       </div>
       <div class="settings-section">
+        <h3>Support & Feedback</h3>
+        <p class="text-xs text-gray" style="line-height:1.6;margin-bottom:12px;">Questions, problems, or ideas? We read every message and use your feedback to make Worktrail better.</p>
+        <a class="btn-save" style="display:inline-block;text-decoration:none;max-width:260px;text-align:center;" href="mailto:support@worktrailhq.com?subject=Worktrail%20Support%20%2F%20Feedback">✉️ Email support@worktrailhq.com</a>
+        <p class="text-xs text-gray mt-2">Tell us what's working, what's missing, or what you'd like us to build next.</p>
+      </div>
+      <div class="settings-section">
         <h3>Data</h3>
         <button class="btn-danger" onclick="resetKiosk()" style="max-width:200px;">⚠ Reset All Data</button>
         <p class="text-xs text-gray mt-2">Clears all employees, records, and settings. Cannot be undone.</p>
       </div>
       <p class="text-xs text-gray" style="text-align:center;margin-top:20px;">
         Worktrail · Powered by <a href="https://worktrailhq.com">WorkTrail HQ</a><br>
-        Want custom features? <a href="mailto:info@worktrailhq.com">Contact us for a quote</a>
+        Support & feedback: <a href="mailto:support@worktrailhq.com">support@worktrailhq.com</a> &nbsp;·&nbsp; Want custom features? <a href="mailto:support@worktrailhq.com?subject=Custom%20feature%20quote">Ask for a quote</a>
       </p>
     </div>
 
@@ -778,6 +794,11 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
       <label class="field-label">Note</label>
       <input id="editNote" class="inp" type="text" placeholder="Optional note...">
     </div>
+    <div class="form-row">
+      <label class="field-label">Admin Comment</label>
+      <textarea id="editComment" class="inp" rows="2" placeholder="Manager note — e.g. corrected clock-out, approved overtime..."></textarea>
+      <p class="text-xs text-gray mt-1">Visible to admins on this log. Employees don't see it.</p>
+    </div>
     <button class="btn-save" onclick="saveEditEntry()">Save Changes</button>
   </div>
 </div>
@@ -802,7 +823,9 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
    CONFIG & STORE
 ═══════════════════════════════════════════ */
 var BRAND_COLORS = [
-  '#1a2b8c','#0f766e','#7c3aed','#b91c1c','#0369a1','#065f46','#92400e','#1f2937'
+  '#1a2b8c','#2563eb','#0369a1','#0891b2','#0f766e','#059669','#065f46','#16a34a',
+  '#7c3aed','#6d28d9','#9333ea','#c026d3','#db2777','#e11d48','#b91c1c','#ea580c',
+  '#d97706','#92400e','#4b5563','#1f2937'
 ];
 var DEMO_MODE = false;
 var currentEmp = null;
@@ -947,11 +970,38 @@ function copyText(txt){
     document.body.removeChild(ta);
   }
 }
+// The real, working link staff open — current page URL + the Firebase param so
+// every device auto-connects to the same cloud DB and stays in sync.
+function buildShareLink(){
+  var base=location.origin+location.pathname;
+  if(!cfg.fbUrl) return '';
+  return base+'?fb='+encodeURIComponent(cfg.fbUrl);
+}
+function refreshShareLink(){
+  var el=document.getElementById('shareLink'), note=document.getElementById('shareLinkNote');
+  if(!el) return;
+  var link=buildShareLink();
+  if(link){
+    el.textContent=link;
+    note.innerHTML='✓ Synced link ready. Everyone who opens it shares the same live data.';
+    note.style.color='var(--success)';
+  } else {
+    el.textContent='Add your Firebase URL under “Cloud Sync” to generate a synced link';
+    note.innerHTML='Without cloud sync, each device keeps its own local records (still works, just not shared).';
+    note.style.color='';
+  }
+}
+function copyShareLink(){
+  var link=buildShareLink();
+  if(!link){ toast('Set up Cloud Sync first to get a synced link'); return; }
+  copyText(link);
+}
 
 /* ═══════════════════════════════════════════
    FEATURE FLAGS & GUMROAD UNLOCK
 ═══════════════════════════════════════════ */
-var GUMROAD_PAYROLL_PERMALINK = 'worktrail-payroll'; // update when product is live on Gumroad
+var GUMROAD_PAYROLL_PERMALINK = 'worktrail-payroll'; // $39 payroll add-on
+var GUMROAD_BUNDLE_PERMALINK  = 'worktrail-bundle';  // $89 Worktrail + Payroll bundle
 
 // In demo mode every add-on is unlocked so shoppers can see the full product
 function isUnlocked(feature){ return DEMO_MODE || !!store.get('unlock_'+feature); }
@@ -986,31 +1036,35 @@ function openUnlockModal(){
   setTimeout(function(){ document.getElementById('unlockKeyInput').focus(); },200);
 }
 
+function verifyGumroadKey(permalink,key){
+  return fetch('https://api.gumroad.com/v2/licenses/verify',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'product_permalink='+encodeURIComponent(permalink)+'&license_key='+encodeURIComponent(key)
+  }).then(function(r){ return r.json(); }).catch(function(){ return {success:false}; });
+}
 function submitUnlockKey(){
   var key = document.getElementById('unlockKeyInput').value.trim();
   if(!key){ toast('Enter your license key'); return; }
-  document.getElementById('unlockStatus').textContent='Verifying…';
-  document.getElementById('unlockStatus').style.color='var(--gray-400)';
-  fetch('https://api.gumroad.com/v2/licenses/verify',{
-    method:'POST',
-    headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:'product_permalink='+encodeURIComponent(GUMROAD_PAYROLL_PERMALINK)+'&license_key='+encodeURIComponent(key)
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    if(data.success){
+  var st=document.getElementById('unlockStatus');
+  st.textContent='Verifying…'; st.style.color='var(--gray-400)';
+  // A key can come from the $39 payroll add-on OR the $89 bundle — accept either.
+  verifyGumroadKey(GUMROAD_PAYROLL_PERMALINK,key).then(function(d1){
+    if(d1.success) return d1;
+    return verifyGumroadKey(GUMROAD_BUNDLE_PERMALINK,key);
+  }).then(function(data){
+    if(data && data.success){
       store.set('unlock_payroll', key);
       closeModal('unlockModal');
       checkUnlockStatus();
       toast('Payroll unlocked! Thank you.');
     } else {
-      document.getElementById('unlockStatus').textContent='Invalid license key. Check your Gumroad purchase email.';
-      document.getElementById('unlockStatus').style.color='var(--danger)';
+      st.textContent='Invalid license key. Check your Gumroad purchase email.';
+      st.style.color='var(--danger)';
     }
-  })
-  .catch(function(){
-    document.getElementById('unlockStatus').textContent='Could not verify — check your internet connection and try again.';
-    document.getElementById('unlockStatus').style.color='var(--danger)';
+  }).catch(function(){
+    st.textContent='Could not verify — check your internet connection and try again.';
+    st.style.color='var(--danger)';
   });
 }
 
@@ -1134,6 +1188,13 @@ function demoSaveTimesheet(arr){ DEMO_MODE ? store.setJ('_demo_timesheet',arr) :
 ═══════════════════════════════════════════ */
 function init(){
   initPhotoDB();
+  // A shared employee link carries ?fb=<firebase-url> so opening it auto-connects
+  // to the same cloud database — everything stays in sync across devices.
+  try{
+    var qp=new URLSearchParams(location.search);
+    var fb=qp.get('fb');
+    if(fb){ store.set('fb_url', decodeURIComponent(fb).replace(/\/+$/,'')); }
+  }catch(e){}
   applyBrandColor(cfg.color);
   applyLogo();
   if(!cfg.isSetup){
@@ -1560,12 +1621,14 @@ function renderRecords(){
           :'<div class="rec-photo-ph" style="border-color:#fca5a5;">👤</div>';
         var manualB=(inE&&inE.manual)?'<span class="rec-badge badge-manual">Manual</span>':'';
         var noteText=((inE&&inE.note)||(outE&&outE.note));
+        var adminC=((inE&&inE.adminComment)||(outE&&outE.adminComment));
         html+='<div class="rec-row">'
           +inPh+outPh
           +'<div class="rec-info">'
             +'<div class="rec-name">'+s.name+manualB+'</div>'
             +'<div class="rec-times">In: '+inTime+' &nbsp;·&nbsp; Out: '+outTime+'</div>'
             +(noteText?'<div class="rec-note">'+noteText+'</div>':'')
+            +(adminC?'<div class="rec-note" style="color:var(--brand);font-style:normal;">💬 '+adminC+'</div>':'')
           +'</div>'
           +(hrs?'<div class="rec-hours">'+hrs+'</div>':'')
           +'<div class="rec-actions">'
@@ -1616,6 +1679,7 @@ function openEditEntry(ts){
   document.getElementById('editType').value=e.type;
   document.getElementById('editDt').value=local;
   document.getElementById('editNote').value=e.note||'';
+  document.getElementById('editComment').value=e.adminComment||'';
   openModal('editModal');
 }
 function saveEditEntry(){
@@ -1624,10 +1688,11 @@ function saveEditEntry(){
   var rawDt=document.getElementById('editDt').value;
   if(!rawDt){ toast('Select a date and time'); return; }
   var newNote=document.getElementById('editNote').value.trim();
+  var newComment=document.getElementById('editComment').value.trim();
   var arr=demoTimesheet();
   arr.forEach(function(r){
     if(String(r.ts)===String(origTs)){
-      r.type=newType; r.note=newNote;
+      r.type=newType; r.note=newNote; r.adminComment=newComment;
       var inputDt=new Date(rawDt);
       if(Math.abs(new Date(origTs)-inputDt)>60000){
         r.ts=inputDt.toISOString();
@@ -1752,6 +1817,7 @@ function loadSettingsFields(){
   document.getElementById('setAlertEmail').value=store.get('alert_email')||'';
   document.getElementById('setWebhookUrl').value=cfg.webhookUrl;
   populateTimezones('setTimezone');
+  refreshShareLink();
   document.getElementById('setSlug').value=cfg.slug;
   showLogoPreview('setLogoDrop', cfg.logo);
   updateSettingsUrlPreview();
@@ -1778,6 +1844,7 @@ function saveFbSettings(){
   var url=document.getElementById('setFbUrl').value.trim().replace(/\/+$/,'');
   store.set('fb_url',url);
   document.getElementById('fbStatus').textContent=url?'Connected: '+url:'Cloud sync disabled.';
+  refreshShareLink();
   if(url) syncFromCloud(function(){ renderRecords(); toast('Synced from cloud'); });
   else toast('Cloud sync disabled');
 }
@@ -2263,6 +2330,42 @@ function exportCSV(){
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='worktrail-records-'+new Date().toISOString().slice(0,10)+'.csv';
   a.click(); toast('CSV exported');
+}
+function exportRecordsPDF(){
+  var ts=demoTimesheet();
+  var fromV=document.getElementById('filterFrom').value, toV=document.getElementById('filterTo').value;
+  var from=new Date((fromV||'2000-01-01')+'T00:00:00');
+  var to=new Date((toV||'2099-12-31')+'T23:59:59');
+  var empF=document.getElementById('filterEmp').value;
+  var rows=ts.filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to&&(!empF||e.name===empF); })
+             .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+  if(!rows.length){ toast('No records to export'); return; }
+  var biz=DEMO_MODE?'Demo Business':cfg.bizName;
+  var esc=function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  var h='<!DOCTYPE html><html><head><title>Time Records — '+esc(biz)+'</title><style>'
+    +'body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1f2937;padding:32px;}'
+    +'h1{font-size:20px;margin:0 0 2px;}h2{font-size:13px;color:#6b7280;font-weight:400;margin:0 0 24px;}'
+    +'table{width:100%;border-collapse:collapse;font-size:12px;}'
+    +'th{background:#f3f4f6;text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db;}'
+    +'td{padding:8px 10px;border-bottom:1px solid #e5e7eb;}'
+    +'.foot{margin-top:28px;font-size:10px;color:#9ca3af;}@media print{body{padding:0;}}'
+    +'</style></head><body>'
+    +'<h1>'+esc(biz)+' — Time Records</h1>'
+    +'<h2>'+(fromV||'start')+' to '+(toV||'today')+(empF?' · '+esc(empF):'')+' &nbsp;·&nbsp; Generated '+new Date().toLocaleDateString('en-US',tzOpts({}))+'</h2>'
+    +'<table><tr><th>Employee</th><th>Type</th><th>Date</th><th>Time</th><th>Note</th><th>Admin Comment</th></tr>';
+  rows.forEach(function(e){
+    var d=new Date(e.ts);
+    h+='<tr><td>'+esc(e.name)+'</td><td>'+(e.type==='in'?'Clock In':'Clock Out')+'</td>'
+      +'<td>'+d.toLocaleDateString('en-US',tzOpts({}))+'</td>'
+      +'<td>'+d.toLocaleTimeString('en-US',tzOpts({hour:'numeric',minute:'2-digit'}))+'</td>'
+      +'<td>'+esc(e.note)+'</td><td>'+esc(e.adminComment)+'</td></tr>';
+  });
+  h+='</table><p class="foot">Generated by Worktrail — worktrailhq.com</p></body></html>';
+  var w=window.open('','_blank');
+  if(!w){ toast('Allow pop-ups to download the PDF'); return; }
+  w.document.write(h); w.document.close();
+  setTimeout(function(){ w.print(); },400);
+  toast('Records PDF ready');
 }
 
 /* ═══════════════════════════════════════════
