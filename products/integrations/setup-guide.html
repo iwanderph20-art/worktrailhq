@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Worktrail — Setup & Integration Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--brand:#1a2b8c;--brand-dark:#0f1a5c;--brand-light:#e0e7ff;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;color:var(--ink);line-height:1.65;}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px 80px;}
+header{background:linear-gradient(120deg,var(--brand),var(--brand-dark));color:#fff;padding:44px 20px;text-align:center;margin-bottom:32px;}
+header .logo{font-size:30px;font-weight:900;letter-spacing:-.5px;}
+header p{opacity:.85;font-size:15px;margin-top:6px;}
+h2{font-size:22px;font-weight:800;color:var(--brand);margin:36px 0 6px;padding-top:20px;border-top:1px solid var(--line);}
+h2:first-of-type{border-top:none;padding-top:0;}
+h3{font-size:16px;font-weight:800;margin:22px 0 8px;}
+p{margin:10px 0;}
+ol,ul{margin:10px 0 10px 22px;}
+li{margin:6px 0;}
+a{color:var(--brand);font-weight:600;}
+code{background:#eef2ff;border-radius:6px;padding:2px 7px;font-size:13px;font-family:ui-monospace,Menlo,monospace;color:var(--brand-dark);}
+pre{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:14px 16px;overflow:auto;font-size:13px;margin:12px 0;}
+pre code{background:none;color:inherit;padding:0;}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:16px 0;box-shadow:0 2px 10px rgba(16,24,64,.05);}
+.callout{background:var(--brand-light);border-radius:12px;padding:16px 18px;margin:16px 0;font-size:14px;}
+.warn{background:#fffbeb;border:1.5px solid #fcd34d;border-radius:12px;padding:14px 18px;margin:16px 0;font-size:14px;color:#92400e;}
+.step-badge{display:inline-block;background:var(--brand);color:#fff;font-size:12px;font-weight:800;border-radius:999px;padding:3px 12px;margin-bottom:8px;}
+.pkg{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0;}
+.pkg .p{flex:1;min-width:200px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;}
+.pkg .p b{color:var(--brand);}
+.pkg .p.best{border-color:#059669;background:#f0fdf4;}
+.tocnote{font-size:13px;color:var(--muted);}
+footer{text-align:center;color:var(--muted);font-size:13px;margin-top:40px;padding-top:20px;border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⏱ Worktrail</div>
+  <p>Setup &amp; Integration Guide</p>
+</header>
+<div class="wrap">
+
+  <p>Welcome! Worktrail is <strong>one file</strong> (<code>worktrail.html</code>). Nothing to
+  install, no monthly fee. This guide gets you running so employees can clock in from
+  <strong>their own phones</strong> — all synced through one link.</p>
+
+  <h2>Part 1 — Get it running (about 5 minutes)</h2>
+  <p>Worktrail runs <strong>synced across every device</strong> using a <strong>free Google
+  Firebase</strong> database that <strong>you own</strong> — we never see or store your data.
+  This is the standard setup.</p>
+
+  <div class="card">
+    <span class="step-badge">STEP 1</span>
+    <h3>Create your free Firebase database (~2 min)</h3>
+    <ol>
+      <li>Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> and sign in with any Google account.</li>
+      <li>Click <strong>Add project</strong> → give it any name → continue (skip Google Analytics).</li>
+      <li>Left menu: <strong>Build → Realtime Database → Create Database</strong>.</li>
+      <li>Pick a location → choose <strong>Start in test mode</strong> → <strong>Enable</strong>.</li>
+      <li>Copy the URL shown at the top — it looks like<br><code>https://your-project-default-rtdb.firebaseio.com</code></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <span class="step-badge">STEP 2</span>
+    <h3>Set up Worktrail</h3>
+    <ol>
+      <li>Open <code>worktrail.html</code> (host it first — see Part 4).</li>
+      <li>Click <strong>Set Up My Kiosk</strong>: business name/logo/color → admin password →
+      <strong>paste your Firebase URL</strong> on the last step → Finish.</li>
+      <li><strong>Set your database security rules</strong> (Part 2).</li>
+      <li>Add employees (Admin → Employees) and give each a 4-digit PIN.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <span class="step-badge">STEP 3</span>
+    <h3>Share ONE link with all staff</h3>
+    <p>In <strong>Admin → Settings → Kiosk Link → Share with Employees</strong>, copy the
+    generated link and send it to everyone. <strong>Whoever opens that link — on any phone or
+    tablet — is automatically connected to the same synced data.</strong> One link, everyone
+    synced, no accounts for employees.</p>
+  </div>
+
+  <div class="callout">💡 <strong>Single-device only?</strong> During setup you can choose
+  “Use on a single device only,” but then records stay on that one device and staff can’t
+  clock in from their own phones. We recommend the synced setup above for almost everyone.</div>
+
+  <h2>Part 2 — Lock down your database (do this once)</h2>
+  <p>Your records live in <strong>your</strong> Firebase, so you control access. In the Firebase
+  console → <strong>Realtime Database → Rules</strong>, replace the rules and click <strong>Publish</strong>.</p>
+  <p><strong>Simple</strong> (shared kiosk — anyone with the link can read/write; fine for most small teams):</p>
+  <pre><code>{ "rules": { ".read": true, ".write": true } }</code></pre>
+  <p><strong>Tighter</strong> (only under the Worktrail path):</p>
+  <pre><code>{
+  "rules": {
+    "sd": { ".read": true, ".write": true },
+    "$other": { ".read": false, ".write": false }
+  }
+}</code></pre>
+  <p>Unsure? The simple rule is safe to start with. Email
+  <a href="mailto:support@worktrailhq.com">support@worktrailhq.com</a> and we’ll help you tighten it.</p>
+
+  <h2>Part 3 — Connect to your current software</h2>
+  <p>You don’t replace your payroll or HR system — Worktrail <em>feeds</em> it. Three ways,
+  easiest first:</p>
+  <h3>1. Export a file (no setup)</h3>
+  <p>Admin → <strong>Records → CSV</strong> or <strong>PDF</strong>, or <strong>Payroll → Download PDF</strong>.
+  Import into QuickBooks, Gusto, ADP, Excel, or Google Sheets.</p>
+  <h3>2. Live webhook (no code — recommended)</h3>
+  <p>Admin → <strong>Settings → Webhook / Integrations</strong> → paste a URL → <strong>Save &amp; Send Test Event</strong>.
+  Every clock-in/out is sent as JSON in real time:</p>
+  <ul>
+    <li><strong>Google Sheets</strong> — paste-ready script included (<code>google-sheets-webhook.gs</code>).</li>
+    <li><strong>Zapier / Make</strong> — “Catch Hook” / “Custom webhook” → 6,000+ apps (Slack, SMS, payroll, CRM).</li>
+    <li><strong>Your own system</strong> — any HTTPS endpoint you control.</li>
+  </ul>
+  <p>See the Webhook Guide for step-by-step.</p>
+  <h3>3. Read directly from your Firebase (developers)</h3>
+  <p>Your clock data sits under the <code>sd/timesheet</code> path in your Firebase. Your own
+  scripts, a BI tool, or Zapier’s Firebase integration can read it directly.</p>
+  <div class="callout">Worktrail runs in the browser, so webhooks/exports happen while the
+  kiosk is open — exactly when clock-ins occur. Need always-on, enterprise-grade sync or a
+  custom integration? Email <a href="mailto:support@worktrailhq.com">support@worktrailhq.com</a> for a quote.</div>
+
+  <h2>Part 4 — Put your kiosk online (so the link works everywhere)</h2>
+  <p>For staff to open the <strong>same link on their own phones</strong>, the
+  <code>worktrail.html</code> file must live at a public web address. Pick any free host
+  (2 minutes, no coding):</p>
+  <ul>
+    <li><strong>Netlify Drop</strong> — go to <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a> and drag <code>worktrail.html</code> in. Instant public URL. Easiest.</li>
+    <li><strong>Cloudflare Pages / GitHub Pages</strong> — free static hosting.</li>
+    <li><strong>Your existing website</strong> — upload it to your own domain (e.g. <code>yourbusiness.com/kiosk.html</code>).</li>
+  </ul>
+  <p>Once it’s online, redo <strong>Settings → Kiosk Link → Share with Employees</strong> so the
+  link uses your public address, then send it to staff.</p>
+  <div class="warn">⚠️ Opening the file by double-click (<code>file://…</code>) works only on that
+  one computer, and phone cameras stay off. A public <strong>https://</strong> address makes the
+  shared link and photo capture work on every device.</div>
+
+  <h2>Which package do I need?</h2>
+  <div class="pkg">
+    <div class="p"><b>Worktrail — $69</b><br>Clock-in/out, photo capture, records, calendar, CSV/PDF export, email alerts, webhooks.</div>
+    <div class="p"><b>Payroll add-on — $39</b><br>Define your W-2/1099 deductions (auto-read a sample stub), gross-to-net PDF reports.</div>
+    <div class="p best"><b>Bundle — $89</b><br>Worktrail + Payroll together (saves $19).</div>
+  </div>
+  <p>Already bought the add-on or bundle? Admin → <strong>Payroll → Enter license key</strong> to unlock.</p>
+
+  <footer>
+    Questions, problems, or feature ideas? <a href="mailto:support@worktrailhq.com">support@worktrailhq.com</a><br>
+    We read everything and use it to improve Worktrail. · Powered by WorkTrail HQ
+  </footer>
+</div>
+</body>
+</html>
