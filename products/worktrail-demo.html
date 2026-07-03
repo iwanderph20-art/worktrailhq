@@ -378,10 +378,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <p style="font-size:11px;color:#9ca3af;margin-top:6px;">Register your email and the admin gets a message every time an employee clocks in or out — free, no server needed (uses FormSubmit in the full product).</p>
       </div>
       <div class="settings-section">
-        <h3>Cloud Sync</h3>
+        <h3>Cloud Sync &amp; Employee Link</h3>
         <label class="field-label">Firebase URL</label>
         <input class="inp" value="https://sunrise-wellness-rtdb.firebaseio.com" readonly>
-        <button class="btn-save">Save</button>
+        <p style="font-size:11px;color:#9ca3af;margin-top:8px;">In the full product this generates a <strong>shareable employee link</strong> (carries your cloud settings) so every device stays in sync automatically.</p>
+      </div>
+      <div class="settings-section">
+        <h3>Support &amp; Feedback</h3>
+        <p style="font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:10px;">We read every message and use your feedback to improve Worktrail.</p>
+        <a class="btn-save" style="display:inline-block;text-decoration:none;text-align:center;" href="mailto:support@worktrailhq.com?subject=Worktrail%20Feedback">✉️ support@worktrailhq.com</a>
       </div>
     </div>
 
@@ -495,15 +500,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="modal-box" style="max-width:400px;">
     <div class="modal-title">Get Worktrail — $69 one-time</div>
     <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:8px;">Here's exactly what happens when you buy:</p>
-    <ol style="font-size:13px;color:#4b5563;line-height:1.7;padding-left:18px;margin-bottom:16px;">
+    <ol style="font-size:13px;color:#4b5563;line-height:1.7;padding-left:18px;margin-bottom:14px;">
       <li>Pay once on Gumroad — no subscription.</li>
       <li>Get your Worktrail app file by email.</li>
       <li>Open it and finish this <strong>3-step setup</strong>.</li>
       <li>Staff start clocking in. Payroll add-on is optional.</li>
     </ol>
+    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#065f46;">
+      💡 <strong>Best value:</strong> get <strong>Worktrail + Payroll for $89</strong> (vs. $69 + $39 separately).
+    </div>
     <button class="btn-primary" onclick="closeBuyModal();dStartSetup();">▶ Preview the 3-step setup</button>
-    <button class="btn-primary" style="background:#f59e0b;color:#1a1a1a;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Buy on Gumroad →</button>
+    <button class="btn-primary" style="background:#059669;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail-bundle','_blank')">Get the Bundle — $89 →</button>
+    <button class="btn-primary" style="background:#f59e0b;color:#1a1a1a;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Just Worktrail — $69 →</button>
     <button class="btn-save" style="background:#f3f4f6;color:#4b5563;width:100%;" onclick="closeBuyModal()">Keep exploring the demo</button>
+    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;">Questions or feedback? <a href="mailto:support@worktrailhq.com" style="color:var(--brand);">support@worktrailhq.com</a></p>
   </div>
 </div>
 
@@ -972,7 +982,7 @@ function openBuyModal(){ document.getElementById('buyModal').classList.add('open
 function closeBuyModal(){ document.getElementById('buyModal').classList.remove('open'); }
 
 /* ─── SETUP WIZARD (mirrors the buyer's first-launch experience) ─── */
-var DEMO_SETUP_COLORS=['#1a2b8c','#0f766e','#7c3aed','#b91c1c','#0369a1','#065f46','#92400e','#1f2937'];
+var DEMO_SETUP_COLORS=['#1a2b8c','#2563eb','#0369a1','#0891b2','#0f766e','#059669','#065f46','#16a34a','#7c3aed','#6d28d9','#9333ea','#c026d3','#db2777','#e11d48','#b91c1c','#ea580c','#d97706','#92400e','#4b5563','#1f2937'];
 var _dStep=1;
 function dSlugify(s){ return (s||'').toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/[\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); }
 function dStartSetup(){
