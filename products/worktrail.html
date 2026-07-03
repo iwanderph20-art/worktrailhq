@@ -578,8 +578,8 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
           <div class="lock-title">Payroll Add-On</div>
           <div class="lock-sub">Set up your own W-2 and 1099 salary computations, then generate gross-to-net pay reports with PDF export.</div>
           <div class="lock-price">$39 one-time</div>
-          <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank">Buy Payroll — $39 →</a>
-          <p class="text-xs text-gray" style="margin:8px 0 4px;">Best value: <a href="https://worktrailhq.gumroad.com/l/worktrail-complete" target="_blank" style="color:var(--brand);font-weight:700;">Complete package — $119</a> (Worktrail + hosting setup + payroll)</p>
+          <a class="btn-buy-addon" href="https://worktrailhq.gumroad.com/l/payroll" target="_blank">Buy Payroll — $39 →</a>
+          <p class="text-xs text-gray" style="margin:8px 0 4px;">Best value: <a href="https://worktrailhq.gumroad.com/l/complete" target="_blank" style="color:var(--brand);font-weight:700;">Complete package — $119</a> (Worktrail + hosting setup + payroll)</p>
           <p class="lock-already">Already purchased? <button onclick="openUnlockModal()">Enter license key</button></p>
         </div>
       </div>
@@ -832,7 +832,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
     </div>
     <p id="unlockStatus" class="text-xs mt-2" style="color:var(--danger);min-height:16px;"></p>
     <button class="btn-save" onclick="submitUnlockKey()">Verify &amp; Unlock</button>
-    <p class="text-xs text-gray mt-2" style="text-align:center;">Don't have it yet? <a href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank" style="color:var(--brand);">Buy for $39 on Gumroad →</a></p>
+    <p class="text-xs text-gray mt-2" style="text-align:center;">Don't have it yet? <a href="https://worktrailhq.gumroad.com/l/payroll" target="_blank" style="color:var(--brand);">Buy for $39 on Gumroad →</a></p>
   </div>
 </div>
 
@@ -1019,10 +1019,10 @@ function copyShareLink(){
    FEATURE FLAGS & GUMROAD UNLOCK
 ═══════════════════════════════════════════ */
 // Any package that INCLUDES payroll issues a Gumroad license key that unlocks it:
-//   worktrail-payroll  = $39 standalone add-on
-//   worktrail-complete = $119 promo (Worktrail + hosting setup + payroll)
+//   payroll  = $39 standalone add-on
+//   complete = $119 promo (Worktrail + hosting setup + payroll)
 // The $89 hosted package does NOT include payroll, so it's not listed here.
-var GUMROAD_PAYROLL_PERMALINKS = ['worktrail-payroll','worktrail-complete'];
+var GUMROAD_PAYROLL_PERMALINKS = ['payroll','complete'];
 
 // In demo mode every add-on is unlocked so shoppers can see the full product
 function isUnlocked(feature){ return DEMO_MODE || !!store.get('unlock_'+feature); }
@@ -1044,7 +1044,7 @@ function renderUnlockSettings(){
     el.innerHTML = '<div class="addon-locked-box">'
       +'<h4>💰 Payroll Add-On — $39</h4>'
       +'<p>Generate pay summaries: total hours, hourly rate, and gross pay per employee. Purchase on Gumroad, then enter your license key below.</p>'
-      +'<a href="https://worktrailhq.gumroad.com/l/worktrail-payroll" target="_blank" style="display:inline-block;background:#f59e0b;color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;text-decoration:none;margin-right:8px;">Buy on Gumroad →</a>'
+      +'<a href="https://worktrailhq.gumroad.com/l/payroll" target="_blank" style="display:inline-block;background:#f59e0b;color:#fff;border-radius:10px;padding:9px 18px;font-size:13px;font-weight:700;text-decoration:none;margin-right:8px;">Buy on Gumroad →</a>'
       +'<button onclick="openUnlockModal()" style="background:transparent;border:1.5px solid #f59e0b;color:#92400e;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;">Enter License Key</button>'
     +'</div>';
   }
