@@ -56,22 +56,26 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 .btn-next{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:700;flex:1;}
 
 /* ── PIN SCREEN ── */
-#pinScreen{align-items:center;justify-content:center;min-height:100vh;}
-.pin-wrap{width:100%;max-width:380px;padding:20px;}
-.biz-header{text-align:center;margin-bottom:32px;}
-.biz-logo-img{width:72px;height:72px;border-radius:16px;object-fit:cover;margin-bottom:12px;}
-.biz-name{font-size:22px;font-weight:900;color:var(--brand);}
-.biz-time{font-size:14px;color:var(--gray-400);margin-top:4px;}
+#pinScreen{align-items:center;justify-content:center;min-height:100vh;background:#eef1f8;}
+.pin-wrap{width:100%;max-width:340px;padding:32px 20px 40px;display:flex;flex-direction:column;align-items:center;}
+.biz-header{text-align:center;margin-bottom:20px;}
+.biz-logo-img{max-height:64px;max-width:200px;object-fit:contain;margin-bottom:12px;}
+.biz-name{font-size:22px;font-weight:900;color:var(--brand);letter-spacing:-.3px;}
+.biz-time{font-size:34px;font-weight:800;color:var(--gray-800);font-variant-numeric:tabular-nums;letter-spacing:-.5px;margin-top:14px;}
+.biz-date{font-size:13px;color:var(--gray-400);margin-top:2px;}
 .pin-label{text-align:center;font-size:14px;font-weight:600;color:var(--gray-600);margin-bottom:16px;}
-.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:24px;}
-.pin-dot{width:16px;height:16px;border-radius:50%;background:var(--gray-200);transition:background .15s;}
-.pin-dot.filled{background:var(--brand);}
-.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-.pin-key{background:#fff;border:1.5px solid var(--gray-200);border-radius:16px;padding:18px;font-size:22px;font-weight:700;color:var(--gray-800);text-align:center;transition:all .1s;box-shadow:0 2px 6px rgba(0,0,0,.06);}
-.pin-key:active{background:var(--brand-light);border-color:var(--brand);transform:scale(.96);}
-.pin-key.del{font-size:16px;color:var(--danger);}
-.pin-key.admin-btn{font-size:12px;color:var(--gray-400);border-style:dashed;}
-.pin-error{text-align:center;color:var(--danger);font-size:13px;font-weight:600;margin-top:12px;min-height:20px;}
+.pin-dots{display:flex;justify-content:center;gap:14px;margin-bottom:24px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;background:#dfe3ec;transition:background .15s,transform .15s;}
+.pin-dot.filled{background:var(--brand);transform:scale(1.15);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:280px;width:100%;}
+.pin-key{background:#fff;border:none;border-radius:50%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;color:var(--brand);cursor:pointer;box-shadow:0 2px 8px rgba(16,24,64,.10);transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;}
+.pin-key:active{transform:scale(.91);background:#f0f3ff;}
+.pin-key.del{font-size:20px;color:var(--danger);}
+.pin-key.empty{background:transparent;box-shadow:none;pointer-events:none;}
+.pin-error{text-align:center;color:var(--danger);font-size:13px;font-weight:600;margin-top:14px;min-height:20px;}
+.pin-consent{text-align:center;font-size:11px;line-height:1.6;color:#b0b7c3;max-width:320px;margin:18px auto 0;}
+.pin-admin-link{margin-top:10px;background:none;border:none;color:#c2c7d2;font-size:12px;font-weight:600;cursor:pointer;padding:8px 16px;}
+.pin-admin-link:hover{color:var(--brand);}
 
 /* ── CLOCK SCREEN ── */
 #clockScreen{align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(160deg,var(--brand-light) 0%,#fff 60%);}
@@ -403,8 +407,9 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
       <img id="pinBizLogo" class="biz-logo-img hidden" src="" alt="">
       <div class="biz-name" id="pinBizName">Worktrail</div>
       <div class="biz-time" id="pinClock"></div>
+      <div class="biz-date" id="pinDate"></div>
     </div>
-    <div class="pin-label">Enter your PIN to clock in or out</div>
+    <div class="pin-label">Enter your 4-digit employee code</div>
     <div class="pin-dots" id="pinDots">
       <div class="pin-dot"></div><div class="pin-dot"></div>
       <div class="pin-dot"></div><div class="pin-dot"></div>
@@ -419,11 +424,13 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
       <button class="pin-key" onclick="pinKey('7')">7</button>
       <button class="pin-key" onclick="pinKey('8')">8</button>
       <button class="pin-key" onclick="pinKey('9')">9</button>
-      <button class="pin-key admin-btn" onclick="openAdminLogin()">Admin</button>
+      <button class="pin-key empty"></button>
       <button class="pin-key" onclick="pinKey('0')">0</button>
       <button class="pin-key del" onclick="pinDel()">⌫</button>
     </div>
     <div class="pin-error" id="pinError"></div>
+    <p class="pin-consent">By entering your code, you consent to a photo being captured for identity verification and timekeeping, stored securely per company policy.</p>
+    <button class="pin-admin-link" onclick="openAdminLogin()">⚙ Admin Login</button>
   </div>
 </div>
 
@@ -1245,7 +1252,9 @@ function startClock(){
   function tick(){
     var now=new Date();
     var el=document.getElementById('pinClock');
-    if(el) el.textContent=now.toLocaleDateString('en-US',tzOpts({weekday:'long',month:'long',day:'numeric'}))+' · '+now.toLocaleTimeString('en-US',tzOpts({hour:'numeric',minute:'2-digit'}));
+    if(el) el.textContent=now.toLocaleTimeString('en-US',tzOpts({hour:'numeric',minute:'2-digit'}));
+    var d=document.getElementById('pinDate');
+    if(d) d.textContent=now.toLocaleDateString('en-US',tzOpts({weekday:'long',month:'long',day:'numeric'}));
   }
   tick(); setInterval(tick,1000);
 }

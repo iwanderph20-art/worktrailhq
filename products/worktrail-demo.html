@@ -191,6 +191,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-clockin{background:var(--brand);color:#fff;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;width:100%;cursor:pointer;}
 .btn-clockout{background:var(--danger);color:#fff;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;width:100%;cursor:pointer;}
 .btn-cancelclock{background:#f3f4f6;color:#4b5563;border:none;border-radius:12px;padding:11px;width:100%;font-weight:600;cursor:pointer;margin-top:10px;}
+
+/* BUY MODAL — premium */
+#buyModal .modal-box{max-width:430px;border-radius:22px;box-shadow:0 30px 80px rgba(16,24,64,.35);padding:26px 26px 22px;}
+.buy-head{font-size:20px;font-weight:900;color:#111827;letter-spacing:-.3px;margin-bottom:2px;}
+.buy-sub{font-size:13px;color:#6b7280;margin-bottom:16px;}
+.pkg-card{border:1.5px solid #e9ebf1;border-radius:16px;padding:14px 16px;transition:transform .12s,box-shadow .12s,border-color .12s;margin-bottom:11px;}
+.pkg-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(16,24,64,.10);border-color:#c9d0e3;}
+.pkg-card.feat{border-color:#059669;background:#f2fdf7;box-shadow:0 6px 20px rgba(5,150,105,.12);}
+.pkg-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+.pkg-name{font-size:15px;font-weight:800;color:#111827;}
+.pkg-name.g{color:#065f46;}
+.pkg-price{font-size:18px;font-weight:900;color:var(--brand);white-space:nowrap;}
+.pkg-price.g{color:#059669;}
+.pkg-desc{font-size:12px;color:#6b7280;margin:4px 0 10px;line-height:1.45;}
+.pkg-badge{display:inline-block;font-size:10px;font-weight:800;background:#059669;color:#fff;border-radius:6px;padding:2px 8px;letter-spacing:.03em;margin-left:6px;vertical-align:middle;}
+.pkg-btn{display:block;width:100%;background:var(--brand);color:#fff;border:none;border-radius:11px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;transition:opacity .12s;text-align:center;}
+.pkg-btn:hover{opacity:.9;}
+.pkg-btn.g{background:#059669;}
+.buy-alt{display:flex;gap:10px;margin-top:6px;}
+.buy-alt button{flex:1;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;}
+.buy-alt .prev{background:#fff7ed;color:#9a3412;border:1.5px solid #fdba74;}
+.buy-alt .skip{background:#f3f4f6;color:#4b5563;}
+.buy-foot{font-size:11px;color:#9ca3af;text-align:center;margin-top:12px;}
 </style>
 </head>
 <body>
@@ -503,30 +526,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <!-- ══ BUY MODAL ══ -->
 <div class="modal-overlay" id="buyModal">
-  <div class="modal-box" style="max-width:400px;">
-    <div class="modal-title">Get Worktrail — $69 one-time</div>
-    <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:8px;">Here's exactly what happens when you buy:</p>
-    <p style="font-size:13px;color:#4b5563;line-height:1.6;margin-bottom:12px;">Pay once — no subscription. Pick the package that fits:</p>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;">
-        <div style="font-weight:800;color:#111827;">Worktrail — $69</div>
-        <div style="font-size:12px;color:#6b7280;">The app. You host it yourself (free, ~2 min with our guide).</div>
-        <button class="btn-primary" style="margin-top:8px;padding:9px;" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Get Worktrail — $69 →</button>
-      </div>
-      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;">
-        <div style="font-weight:800;color:#111827;">Worktrail + Done-for-you Hosting — $89</div>
-        <div style="font-size:12px;color:#6b7280;">We host your kiosk and hand you one ready link. ($69 + $29 setup.)</div>
-        <button class="btn-primary" style="margin-top:8px;padding:9px;" onclick="window.open('https://worktrailhq.gumroad.com/l/hosted','_blank')">Get Hosted — $89 →</button>
-      </div>
-      <div style="border:2px solid #059669;border-radius:12px;padding:12px 14px;background:#f0fdf4;">
-        <div style="font-weight:800;color:#065f46;">Complete — $119 <span style="font-size:11px;background:#059669;color:#fff;border-radius:6px;padding:1px 7px;margin-left:4px;">BEST VALUE</span></div>
-        <div style="font-size:12px;color:#065f46;opacity:.85;">Worktrail + hosting setup + Payroll. Everything, done for you.</div>
-        <button class="btn-primary" style="margin-top:8px;padding:9px;background:#059669;" onclick="window.open('https://worktrailhq.gumroad.com/l/complete','_blank')">Get Complete — $119 →</button>
-      </div>
+  <div class="modal-box">
+    <div class="buy-head">Get Worktrail</div>
+    <div class="buy-sub">Pay once — no subscription. Pick the package that fits:</div>
+
+    <div class="pkg-card">
+      <div class="pkg-top"><span class="pkg-name">Worktrail</span><span class="pkg-price">$69</span></div>
+      <div class="pkg-desc">The app. You host it yourself — free, about 2 minutes with our guide.</div>
+      <button class="pkg-btn" onclick="window.open('https://worktrailhq.gumroad.com/l/worktrail','_blank')">Get Worktrail →</button>
     </div>
-    <button class="btn-primary" style="background:#f59e0b;color:#1a1a1a;" onclick="closeBuyModal();dStartSetup();">▶ Preview the 3-step setup first</button>
-    <button class="btn-save" style="background:#f3f4f6;color:#4b5563;width:100%;" onclick="closeBuyModal()">Keep exploring the demo</button>
-    <p style="font-size:11px;color:#9ca3af;text-align:center;margin-top:10px;">Add Payroll anytime for $39 · Questions? <a href="mailto:support@worktrailhq.com" style="color:var(--brand);">support@worktrailhq.com</a></p>
+
+    <div class="pkg-card">
+      <div class="pkg-top"><span class="pkg-name">Worktrail + Hosting</span><span class="pkg-price">$89</span></div>
+      <div class="pkg-desc">We host your kiosk and hand you one ready link. ($69 + $29 done-for-you setup.)</div>
+      <button class="pkg-btn" onclick="window.open('https://worktrailhq.gumroad.com/l/hosted','_blank')">Get Hosted →</button>
+    </div>
+
+    <div class="pkg-card feat">
+      <div class="pkg-top"><span class="pkg-name g">Complete <span class="pkg-badge">BEST VALUE</span></span><span class="pkg-price g">$119</span></div>
+      <div class="pkg-desc">Worktrail + hosting setup + Payroll. Everything, done for you.</div>
+      <button class="pkg-btn g" onclick="window.open('https://worktrailhq.gumroad.com/l/complete','_blank')">Get Complete →</button>
+    </div>
+
+    <div class="buy-alt">
+      <button class="prev" onclick="closeBuyModal();dStartSetup();">▶ Preview setup</button>
+      <button class="skip" onclick="closeBuyModal()">Keep exploring</button>
+    </div>
+    <p class="buy-foot">Add Payroll anytime for $39 · Questions? <a href="mailto:support@worktrailhq.com" style="color:var(--brand);">support@worktrailhq.com</a></p>
   </div>
 </div>
 
