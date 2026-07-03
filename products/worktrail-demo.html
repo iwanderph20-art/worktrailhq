@@ -114,23 +114,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .modal-title{font-size:15px;font-weight:800;color:#111827;margin-bottom:16px;}
 .btn-primary{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;}
 
-/* PIN SCREEN */
-.pin-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 52px);background:linear-gradient(135deg,var(--brand) 0%,var(--brand-dark) 100%);}
-.pin-card{background:#fff;border-radius:24px;padding:32px;max-width:340px;width:100%;margin:20px;}
-.pin-biz{text-align:center;margin-bottom:24px;}
-.pin-biz-name{font-size:20px;font-weight:900;color:var(--brand);}
-.pin-biz-time{font-size:13px;color:#9ca3af;margin-top:4px;}
-.pin-label{text-align:center;font-size:13px;font-weight:600;color:#6b7280;margin-bottom:14px;}
-.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:22px;}
-.pin-dot{width:14px;height:14px;border-radius:50%;background:#e5e7eb;transition:background .15s;}
-.pin-dot.filled{background:var(--brand);}
-.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.pin-key{background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:14px;padding:16px;font-size:20px;font-weight:700;color:#111827;text-align:center;cursor:pointer;transition:all .1s;}
-.pin-key:active{background:var(--brand-light);border-color:var(--brand);}
-.pin-key.del{font-size:14px;color:var(--danger);}
-.pin-key.admin-key{font-size:11px;color:#9ca3af;border-style:dashed;}
-.pin-error{text-align:center;color:var(--danger);font-size:12px;font-weight:600;margin-top:10px;min-height:18px;}
-.pin-hint{text-align:center;font-size:11px;color:#9ca3af;margin-top:14px;}
+/* PIN SCREEN — premium kiosk look */
+.pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 52px);background:#eef1f8;padding:32px 20px 40px;}
+.pin-card{width:100%;max-width:300px;display:flex;flex-direction:column;align-items:center;}
+.pin-biz{text-align:center;margin-bottom:20px;}
+.pin-biz-name{font-size:22px;font-weight:900;color:var(--brand);letter-spacing:-.3px;}
+.pin-biz-time{font-size:34px;font-weight:800;color:#111827;font-variant-numeric:tabular-nums;letter-spacing:-.5px;margin-top:14px;}
+.pin-biz-date{font-size:13px;color:#9ca3af;margin-top:2px;}
+.pin-label{text-align:center;font-size:14px;font-weight:600;color:#6b7280;margin-bottom:16px;}
+.pin-dots{display:flex;justify-content:center;gap:14px;margin-bottom:24px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;background:#dfe3ec;transition:background .15s,transform .15s;}
+.pin-dot.filled{background:var(--brand);transform:scale(1.15);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:280px;width:100%;}
+.pin-key{background:#fff;border:none;border-radius:50%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;color:var(--brand);cursor:pointer;box-shadow:0 2px 8px rgba(16,24,64,.10);transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;}
+.pin-key:active{transform:scale(.91);background:#f0f3ff;}
+.pin-key.del{font-size:20px;color:var(--danger);}
+.pin-key.empty{background:transparent;box-shadow:none;pointer-events:none;}
+.pin-error{text-align:center;color:var(--danger);font-size:13px;font-weight:600;margin-top:14px;min-height:18px;}
+.pin-hint{text-align:center;font-size:12px;color:#9ca3af;margin-top:20px;}
+.pin-consent{text-align:center;font-size:11px;line-height:1.6;color:#b0b7c3;max-width:320px;margin:18px auto 0;}
+.pin-admin-link{margin-top:10px;background:none;border:none;color:#c2c7d2;font-size:12px;font-weight:600;cursor:pointer;padding:8px 16px;}
+.pin-admin-link:hover{color:var(--brand);}
 
 /* TOAST */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#1f2937;color:#fff;border-radius:14px;padding:11px 20px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:400;pointer-events:none;}
@@ -216,8 +220,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <span class="emp-kiosk-badge">👤 Employee Clock-In Kiosk</span>
       <div class="pin-biz-name">☀️ Sunrise Wellness Co.</div>
       <div class="pin-biz-time" id="demoClockTick"></div>
+      <div class="pin-biz-date" id="demoClockDate"></div>
     </div>
-    <div class="pin-label">You're the employee — enter your PIN to clock in or out</div>
+    <div class="pin-label">Enter your 4-digit employee code</div>
     <div class="pin-dots" id="demoPinDots">
       <div class="pin-dot"></div><div class="pin-dot"></div>
       <div class="pin-dot"></div><div class="pin-dot"></div>
@@ -232,13 +237,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="pin-key" onclick="dPin('7')">7</button>
       <button class="pin-key" onclick="dPin('8')">8</button>
       <button class="pin-key" onclick="dPin('9')">9</button>
-      <button class="pin-key admin-key" onclick="openDemoAdmin()">Admin</button>
+      <button class="pin-key empty"></button>
       <button class="pin-key" onclick="dPin('0')">0</button>
       <button class="pin-key del" onclick="dPinDel()">⌫</button>
     </div>
     <div class="pin-error" id="demoPinError"></div>
     <div class="pin-hint">👤 Try a demo employee PIN: <strong>1001</strong> · <strong>1002</strong> · <strong>1003</strong></div>
-    <div class="pin-role-note">Business owner? Tap <strong>Admin</strong> above to see the manager dashboard.</div>
+    <p class="pin-consent">By entering your code, you consent to a photo being captured for identity verification and timekeeping, stored securely per company policy.</p>
+    <button class="pin-admin-link" onclick="openDemoAdmin()">⚙ Admin Login</button>
   </div>
 </div>
 
@@ -578,7 +584,10 @@ function initials(name){ return name.split(' ').map(function(w){ return w[0]; })
 /* ─── CLOCK ─── */
 (function tick(){
   var el=document.getElementById('demoClockTick'); if(!el) return;
-  el.textContent=new Date().toLocaleDateString('en-US',dTzOpts({weekday:'long',month:'long',day:'numeric'}))+' · '+new Date().toLocaleTimeString('en-US',dTzOpts({hour:'numeric',minute:'2-digit'}));
+  var now=new Date();
+  el.textContent=now.toLocaleTimeString('en-US',dTzOpts({hour:'numeric',minute:'2-digit'}));
+  var d=document.getElementById('demoClockDate');
+  if(d) d.textContent=now.toLocaleDateString('en-US',dTzOpts({weekday:'long',month:'long',day:'numeric'}));
   setTimeout(tick,1000);
 })();
 
