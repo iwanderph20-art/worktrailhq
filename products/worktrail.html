@@ -832,7 +832,7 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 <div class="modal-overlay" id="unlockModal">
   <div class="modal-box">
     <div class="modal-title">Unlock Payroll Add-On <button class="modal-close" onclick="closeModal('unlockModal')">✕</button></div>
-    <p class="text-xs text-gray" style="margin-bottom:14px;line-height:1.5;">Enter the license key from your Gumroad purchase email to unlock Payroll.</p>
+    <p class="text-xs text-gray" style="margin-bottom:14px;line-height:1.5;">Enter the license key from your Gumroad or Etsy purchase to unlock Payroll.</p>
     <div class="form-row">
       <label class="field-label">License Key</label>
       <input id="unlockKeyInput" class="inp" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" style="letter-spacing:.05em;">
@@ -1031,6 +1031,29 @@ function copyShareLink(){
 // The $89 hosted package does NOT include payroll, so it's not listed here.
 var GUMROAD_PAYROLL_PERMALINKS = ['payroll','complete'];
 
+// Etsy offline unlock — for keys we mint per Etsy order (Etsy can't issue Gumroad
+// keys). Keys look like WT-XXXXXX-XXXXXXXX and validate offline against the secret
+// below, so buyers on Etsy get the same "enter key → unlock" flow without Gumroad.
+// Rotating ETSY_UNLOCK_SECRET invalidates every previously issued Etsy key.
+// Keep this secret identical to integrations/etsy-key-generator.html.
+var ETSY_UNLOCK_SECRET = 'wtl_etsy_9f3xk2Qp';
+function _wtHash(str){
+  // FNV-1a 32-bit with two seeds, concatenated -> 16 hex chars. Not cryptographic;
+  // it's checksum-grade validation to keep casual key-sharing honest.
+  function fnv(seed){
+    var h = seed>>>0;
+    for(var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h,16777619); }
+    return ('0000000'+(h>>>0).toString(16)).slice(-8);
+  }
+  return fnv(0x811c9dc5) + fnv(0x01000193);
+}
+function validateEtsyKey(key){
+  var m = /^WT-([A-Z0-9]{6})-([0-9A-Fa-f]{8})$/.exec((key||'').trim());
+  if(!m) return false;
+  var token = m[1].toUpperCase(), sig = m[2].toLowerCase();
+  return _wtHash(ETSY_UNLOCK_SECRET+'|'+token).slice(0,8) === sig;
+}
+
 // In demo mode every add-on is unlocked so shoppers can see the full product
 function isUnlocked(feature){ return DEMO_MODE || !!store.get('unlock_'+feature); }
 
@@ -1076,7 +1099,15 @@ function submitUnlockKey(){
   if(!key){ toast('Enter your license key'); return; }
   var st=document.getElementById('unlockStatus');
   st.textContent='Verifying…'; st.style.color='var(--gray-400)';
-  // Try the key against every package that includes payroll, in sequence.
+  // Etsy-issued keys validate offline — check them first, no network needed.
+  if(validateEtsyKey(key)){
+    store.set('unlock_payroll', key);
+    closeModal('unlockModal');
+    checkUnlockStatus();
+    toast('Payroll unlocked! Thank you.');
+    return;
+  }
+  // Otherwise try the key against every Gumroad package that includes payroll.
   (function tryNext(i){
     if(i>=GUMROAD_PAYROLL_PERMALINKS.length){
       st.textContent='Invalid license key. Check your Gumroad purchase email.';

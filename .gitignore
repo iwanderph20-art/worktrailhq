@@ -1,1 +1,4 @@
 .DS_Store
+
+# Internal key-minting tool — must never be published (holds the unlock secret)
+products/integrations/etsy-key-generator.html
