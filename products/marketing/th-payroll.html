@@ -1,0 +1,54 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;padding:0}
+  .stage{width:1000px;height:1000px;position:relative;overflow:hidden;box-sizing:border-box;
+    background-color:#3f3f3c;
+    background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size:40px 40px;
+    padding:74px;display:flex;flex-direction:column;align-items:center;
+    font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;}
+  .kicker{color:rgba(244,242,236,.66);font-size:23px;font-weight:700;letter-spacing:6px;}
+  .stub{width:560px;background:#f6f4ee;border-radius:24px;padding:34px 40px;margin:52px 0 8px;
+    transform:rotate(-1.5deg);box-shadow:0 30px 60px rgba(0,0,0,.4);color:#2c2c2a;}
+  .stub-h{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:2px solid #e2ddd0;padding-bottom:16px;margin-bottom:14px;}
+  .stub-h b{font-size:30px;letter-spacing:1px;}
+  .stub-h .per{font-size:20px;color:#8a8578;}
+  .tbl{width:100%;border-collapse:collapse;}
+  .tbl td{font-size:26px;padding:11px 0;color:#4a4844;vertical-align:baseline;line-height:1;}
+  .tbl .k{text-align:left;}
+  .tbl .v{text-align:right;font-weight:600;font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;}
+  .net{display:flex;justify-content:space-between;align-items:center;margin-top:12px;
+    background:#f4e3bd;border:2px solid #e0b458;border-radius:14px;padding:16px 20px;}
+  .net b{font-size:28px;letter-spacing:.5px;color:#7a5a15;}
+  .net .amt{font-size:34px;font-weight:800;color:#7a5a15;font-variant-numeric:tabular-nums;}
+  .title{color:#f7f5ef;font-family:"Noteworthy","Marker Felt","Chalkboard SE",sans-serif;
+    font-weight:700;font-size:96px;line-height:1;margin-top:40px;}
+  .sub{color:rgba(244,242,236,.8);font-size:31px;font-weight:500;margin-top:20px;text-align:center;}
+  .chips{display:flex;gap:14px;margin-top:30px;}
+  .chip{border:1.5px solid rgba(244,242,236,.32);border-radius:999px;padding:11px 20px;
+    color:rgba(244,242,236,.9);font-size:22px;font-weight:600;}
+  .price{position:absolute;top:66px;right:66px;background:#e0b458;color:#3a2c08;
+    width:118px;height:118px;border-radius:50%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;box-shadow:0 14px 30px rgba(0,0,0,.35);transform:rotate(6deg);}
+  .price b{font-size:44px;font-weight:800;line-height:1;}
+  .price small{font-size:16px;font-weight:700;letter-spacing:1px;margin-top:3px;}
+</style></head><body>
+  <div class="stage">
+    <div class="kicker">CURATORS&nbsp;MARKETPLACE</div>
+    <div class="price"><b>$39</b><small>ONE-TIME</small></div>
+    <div class="stub">
+      <div class="stub-h"><b>PAY STUB</b><span class="per">Jul 1–15</span></div>
+      <table class="tbl">
+        <tr><td class="k">Gross pay</td><td class="v">$3,200.00</td></tr>
+        <tr><td class="k">Taxes</td><td class="v">-$612.40</td></tr>
+        <tr><td class="k">Deductions</td><td class="v">-$169.60</td></tr>
+      </table>
+      <div class="net"><b>NET PAY</b><span class="amt">$2,418.00</span></div>
+    </div>
+    <div class="title">Payroll Add-On</div>
+    <div class="sub">Turn tracked hours into gross-to-net<br>pay reports — one-tap PDF export</div>
+    <div class="chips"><span class="chip">W-2 &amp; 1099</span><span class="chip">Auto-fill from a stub</span><span class="chip">Unlimited reports</span></div>
+  </div>
+</body></html>

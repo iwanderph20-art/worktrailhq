@@ -1,0 +1,56 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;padding:0}
+  .stage{width:1000px;height:1000px;position:relative;overflow:hidden;box-sizing:border-box;
+    background-color:#3f3f3c;
+    background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size:40px 40px;
+    padding:74px;display:flex;flex-direction:column;align-items:center;
+    font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;}
+  .kicker{color:rgba(244,242,236,.66);font-size:23px;font-weight:700;letter-spacing:6px;}
+  .browser{width:600px;background:#f6f4ee;border-radius:20px;margin:52px 0 8px;
+    transform:rotate(-1.5deg);box-shadow:0 30px 60px rgba(0,0,0,.4);overflow:hidden;color:#2c2c2a;}
+  .bar{display:flex;align-items:center;gap:10px;background:#e7e2d6;padding:15px 20px;}
+  .bar i{width:15px;height:15px;border-radius:50%;background:#c8c2b3;display:block;}
+  .url{flex:1;margin-left:14px;background:#f6f4ee;border-radius:8px;padding:9px 16px;
+    font-size:22px;color:#4a4844;font-weight:600;}
+  .url b{color:#4a7ea3;}
+  .screen{padding:34px 40px 40px;text-align:center;}
+  .clock{font-size:40px;font-weight:800;color:#2c2c2a;}
+  .day{font-size:20px;color:#8a8578;margin-top:2px;}
+  .pins{display:flex;justify-content:center;gap:16px;margin-top:22px;}
+  .pins span{width:62px;height:62px;border-radius:50%;border:2px solid #d8d2c3;
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#4a4844;}
+  .badge-ok{display:inline-flex;align-items:center;gap:9px;margin-top:22px;
+    background:#d7e7dd;border:2px solid #6fae86;border-radius:999px;padding:9px 18px;
+    font-size:20px;font-weight:700;color:#2f6b47;}
+  .title{color:#f7f5ef;font-family:"Noteworthy","Marker Felt","Chalkboard SE",sans-serif;
+    font-weight:700;font-size:82px;line-height:1;margin-top:38px;text-align:center;}
+  .sub{color:rgba(244,242,236,.8);font-size:31px;font-weight:500;margin-top:20px;text-align:center;}
+  .chips{display:flex;gap:14px;margin-top:30px;}
+  .chip{border:1.5px solid rgba(244,242,236,.32);border-radius:999px;padding:11px 20px;
+    color:rgba(244,242,236,.9);font-size:22px;font-weight:600;}
+  .price{position:absolute;top:66px;right:66px;background:#7fa8c9;color:#0f2635;
+    width:118px;height:118px;border-radius:50%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;box-shadow:0 14px 30px rgba(0,0,0,.35);transform:rotate(6deg);}
+  .price b{font-size:44px;font-weight:800;line-height:1;}
+  .price small{font-size:15px;font-weight:700;letter-spacing:1px;margin-top:3px;}
+</style></head><body>
+  <div class="stage">
+    <div class="kicker">CURATORS&nbsp;MARKETPLACE</div>
+    <div class="price"><b>$89</b><small>HOSTED</small></div>
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">worktrailhq.com/k/<b>your-shop</b></span></div>
+      <div class="screen">
+        <div class="clock">8:56 AM</div>
+        <div class="day">Enter your 4-digit code</div>
+        <div class="pins"><span>1</span><span>2</span><span>3</span></div>
+        <div class="badge-ok">✓ Hosted &amp; ready to share</div>
+      </div>
+    </div>
+    <div class="title">Done-for-You Hosting</div>
+    <div class="sub">We set it up &amp; connect it —<br>you just share one link</div>
+    <div class="chips"><span class="chip">Ready same day</span><span class="chip">Your own link</span><span class="chip">Your data stays yours</span></div>
+  </div>
+</body></html>
