@@ -1,39 +1,38 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
   html,body{margin:0;padding:0}
   .stage{width:1200px;height:300px;position:relative;overflow:hidden;
-    background:
-      radial-gradient(90% 170% at 12% 8%, rgba(255,255,255,.22), rgba(255,255,255,0) 44%),
-      linear-gradient(120deg,#3f34c4 0%,#5b34c9 55%,#6d28d9 100%);
-    font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;
-    display:flex;align-items:center;padding:0 62px;box-sizing:border-box;}
-  .badge{width:112px;height:112px;flex:0 0 112px;position:relative;border-radius:22px;overflow:hidden;
-    background:linear-gradient(135deg,#4f46e5,#7c3aed);
-    box-shadow:0 10px 26px rgba(0,0,0,.28), inset 0 0 0 2px rgba(246,241,231,.35);}
-  .badge .r{position:absolute;inset:12px;border-radius:50%;border:2px solid rgba(246,241,231,.5);}
-  .badge .m{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    color:#f6f1e7;font-family:"Didot","Bodoni 72","Hoefler Text",Georgia,serif;font-size:52px;letter-spacing:-.04em;}
-  .txt{margin-left:42px}
-  .name{color:#f6f1e7;font-family:"Didot","Bodoni 72","Hoefler Text",Georgia,serif;
-    font-size:58px;line-height:1;letter-spacing:.01em;text-shadow:0 3px 18px rgba(0,0,0,.2);}
-  .tag{margin-top:15px;color:rgba(246,241,231,.85);font-size:22px;font-weight:500;letter-spacing:.015em;}
-  .shelf{position:absolute;right:48px;top:0;bottom:0;display:flex;align-items:center;gap:16px;}
-  .card{width:80px;height:100px;border-radius:16px;background:rgba(246,241,231,.10);
-    border:1px solid rgba(246,241,231,.22);
-    display:flex;align-items:center;justify-content:center;font-size:36px;
-    box-shadow:0 12px 26px rgba(0,0,0,.18);}
-  .card.up{transform:translateY(-13px)}
-  .card.dn{transform:translateY(11px)}
+    background-color:#3f3f3c;
+    background-image:
+      linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+    background-size:34px 34px;
+    display:flex;align-items:center;padding:0 66px;box-sizing:border-box;}
+  .badge{width:262px;height:262px;flex:0 0 262px;}
+  .arc{fill:#f4f2ec;font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;
+    font-size:33px;font-weight:600;letter-spacing:7px;}
+  .ctr{fill:#f7f5ef;font-family:"Noteworthy","Marker Felt","Chalkboard SE",sans-serif;
+    font-weight:700;font-size:74px;letter-spacing:1px;}
+  .divider{width:1px;height:168px;background:rgba(244,242,236,.20);margin:0 52px;}
+  .txt{}
+  .l1{color:#f7f5ef;font-family:"Noteworthy","Marker Felt","Chalkboard SE",sans-serif;
+    font-weight:700;font-size:52px;line-height:1.05;letter-spacing:.5px;}
+  .l2{margin-top:18px;color:rgba(244,242,236,.82);
+    font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;font-size:23px;font-weight:500;letter-spacing:.3px;}
 </style></head><body>
   <div class="stage">
-    <div class="badge"><div class="r"></div><div class="m">CM</div></div>
+    <svg class="badge" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <path id="top" d="M 250,250 m -170,0 a 170,170 0 1,1 340,0 a 170,170 0 1,1 -340,0"/>
+        <path id="bot" d="M 250,250 m -170,0 a 170,170 0 1,0 340,0 a 170,170 0 1,0 -340,0"/>
+      </defs>
+      <text class="arc"><textPath href="#top" startOffset="25%" text-anchor="middle">MARKETPLACE</textPath></text>
+      <text class="arc"><textPath href="#bot" startOffset="25%" text-anchor="middle">SINCE 2026</textPath></text>
+      <text class="ctr" x="250" y="262" text-anchor="middle" dominant-baseline="middle" transform="rotate(-8 250 250)">CURATORS</text>
+    </svg>
+    <div class="divider"></div>
     <div class="txt">
-      <div class="name">Curators Marketplace</div>
-      <div class="tag">Tools you own — pay once, no subscriptions.</div>
-    </div>
-    <div class="shelf">
-      <div class="card up">⏱️</div>
-      <div class="card">💳</div>
-      <div class="card dn">📊</div>
+      <div class="l1">Tools you own.</div>
+      <div class="l2">Pay once&nbsp; ·&nbsp; No subscriptions&nbsp; ·&nbsp; Your data, yours</div>
     </div>
   </div>
 </body></html>

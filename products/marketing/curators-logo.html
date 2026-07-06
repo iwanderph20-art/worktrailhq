@@ -1,27 +1,26 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
   html,body{margin:0;padding:0}
   .stage{width:500px;height:500px;position:relative;overflow:hidden;
-    background:
-      radial-gradient(120% 120% at 22% 18%, rgba(255,255,255,.28), rgba(255,255,255,0) 46%),
-      linear-gradient(135deg,#4338ca 0%,#5b34c9 52%,#6d28d9 100%);
-    font-family:"Didot","Bodoni 72","Hoefler Text",Georgia,serif;}
-  .ring{position:absolute;inset:44px;border-radius:50%;
-    border:2px solid rgba(246,241,231,.55);
-    box-shadow:inset 0 0 0 10px rgba(246,241,231,.10);}
-  .mono{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    color:#f6f1e7;font-size:210px;font-weight:400;letter-spacing:-.04em;
-    text-shadow:0 4px 24px rgba(0,0,0,.22);}
-  .mono b{font-weight:400}
-  .cap{position:absolute;left:0;right:0;bottom:70px;text-align:center;
-    color:rgba(246,241,231,.85);font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;
-    font-size:20px;font-weight:600;letter-spacing:.42em;text-indent:.42em;}
-  .awn{position:absolute;left:0;right:0;top:64px;height:22px;display:flex;justify-content:center;gap:0;}
-  .awn i{width:34px;height:22px;background:rgba(246,241,231,.9);
-    border-radius:0 0 18px 18px;margin:0 3px;display:block;}
+    background-color:#3f3f3c;
+    background-image:
+      linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+    background-size:38px 38px;}
+  svg{position:absolute;inset:0}
+  .arc{fill:#f4f2ec;font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;
+    font-size:33px;font-weight:600;letter-spacing:7px;}
+  .ctr{fill:#f7f5ef;font-family:"Noteworthy","Marker Felt","Chalkboard SE",sans-serif;
+    font-weight:700;font-size:74px;letter-spacing:1px;}
 </style></head><body>
   <div class="stage">
-    <div class="ring"></div>
-    <div class="mono">CM</div>
-    <div class="cap">CURATED&nbsp;GOODS</div>
+    <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <path id="top" d="M 250,250 m -170,0 a 170,170 0 1,1 340,0 a 170,170 0 1,1 -340,0"/>
+        <path id="bot" d="M 250,250 m -170,0 a 170,170 0 1,0 340,0 a 170,170 0 1,0 -340,0"/>
+      </defs>
+      <text class="arc"><textPath href="#top" startOffset="25%" text-anchor="middle">MARKETPLACE</textPath></text>
+      <text class="arc"><textPath href="#bot" startOffset="25%" text-anchor="middle">SINCE 2026</textPath></text>
+      <text class="ctr" x="250" y="262" text-anchor="middle" dominant-baseline="middle" transform="rotate(-8 250 250)">CURATORS</text>
+    </svg>
   </div>
 </body></html>
