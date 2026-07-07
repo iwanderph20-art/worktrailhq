@@ -7,166 +7,178 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --brand:#1e2a78;--brand-2:#3b4bd8;--brand-dark:#0d1450;
-  --brand-light:#eef1ff;--ink:#141a2e;--muted:#6b7280;--line:#e8eaf3;
-  --accent:#f59e0b;
+  --ink:#151a2c;--brand:#1e2a78;--brand-soft:#5b67c4;
+  --muted:#7a8091;--faint:#aab0c0;--line:#e9ebf2;--paper:#fbfbfd;
 }
 body{
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;
-  background:radial-gradient(1200px 600px at 50% -10%,#e7ebff 0%,#eef1f8 45%,#eef1f8 100%);
-  color:var(--ink);-webkit-font-smoothing:antialiased;padding:28px 16px;
+  background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
+  padding:40px 18px;line-height:1.5;
 }
 .page{
-  max-width:860px;margin:0 auto;background:#fff;border-radius:26px;
-  padding:40px 46px 34px;
-  box-shadow:0 30px 80px -30px rgba(20,26,64,.35),0 2px 6px rgba(20,26,64,.06);
-  border:1px solid rgba(255,255,255,.6);position:relative;overflow:hidden;
+  max-width:760px;margin:0 auto;background:#fff;border-radius:20px;
+  padding:56px 60px 44px;border:1px solid var(--line);
+  box-shadow:0 40px 90px -50px rgba(20,26,64,.4);position:relative;
 }
-.page::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;
-  background:linear-gradient(90deg,var(--brand),var(--brand-2),var(--accent));}
 
 /* Header */
-.head{text-align:center;margin-bottom:30px;}
-.badge{display:inline-flex;align-items:center;gap:7px;background:var(--brand-light);
-  color:var(--brand);font-weight:700;font-size:12px;letter-spacing:.3px;
-  padding:6px 14px;border-radius:999px;margin-bottom:14px;}
-.brand{font-size:32px;font-weight:900;color:var(--brand);letter-spacing:-.6px;
-  display:flex;align-items:center;justify-content:center;gap:9px;}
-.brand .dot{width:11px;height:11px;border-radius:50%;
-  background:linear-gradient(135deg,var(--brand-2),var(--accent));box-shadow:0 0 0 4px rgba(59,75,216,.12);}
-.head h1{font-size:25px;font-weight:800;margin-top:8px;letter-spacing:-.4px;}
-.head p{color:var(--muted);font-size:14.5px;margin-top:6px;}
+.head{text-align:center;margin-bottom:44px;}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;
+  color:var(--brand-soft);margin-bottom:20px;}
+.brand{font-size:26px;font-weight:800;color:var(--brand);letter-spacing:-.5px;
+  display:inline-flex;align-items:center;gap:10px;}
+.brand .mark{width:9px;height:9px;border-radius:2px;background:var(--brand);
+  transform:rotate(45deg);}
+.head h1{font-size:27px;font-weight:800;letter-spacing:-.6px;margin-top:22px;line-height:1.2;}
+.head p{color:var(--muted);font-size:15px;margin-top:10px;}
 
-/* Roadmap chart */
-.chart{position:relative;margin:8px 0 6px;padding:6px 0;}
-.chart .track{position:absolute;left:29px;top:34px;bottom:34px;width:3px;
-  background:linear-gradient(180deg,var(--brand) 0%,var(--brand-2) 100%);
-  border-radius:3px;opacity:.18;}
-.row{display:grid;grid-template-columns:58px 1fr;gap:20px;align-items:stretch;
-  position:relative;margin-bottom:16px;}
-.row:last-child{margin-bottom:0;}
-.node{display:flex;justify-content:center;}
-.num{width:58px;height:58px;border-radius:18px;flex-shrink:0;
-  background:linear-gradient(140deg,var(--brand-2),var(--brand-dark));
-  color:#fff;font-weight:900;font-size:22px;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 12px 24px -8px rgba(30,42,120,.55),inset 0 1px 0 rgba(255,255,255,.25);
-  position:relative;z-index:2;}
-.num::after{content:"";position:absolute;inset:-5px;border-radius:22px;
-  border:2px solid var(--brand-light);z-index:-1;}
-.card{background:#fff;border:1px solid var(--line);border-radius:18px;
-  padding:18px 20px;box-shadow:0 8px 24px -16px rgba(20,26,64,.4);
-  transition:transform .15s;}
-.card h3{font-size:16px;font-weight:800;margin-bottom:5px;display:flex;align-items:center;gap:9px;letter-spacing:-.2px;}
-.card h3 .ic{font-size:20px;}
-.card p{font-size:13px;color:#4b5568;line-height:1.6;}
-.card b{color:var(--ink);}
-code{background:var(--brand-light);border-radius:6px;padding:1px 7px;font-size:12px;
-  font-family:ui-monospace,Menlo,monospace;color:var(--brand-dark);font-weight:600;}
-.tip{background:linear-gradient(180deg,#fffdf5,#fff8e8);border:1px solid #fbe4a8;
-  border-radius:10px;padding:8px 11px;font-size:12px;color:#92610e;margin-top:10px;
-  display:flex;gap:7px;align-items:flex-start;}
-.pill{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.5px;
-  text-transform:uppercase;color:var(--brand-2);background:var(--brand-light);
-  border-radius:6px;padding:2px 8px;margin-left:auto;}
+/* Time chart */
+.chart{margin:0 0 46px;}
+.chart-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;}
+.chart-top .lbl{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--faint);}
+.chart-top .total{font-size:13px;font-weight:700;color:var(--ink);}
+.chart-top .total b{color:var(--brand);}
+.bar{display:flex;gap:3px;height:12px;}
+.seg{border-radius:3px;position:relative;}
+.seg.s1{flex:2;background:var(--brand);}
+.seg.s2{flex:1;background:#3a47a5;}
+.seg.s3{flex:1;background:#5b67c4;}
+.seg.s4{flex:1;background:#8b95dd;}
+.ticks{display:flex;gap:3px;margin-top:9px;}
+.tick{text-align:center;font-size:11px;color:var(--muted);}
+.tick.s1{flex:2;}.tick.s2,.tick.s3,.tick.s4{flex:1;}
+.tick b{display:block;font-size:12px;font-weight:800;color:var(--ink);letter-spacing:-.2px;}
+.tick span{color:var(--faint);}
 
-/* Sync banner */
-.sync{margin-top:26px;background:linear-gradient(130deg,var(--brand),var(--brand-dark));
-  border-radius:22px;padding:26px 26px 24px;color:#fff;text-align:center;position:relative;overflow:hidden;}
-.sync::after{content:"";position:absolute;top:-40%;right:-10%;width:280px;height:280px;
-  background:radial-gradient(circle,rgba(245,158,11,.22),transparent 70%);}
-.sync h2{font-size:18px;font-weight:800;margin-bottom:16px;position:relative;letter-spacing:-.2px;}
-.diagram{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;position:relative;}
-.dev{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);
-  border-radius:12px;padding:11px 15px;font-size:12.5px;font-weight:700;backdrop-filter:blur(4px);}
-.arrow{font-size:22px;opacity:.75;}
-.cloud{background:#fff;color:var(--brand);border-radius:12px;padding:11px 17px;
-  font-size:13px;font-weight:900;box-shadow:0 8px 20px -6px rgba(0,0,0,.4);}
-.sync .cap{font-size:12.5px;opacity:.9;margin-top:14px;position:relative;line-height:1.5;}
+/* Steps */
+.steps{border-top:1px solid var(--line);}
+.step{display:grid;grid-template-columns:64px 1fr;gap:26px;align-items:start;
+  padding:26px 0;border-bottom:1px solid var(--line);}
+.step .idx{font-size:30px;font-weight:800;color:var(--brand);letter-spacing:-1px;
+  font-variant-numeric:tabular-nums;line-height:1;padding-top:2px;}
+.step .idx small{display:block;font-size:10px;font-weight:700;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--faint);margin-top:8px;}
+.step h3{font-size:16.5px;font-weight:800;letter-spacing:-.2px;margin-bottom:6px;}
+.step p{font-size:13.5px;color:#565d70;line-height:1.65;}
+.step b{color:var(--ink);font-weight:700;}
+code{background:#f2f3f9;border-radius:5px;padding:1px 7px;font-size:12px;
+  font-family:ui-monospace,Menlo,monospace;color:var(--brand);font-weight:600;}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;padding-left:13px;
+  border-left:2px solid var(--line);}
+.note b{color:var(--brand);}
 
-.foot{text-align:center;color:var(--muted);font-size:12.5px;margin-top:24px;line-height:1.7;}
+/* Sync */
+.sync{margin-top:40px;border:1px solid var(--line);border-radius:16px;
+  padding:30px 32px;text-align:center;background:var(--paper);}
+.sync h2{font-size:16px;font-weight:800;letter-spacing:-.2px;margin-bottom:22px;}
+.flow{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
+.dev{font-size:12.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);
+  border-radius:9px;padding:9px 16px;background:#fff;}
+.flow .to{color:var(--faint);font-size:15px;}
+.hub{font-size:13px;font-weight:800;color:#fff;background:var(--brand);
+  border-radius:9px;padding:10px 18px;letter-spacing:-.1px;}
+.sync .cap{font-size:12.5px;color:var(--muted);margin-top:20px;line-height:1.6;max-width:440px;margin-left:auto;margin-right:auto;}
+
+.foot{text-align:center;color:var(--muted);font-size:12.5px;margin-top:34px;line-height:1.8;}
 .foot a{color:var(--brand);font-weight:700;text-decoration:none;}
+.foot .sep{color:var(--line);}
 
 @media(max-width:560px){
-  .page{padding:30px 20px;}
-  .row{grid-template-columns:48px 1fr;gap:14px;}
-  .num{width:48px;height:48px;font-size:19px;border-radius:15px;}
-  .chart .track{left:24px;}
+  .page{padding:38px 26px;}
+  .step{grid-template-columns:44px 1fr;gap:16px;}
+  .step .idx{font-size:24px;}
+  .head h1{font-size:23px;}
 }
 @media print{
   body{background:#fff;padding:0;}
-  .page{box-shadow:none;border:none;max-width:none;border-radius:0;padding:8px 14px;}
-  .card{box-shadow:none;padding:13px 16px;}
-  .head{margin-bottom:16px;}
-  .head h1{font-size:22px;}
-  .row{margin-bottom:11px;}
-  .num{width:50px;height:50px;font-size:20px;}
-  .sync{margin-top:16px;padding:18px 22px;}
-  .foot{margin-top:14px;}
-  @page{margin:9mm;}
+  .page{box-shadow:none;border:none;max-width:none;border-radius:0;padding:6px 16px;}
+  .head{margin-bottom:26px;}
+  .chart{margin-bottom:30px;}
+  .step{padding:16px 0;}
+  .sync{margin-top:26px;}
+  .foot{margin-top:20px;}
+  @page{margin:12mm;}
 }
 </style>
 </head>
 <body>
 <div class="page">
   <div class="head">
-    <span class="badge">⚡ Quick Start · ~5 minutes</span>
-    <div class="brand"><span class="dot"></span> Worktrail</div>
-    <h1>Set up your kiosk in 4 simple steps</h1>
+    <div class="eyebrow">Quick Start Guide</div>
+    <div class="brand"><span class="mark"></span> Worktrail</div>
+    <h1>Set up your kiosk in four steps</h1>
     <p>Employees clock in from any device — all synced through one link.</p>
   </div>
 
   <div class="chart">
-    <div class="track"></div>
+    <div class="chart-top">
+      <span class="lbl">Time to launch</span>
+      <span class="total">About <b>5 minutes</b></span>
+    </div>
+    <div class="bar">
+      <div class="seg s1"></div>
+      <div class="seg s2"></div>
+      <div class="seg s3"></div>
+      <div class="seg s4"></div>
+    </div>
+    <div class="ticks">
+      <div class="tick s1"><b>2 min</b><span>Database</span></div>
+      <div class="tick s2"><b>1 min</b><span>Setup</span></div>
+      <div class="tick s3"><b>1 min</b><span>Team</span></div>
+      <div class="tick s4"><b>1 min</b><span>Share</span></div>
+    </div>
+  </div>
 
-    <div class="row">
-      <div class="node"><div class="num">1</div></div>
-      <div class="card">
-        <h3><span class="ic">🔥</span> Create your free database <span class="pill">2 min</span></h3>
-        <p>Go to <b>firebase.google.com</b> → <b>Realtime Database</b> → <b>Create</b> (test mode) → copy the URL that ends in <code>firebaseio.com</code>.</p>
-        <div class="tip"><span>💡</span><span>Bought <b>Done-for-you Hosting</b>? Skip this — we do it for you.</span></div>
+  <div class="steps">
+    <div class="step">
+      <div class="idx">01<small>2 min</small></div>
+      <div>
+        <h3>Create your free database</h3>
+        <p>Go to <b>firebase.google.com</b> → <b>Realtime Database</b> → <b>Create</b> (test mode), then copy the URL that ends in <code>firebaseio.com</code>.</p>
+        <p class="note">Bought <b>Done-for-you Hosting</b>? Skip this step — we handle it for you.</p>
       </div>
     </div>
 
-    <div class="row">
-      <div class="node"><div class="num">2</div></div>
-      <div class="card">
-        <h3><span class="ic">⚙️</span> Set up Worktrail <span class="pill">1 min</span></h3>
-        <p>Open the app → <b>Set Up My Kiosk</b>. Enter your business name, logo &amp; color, choose an admin password, then <b>paste your Firebase URL</b>.</p>
+    <div class="step">
+      <div class="idx">02<small>1 min</small></div>
+      <div>
+        <h3>Set up Worktrail</h3>
+        <p>Open the app and choose <b>Set Up My Kiosk</b>. Enter your business name, logo and color, pick an admin password, then <b>paste your Firebase URL</b>.</p>
       </div>
     </div>
 
-    <div class="row">
-      <div class="node"><div class="num">3</div></div>
-      <div class="card">
-        <h3><span class="ic">👥</span> Add your team <span class="pill">1 min</span></h3>
+    <div class="step">
+      <div class="idx">03<small>1 min</small></div>
+      <div>
+        <h3>Add your team</h3>
         <p>In <b>Admin → Employees</b>, add each person and give them a <b>4-digit PIN</b>. That PIN is how they clock in and out.</p>
       </div>
     </div>
 
-    <div class="row">
-      <div class="node"><div class="num">4</div></div>
-      <div class="card">
-        <h3><span class="ic">🔗</span> Share one link <span class="pill">1 min</span></h3>
+    <div class="step">
+      <div class="idx">04<small>1 min</small></div>
+      <div>
+        <h3>Share one link</h3>
         <p>In <b>Settings → Share with Employees</b>, copy the link and send it to everyone. They open it on their own phone and clock in — no accounts needed.</p>
       </div>
     </div>
   </div>
 
   <div class="sync">
-    <h2>One link → everyone in sync</h2>
-    <div class="diagram">
-      <span class="dev">📱 Phone</span>
-      <span class="dev">📲 Phone</span>
-      <span class="dev">💻 Tablet</span>
-      <span class="arrow">→</span>
-      <span class="cloud">☁️ Your Firebase</span>
+    <h2>One link, everyone in sync</h2>
+    <div class="flow">
+      <span class="dev">Phone</span>
+      <span class="dev">Phone</span>
+      <span class="dev">Tablet</span>
+      <span class="to">→</span>
+      <span class="hub">Your Firebase</span>
     </div>
     <div class="cap">Every device shares the same live records. Your data stays in your own account — we never store it.</div>
   </div>
 
   <div class="foot">
-    Need a hand? We'll set it up with you → <a href="mailto:support@worktrailhq.com">support@worktrailhq.com</a><br>
-    Powered by WorkTrail HQ · worktrailhq.com
+    Need a hand? We'll set it up with you — <a href="mailto:support@worktrailhq.com">support@worktrailhq.com</a><br>
+    Powered by WorkTrail HQ <span class="sep">·</span> worktrailhq.com
   </div>
 </div>
 </body>
