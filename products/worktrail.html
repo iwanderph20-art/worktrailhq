@@ -76,6 +76,12 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
 .pin-consent{text-align:center;font-size:11px;line-height:1.6;color:#b0b7c3;max-width:320px;margin:18px auto 0;}
 .pin-admin-link{margin-top:10px;background:none;border:none;color:#c2c7d2;font-size:12px;font-weight:600;cursor:pointer;padding:8px 16px;}
 .pin-admin-link:hover{color:var(--brand);}
+.demo-pin-hint{width:100%;max-width:280px;margin:20px auto 0;background:#fff;border:1.5px solid var(--brand-light);border-radius:14px;padding:14px 14px 12px;box-shadow:0 2px 10px rgba(16,24,64,.06);}
+.demo-pin-hint-title{display:block;font-size:12px;font-weight:800;color:var(--brand);text-align:center;margin-bottom:10px;}
+.demo-pin-codes{display:flex;flex-direction:column;gap:7px;}
+.demo-pin-chip{display:flex;align-items:center;gap:8px;width:100%;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--gray-600);text-align:left;transition:background .12s,border-color .12s;}
+.demo-pin-chip:hover{background:var(--brand-light);border-color:var(--brand);}
+.demo-pin-chip b{font-size:15px;font-weight:800;color:var(--brand);letter-spacing:.06em;font-variant-numeric:tabular-nums;}
 
 /* ── CLOCK SCREEN ── */
 #clockScreen{align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(160deg,var(--brand-light) 0%,#fff 60%);}
@@ -429,6 +435,14 @@ label.field-label{font-size:12px;font-weight:700;color:var(--gray-600);text-tran
       <button class="pin-key del" onclick="pinDel()">⌫</button>
     </div>
     <div class="pin-error" id="pinError"></div>
+    <div class="demo-pin-hint" id="demoPinHint" style="display:none;">
+      <span class="demo-pin-hint-title">👋 Demo codes — tap one to try it</span>
+      <div class="demo-pin-codes">
+        <button type="button" class="demo-pin-chip" onclick="fillDemoPin('1001')"><b>1001</b> Alex Rivera · Front Desk</button>
+        <button type="button" class="demo-pin-chip" onclick="fillDemoPin('1002')"><b>1002</b> Jordan Smith · Nurse</button>
+        <button type="button" class="demo-pin-chip" onclick="fillDemoPin('1003')"><b>1003</b> Taylor Chen · Consultant</button>
+      </div>
+    </div>
     <p class="pin-consent">By entering your code, you consent to a photo being captured for identity verification and timekeeping, stored securely per company policy.</p>
     <button class="pin-admin-link" onclick="openAdminLogin()">⚙ Admin Login</button>
   </div>
@@ -1256,7 +1270,9 @@ function init(){
     var fb=qp.get('fb');
     if(fb){ store.set('fb_url', decodeURIComponent(fb).replace(/\/+$/,'')); }
   }catch(e){}
-  applyBrandColor(cfg.color);
+  // Before setup is finished, always show the default deep-navy brand — an
+  // abandoned color pick from the setup wizard shouldn't tint the landing screen.
+  applyBrandColor(cfg.isSetup ? cfg.color : '#1a2b8c');
   applyLogo();
   if(!cfg.isSetup){
     showScreen('landingScreen');
@@ -1273,7 +1289,11 @@ function showScreen(id){
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   var el=document.getElementById(id);
   if(el) el.classList.add('active');
-  if(id==='pinScreen') resetPin();
+  if(id==='pinScreen'){
+    resetPin();
+    var hint=document.getElementById('demoPinHint');
+    if(hint) hint.style.display = DEMO_MODE ? '' : 'none';
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -1395,6 +1415,8 @@ function pinKey(k){
   if(pinBuffer.length===4) setTimeout(checkPin,100);
 }
 function pinDel(){ pinBuffer=pinBuffer.slice(0,-1); renderDots(); }
+// Demo helper: tap a sample code chip to auto-enter it on the numpad
+function fillDemoPin(code){ resetPin(); for(var i=0;i<code.length;i++) pinKey(code[i]); }
 function renderDots(){
   document.querySelectorAll('#pinDots .pin-dot').forEach(function(d,i){
     d.classList.toggle('filled',i<pinBuffer.length);
