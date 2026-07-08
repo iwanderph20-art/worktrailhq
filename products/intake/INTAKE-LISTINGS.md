@@ -5,6 +5,9 @@ elder law, guardianship, probate, and advance directives. Use it on an office de
 as a link, or embed it in your website**. You own it forever — no accounts, no monthly fees.
 Because it's a single file, there are **no license keys to manage** — just deliver the file.
 
+**▶ Try the live demo:** https://worktrailhq.com/products/intake/demo.html
+(the real, fully-interactive form — fill it in, submit, browse sample inquiries; nothing is saved or sent)
+
 **Suggested price:** $39 one-time (Etsy & Gumroad).
 **What buyers download:** `intake.html` + `setup-guide.html`.
 **Seller/marketing asset:** `demo.html` — a self-contained showcase page with a sticky buy bar
@@ -22,7 +25,11 @@ submissions, nothing saved). Host it and link buyers to it as a live preview.
 **Summary (one-liner under the title):**
 A polished new-client intake form for law firms. Use it at the front desk, post it as a link, or embed it on your website — inquiries can come straight to your inbox. Own it forever.
 
+**👉 Try the live demo before you buy:** https://worktrailhq.com/products/intake/demo.html
+
 **Description:**
+▶ **Try it live first:** https://worktrailhq.com/products/intake/demo.html — it's the real form, fully working. Fill it in, hit Submit, and browse sample inquiries (nothing you type is saved or sent).
+
 Client Intake is a complete, professional intake form for a law practice in a single file. A
 prospective client enters their contact details, picks a **practice area** — Litigation, Estate
 Planning, Elder Law, Guardianship, Probate, or Power of Attorney / Advance Directives — and a
@@ -85,6 +92,9 @@ law firm intake, client intake form, attorney form, new client form, legal intak
 
 **Description:**
 ⚖️ CLIENT INTAKE — a professional new-client intake form for law firms, in one file.
+
+▶ TRY THE LIVE DEMO: https://worktrailhq.com/products/intake/demo.html
+It's the real form, fully working — fill it in, submit, and browse sample inquiries (nothing is saved or sent).
 
 Prospective clients enter their details, choose a practice area — Litigation, Estate Planning,
 Elder Law, Guardianship, Probate, or Power of Attorney — and a smart second menu narrows to exactly
