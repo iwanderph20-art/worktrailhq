@@ -6,31 +6,36 @@
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
 html,body{width:1080px;height:1080px;overflow:hidden;}
 .stage{width:1080px;height:1080px;position:relative;overflow:hidden;
-  background:linear-gradient(160deg,#1a2b8c 0%,#0f1a5c 100%);
+  background:linear-gradient(160deg,#2a9d8f 0%,#176b60 100%);
   padding:64px 60px;display:flex;flex-direction:column;color:#fff;}
 .stage::before{content:"";position:absolute;inset:0;
-  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
   background-size:54px 54px;}
 .top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:2;}
 .brand{font-size:40px;font-weight:900;letter-spacing:-.5px;}
-.price{background:#f59e0b;color:#1a1a1a;width:132px;height:132px;border-radius:50%;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;transform:rotate(6deg);box-shadow:0 16px 34px rgba(0,0,0,.35);}
-.price b{font-size:32px;font-weight:900;line-height:1;}
+.price{background:#f4a259;color:#3a2408;width:134px;height:134px;border-radius:50%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;transform:rotate(6deg);box-shadow:0 16px 34px rgba(0,0,0,.28);}
+.price b{font-size:30px;font-weight:900;line-height:1;}
 .price small{font-size:14px;font-weight:800;letter-spacing:1px;margin-top:3px;}
-.headline{position:relative;z-index:2;font-size:74px;font-weight:900;line-height:1.03;letter-spacing:-2px;margin-top:36px;}
-.sub{position:relative;z-index:2;font-size:26px;color:#c7d0f5;margin-top:18px;line-height:1.35;font-weight:500;}
+.headline{position:relative;z-index:2;font-size:74px;font-weight:900;line-height:1.03;letter-spacing:-2px;margin-top:34px;}
+.sub{position:relative;z-index:2;font-size:26px;color:#d3efeb;margin-top:18px;line-height:1.35;font-weight:500;}
 .mid{position:relative;z-index:2;display:flex;gap:34px;align-items:center;margin-top:auto;}
-.device{width:360px;flex-shrink:0;background:#fff;border-radius:36px;padding:30px 26px 34px;box-shadow:0 40px 80px rgba(0,0,0,.45);text-align:center;color:#111827;}
-.logo-ph{border:2px dashed #c4c9d6;border-radius:12px;height:56px;display:flex;align-items:center;justify-content:center;color:#9aa1b2;font-size:13px;font-weight:700;margin-bottom:18px;background:#f7f8fb;}
-.welcome-lbl{font-size:12px;font-weight:800;letter-spacing:1.5px;color:#9ca3af;text-transform:uppercase;margin-bottom:12px;}
-.time{font-size:46px;font-weight:900;letter-spacing:-1.5px;line-height:1;}
-.date{font-size:13px;color:#9ca3af;margin-top:5px;margin-bottom:22px;}
-.b-in{background:#1a2b8c;color:#fff;border-radius:14px;padding:16px;font-size:17px;font-weight:800;margin-bottom:10px;}
-.b-out{background:#eef1f8;color:#1a2b8c;border-radius:14px;padding:16px;font-size:17px;font-weight:800;}
+.device{width:392px;flex-shrink:0;background:#fff;border-radius:30px;padding:26px 24px 30px;box-shadow:0 40px 80px rgba(0,0,0,.36);color:#232b2b;}
+.d-top{display:flex;align-items:center;gap:11px;margin-bottom:18px;}
+.d-logo{width:38px;height:38px;border-radius:9px;background:#e4f3f1;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.d-name{font-size:17px;font-weight:800;}
+.d-lbl{font-size:11px;font-weight:800;color:#98a2a2;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 5px;}
+.d-inp{border:1.5px solid #e2e7e7;border-radius:9px;padding:10px 12px;font-size:13px;}
+.d-row{display:flex;gap:9px;}.d-row>div{flex:1;}
+.d-checks{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.d-chk{display:flex;align-items:center;gap:7px;border:1.5px solid #e2e7e7;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:600;color:#4b5555;}
+.d-chk.on{border-color:#2a9d8f;background:#e4f3f1;color:#176b60;}
+.d-box{width:15px;height:15px;border-radius:4px;border:2px solid #cdd4d4;}
+.d-chk.on .d-box{background:#2a9d8f;border-color:#2a9d8f;}
 .feats{flex:1;}
-.bul{display:flex;align-items:center;gap:14px;font-size:24px;font-weight:600;margin:18px 0;color:#eaefff;}
-.tick{width:32px;height:32px;border-radius:50%;background:#22c55e;color:#04340f;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.foot{position:relative;z-index:2;text-align:center;margin-top:40px;font-size:22px;font-weight:700;color:#9fb0ee;letter-spacing:.5px;}
+.bul{display:flex;align-items:center;gap:14px;font-size:24px;font-weight:600;margin:18px 0;color:#eafaf8;}
+.tick{width:32px;height:32px;border-radius:50%;background:#fff;color:#178274;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.foot{position:relative;z-index:2;text-align:center;margin-top:38px;font-size:22px;font-weight:700;color:#bfe6e1;letter-spacing:.5px;}
 </style>
 </head>
 <body>
@@ -39,22 +44,29 @@ html,body{width:1080px;height:1080px;overflow:hidden;}
     <div class="brand">🪧 Signpost</div>
     <div class="price"><b>Own it</b><small>NO FEES</small></div>
   </div>
-  <div class="headline">Visitor<br>Sign-In Kiosk</div>
-  <div class="sub">A simple front-desk sign-in for any<br>building or business — works on any device.</div>
+  <div class="headline">Visitor<br>Sign-In Form</div>
+  <div class="sub">One simple sign-in template for any<br>building or business — works on any device.</div>
   <div class="mid">
     <div class="device">
-      <div class="logo-ph">Your logo</div>
-      <div class="welcome-lbl">Please sign in</div>
-      <div class="time">9:04 AM</div>
-      <div class="date">Wednesday, July 8</div>
-      <div class="b-in">👋&nbsp; Sign In</div>
-      <div class="b-out">👋&nbsp; Sign Out</div>
+      <div class="d-top"><div class="d-logo">🪧</div><div class="d-name">Visitor Sign-In</div></div>
+      <div class="d-row">
+        <div><div class="d-lbl">Date</div><div class="d-inp">Jul 8</div></div>
+        <div><div class="d-lbl">Time in</div><div class="d-inp">9:04 AM</div></div>
+      </div>
+      <div class="d-lbl">Visitor name</div><div class="d-inp">Jane Doe</div>
+      <div class="d-lbl">Purpose</div>
+      <div class="d-checks">
+        <div class="d-chk on"><span class="d-box"></span>Business</div>
+        <div class="d-chk"><span class="d-box"></span>Delivery</div>
+        <div class="d-chk"><span class="d-box"></span>Personal</div>
+        <div class="d-chk"><span class="d-box"></span>Other</div>
+      </div>
     </div>
     <div class="feats">
-      <div class="bul"><span class="tick">✓</span> Photo &amp; signature</div>
-      <div class="bul"><span class="tick">✓</span> Auto time-in / out</div>
-      <div class="bul"><span class="tick">✓</span> CSV export &amp; print</div>
-      <div class="bul"><span class="tick">✓</span> Data stays on your device</div>
+      <div class="bul"><span class="tick">✓</span> Date &amp; time in/out</div>
+      <div class="bul"><span class="tick">✓</span> Purpose checkboxes</div>
+      <div class="bul"><span class="tick">✓</span> Signature + Photo/ID</div>
+      <div class="bul"><span class="tick">✓</span> Your logo &amp; color</div>
     </div>
   </div>
   <div class="foot">Pay once · no subscription · no sign-up</div>

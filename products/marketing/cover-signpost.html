@@ -5,47 +5,62 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
 html,body{width:1280px;height:720px;overflow:hidden;}
-.stage{width:1280px;height:720px;background:linear-gradient(125deg,#1a2b8c 0%,#0f1a5c 100%);display:flex;align-items:center;padding:0 68px;gap:60px;}
+.stage{width:1280px;height:720px;background:linear-gradient(125deg,#2a9d8f 0%,#176b60 100%);display:flex;align-items:center;padding:0 68px;gap:60px;}
 .left{flex:1;color:#fff;}
 .brand{font-size:32px;font-weight:900;letter-spacing:-.5px;margin-bottom:22px;}
 .headline{font-size:54px;font-weight:900;line-height:1.04;letter-spacing:-1.2px;margin-bottom:14px;}
-.sub{font-size:20px;color:#c7d0f5;margin-bottom:28px;line-height:1.4;}
-.bul{display:flex;align-items:center;gap:12px;font-size:19px;font-weight:600;margin:12px 0;color:#eaefff;}
-.tick{width:26px;height:26px;border-radius:50%;background:#22c55e;color:#04340f;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
-.pricepill{display:inline-block;margin-top:22px;background:#f59e0b;color:#1a1a1a;font-weight:900;font-size:20px;padding:10px 22px;border-radius:999px;}
-.url{margin-top:24px;font-size:17px;color:#9fb0ee;font-weight:700;}
+.sub{font-size:20px;color:#d3efeb;margin-bottom:28px;line-height:1.4;}
+.bul{display:flex;align-items:center;gap:12px;font-size:19px;font-weight:600;margin:12px 0;color:#eafaf8;}
+.tick{width:26px;height:26px;border-radius:50%;background:#fff;color:#178274;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.pricepill{display:inline-block;margin-top:22px;background:#f4a259;color:#3a2408;font-weight:900;font-size:20px;padding:10px 22px;border-radius:999px;}
+.url{margin-top:24px;font-size:17px;color:#bfe6e1;font-weight:700;}
 
-.device{width:392px;flex-shrink:0;background:#fff;border-radius:38px;padding:34px 30px 40px;box-shadow:0 44px 90px rgba(0,0,0,.42);text-align:center;}
-.logo-ph{border:2px dashed #c4c9d6;border-radius:14px;height:66px;display:flex;align-items:center;justify-content:center;color:#9aa1b2;font-size:14px;font-weight:700;margin-bottom:22px;background:#f7f8fb;}
-.welcome-lbl{font-size:13px;font-weight:800;letter-spacing:1.5px;color:#9ca3af;text-transform:uppercase;margin-bottom:14px;}
-.time{font-size:52px;font-weight:900;color:#111827;letter-spacing:-1.5px;line-height:1;}
-.date{font-size:14px;color:#9ca3af;margin-top:6px;margin-bottom:26px;}
-.b-in{background:#1a2b8c;color:#fff;border-radius:16px;padding:18px;font-size:18px;font-weight:800;margin-bottom:12px;}
-.b-out{background:#eef1f8;color:#1a2b8c;border-radius:16px;padding:18px;font-size:18px;font-weight:800;}
-.onsite{margin-top:20px;font-size:12px;color:#9ca3af;font-weight:700;}
+.device{width:392px;flex-shrink:0;background:#fff;border-radius:32px;padding:30px 28px 34px;box-shadow:0 44px 90px rgba(0,0,0,.34);}
+.d-top{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
+.d-logo{width:40px;height:40px;border-radius:9px;background:#e4f3f1;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.d-name{font-size:18px;font-weight:800;color:#232b2b;}
+.d-lbl{font-size:11px;font-weight:800;color:#98a2a2;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;}
+.d-inp{border:1.5px solid #e2e7e7;border-radius:10px;padding:11px 13px;font-size:14px;color:#232b2b;}
+.d-row{display:flex;gap:10px;}.d-row>div{flex:1;}
+.d-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.d-chk{display:flex;align-items:center;gap:8px;border:1.5px solid #e2e7e7;border-radius:10px;padding:9px 11px;font-size:13px;font-weight:600;color:#4b5555;}
+.d-chk.on{border-color:#2a9d8f;background:#e4f3f1;color:#176b60;}
+.d-box{width:16px;height:16px;border-radius:4px;border:2px solid #cdd4d4;}
+.d-chk.on .d-box{background:#2a9d8f;border-color:#2a9d8f;}
+.d-sig{border:1.5px solid #e2e7e7;border-radius:10px;height:52px;position:relative;margin-top:4px;}
+.d-sig svg{position:absolute;left:14px;top:12px;}
+.d-sig .ln{position:absolute;left:14px;right:14px;bottom:12px;border-bottom:1.5px solid #e2e7e7;}
 </style>
 </head>
 <body>
 <div class="stage">
   <div class="left">
     <div class="brand">🪧 Signpost</div>
-    <div class="headline">Visitor Sign-In,<br>on any device</div>
-    <div class="sub">Turn any tablet, phone, or computer into a<br>front-desk sign-in kiosk in minutes.</div>
-    <div class="bul"><span class="tick">✓</span> Name, purpose, photo &amp; signature</div>
-    <div class="bul"><span class="tick">✓</span> Auto time-in / time-out log</div>
-    <div class="bul"><span class="tick">✓</span> One-tap CSV export &amp; print</div>
-    <div class="bul"><span class="tick">✓</span> Pay once — no monthly fees, no sign-up</div>
+    <div class="headline">The simple<br>visitor sign-in</div>
+    <div class="sub">One clean form for any building or business.<br>Open it on any tablet, phone, or computer.</div>
+    <div class="bul"><span class="tick">✓</span> Date, time in/out, name &amp; company</div>
+    <div class="bul"><span class="tick">✓</span> Purpose checkboxes + digital signature</div>
+    <div class="bul"><span class="tick">✓</span> Photo / ID capture ready</div>
+    <div class="bul"><span class="tick">✓</span> Add your logo &amp; color — pay once, no fees</div>
     <div class="pricepill">One-time · works for any business</div>
     <div class="url">worktrailhq.com</div>
   </div>
   <div class="device">
-    <div class="logo-ph">Your business logo</div>
-    <div class="welcome-lbl">Please sign in</div>
-    <div class="time">9:04 AM</div>
-    <div class="date">Wednesday, July 8</div>
-    <div class="b-in">👋&nbsp; Sign In</div>
-    <div class="b-out">👋&nbsp; Sign Out</div>
-    <div class="onsite">3 visitors on-site</div>
+    <div class="d-top"><div class="d-logo">🪧</div><div class="d-name">Visitor Sign-In</div></div>
+    <div class="d-row">
+      <div><div class="d-lbl">Date</div><div class="d-inp">Jul 8, 2026</div></div>
+      <div><div class="d-lbl">Time in</div><div class="d-inp">9:04 AM</div></div>
+    </div>
+    <div class="d-lbl">Visitor name</div><div class="d-inp">Jane Doe</div>
+    <div class="d-lbl">Purpose of visit</div>
+    <div class="d-checks">
+      <div class="d-chk on"><span class="d-box"></span>Business</div>
+      <div class="d-chk"><span class="d-box"></span>Delivery</div>
+      <div class="d-chk"><span class="d-box"></span>Personal</div>
+      <div class="d-chk"><span class="d-box"></span>Other</div>
+    </div>
+    <div class="d-lbl">Signature</div>
+    <div class="d-sig"><svg width="80" height="24" viewBox="0 0 80 24"><path d="M4 18 C14 2, 20 22, 30 12 S48 2, 60 16 74 8, 78 12" fill="none" stroke="#232b2b" stroke-width="2.2" stroke-linecap="round"/></svg><div class="ln"></div></div>
   </div>
 </div>
 </body>

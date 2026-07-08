@@ -7,605 +7,366 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --brand:#1a2b8c;--brand-dark:#0f1a5c;--brand-light:#e7ebff;
-  --success:#059669;--success-dark:#047857;--warn:#d97706;--danger:#dc2626;
-  --g50:#f9fafb;--g100:#f3f4f6;--g200:#e5e7eb;--g300:#d1d5db;
-  --g400:#9ca3af;--g500:#6b7280;--g600:#4b5563;--g800:#1f2937;
+  --brand:#2a9d8f;        /* neutral teal (default) */
+  --brand-dark:#21867a;
+  --brand-light:#e4f3f1;
+  --g50:#f7f9f9;--g100:#eef2f2;--g200:#e2e7e7;--g300:#cdd4d4;
+  --g400:#98a2a2;--g500:#6b7676;--g600:#4b5555;--g800:#232b2b;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--g50);color:var(--g800);min-height:100vh;-webkit-tap-highlight-color:transparent;}
-.screen{display:none;min-height:100vh;}
-.screen.active{display:flex;flex-direction:column;}
 button{cursor:pointer;font-family:inherit;border:none;background:none;}
-input,select,textarea{font-family:inherit;font-size:16px;}
+input,textarea{font-family:inherit;font-size:16px;}
 .hidden{display:none!important;}
 
-/* ── shared buttons ── */
-.btn{border-radius:14px;font-weight:700;transition:opacity .15s,background .15s;font-size:16px;}
-.btn-primary{background:var(--brand);color:#fff;padding:16px 28px;}
-.btn-primary:hover{opacity:.9;}
-.btn-success{background:var(--success);color:#fff;padding:16px 28px;}
-.btn-success:hover{opacity:.9;}
-.btn-outline{background:#fff;color:var(--brand);border:2px solid var(--brand-light);padding:14px 28px;font-weight:700;border-radius:14px;}
-.btn-outline:hover{background:var(--brand-light);}
-.btn-ghost{color:var(--g500);font-size:14px;font-weight:600;text-decoration:underline;padding:8px;}
-.btn-block{width:100%;}
+/* ── HEADER ── */
+.hdr{background:#fff;border-bottom:1px solid var(--g200);padding:14px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:20;}
+.hdr-brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+#hdrLogo{max-height:44px;max-width:170px;object-fit:contain;}
+#hdrLogoPh{width:44px;height:44px;border-radius:10px;background:var(--brand-light);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.hdr-name{font-size:19px;font-weight:800;color:var(--g800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hdr-btn{color:var(--g500);font-size:13px;font-weight:700;padding:9px 12px;border-radius:10px;background:var(--g100);}
+.hdr-btn:hover{background:var(--g200);}
 
-/* ── WELCOME / KIOSK HOME ── */
-#welcomeScreen{align-items:center;justify-content:center;background:linear-gradient(150deg,var(--brand) 0%,var(--brand-dark) 100%);color:#fff;padding:24px;text-align:center;position:relative;}
-.w-logo{max-width:180px;max-height:80px;object-fit:contain;margin-bottom:18px;}
-.w-logo-text{font-size:30px;font-weight:900;letter-spacing:-.5px;margin-bottom:6px;}
-.w-welcome{font-size:16px;color:#c7d0f5;margin-bottom:34px;letter-spacing:.5px;text-transform:uppercase;font-weight:700;}
-.w-clock{font-size:64px;font-weight:900;letter-spacing:-2px;line-height:1;}
-.w-date{font-size:17px;color:#aeb9ee;margin-top:8px;margin-bottom:40px;}
-.w-actions{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;}
-.w-actions .btn{padding:22px;font-size:19px;border-radius:18px;}
-.w-signin{background:#fff;color:var(--brand);}
-.w-signout{background:rgba(255,255,255,.14);color:#fff;border:2px solid rgba(255,255,255,.4);}
-.w-signout:hover{background:rgba(255,255,255,.22);}
-.w-admin{position:absolute;bottom:16px;right:16px;color:rgba(255,255,255,.5);font-size:12px;font-weight:600;padding:10px;}
-.w-onsite{position:absolute;bottom:16px;left:16px;color:rgba(255,255,255,.6);font-size:12px;font-weight:600;}
+/* ── LAYOUT ── */
+.wrap{max-width:640px;margin:0 auto;padding:26px 18px 60px;}
+.card{background:#fff;border:1px solid var(--g200);border-radius:20px;padding:30px;box-shadow:0 6px 26px rgba(20,40,40,.05);}
+.form-title{font-size:24px;font-weight:900;letter-spacing:-.5px;margin-bottom:4px;}
+.form-sub{font-size:14px;color:var(--g500);margin-bottom:26px;}
 
-/* ── generic sub-screen shell ── */
-.sub{background:var(--g50);}
-.sub-top{background:#fff;border-bottom:1px solid var(--g200);padding:14px 18px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;}
-.sub-top .back{font-size:15px;font-weight:700;color:var(--brand);padding:6px 4px;}
-.sub-top .ttl{font-size:17px;font-weight:800;color:var(--g800);}
-.sub-body{flex:1;overflow-y:auto;padding:20px;max-width:560px;width:100%;margin:0 auto;}
-
-/* ── forms ── */
-.field{margin-bottom:18px;}
-label.lbl{font-size:12px;font-weight:800;color:var(--g600);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:7px;}
-label.lbl .req{color:var(--danger);}
+.field{margin-bottom:20px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+label.lbl{font-size:12px;font-weight:800;color:var(--g600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:7px;}
+label.lbl .req{color:#e05252;}
 .inp{width:100%;padding:14px;border:1.5px solid var(--g200);border-radius:12px;color:var(--g800);outline:none;background:#fff;transition:border-color .15s;}
 .inp:focus{border-color:var(--brand);}
-textarea.inp{resize:none;min-height:80px;}
 
-/* purpose chips */
-.chips{display:flex;flex-wrap:wrap;gap:8px;}
-.chip{border:1.5px solid var(--g200);background:#fff;border-radius:999px;padding:10px 16px;font-size:14px;font-weight:600;color:var(--g600);}
-.chip.sel{background:var(--brand);color:#fff;border-color:var(--brand);}
+/* purpose checkboxes */
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.chk{display:flex;align-items:center;gap:11px;border:1.5px solid var(--g200);border-radius:12px;padding:13px 15px;cursor:pointer;font-size:15px;font-weight:600;color:var(--g600);user-select:none;transition:border-color .15s,background .15s;}
+.chk .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--g300);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900;transition:all .12s;}
+.chk.on{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);}
+.chk.on .box{background:var(--brand);border-color:var(--brand);}
 
-/* photo capture */
-.photo-box{border:2px dashed var(--g300);border-radius:16px;background:var(--g100);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;position:relative;}
-.photo-box video,.photo-box img{width:100%;height:100%;object-fit:cover;}
-.photo-hint{color:var(--g500);font-size:14px;font-weight:600;text-align:center;padding:20px;}
-.photo-hint .ico{font-size:34px;display:block;margin-bottom:8px;}
-.photo-actions{display:flex;gap:10px;margin-top:10px;}
-.photo-actions .btn{flex:1;padding:12px;font-size:14px;}
+/* photo / ID placeholder */
+.photo-ph{border:2px dashed var(--g300);border-radius:14px;background:var(--g100);min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;cursor:pointer;overflow:hidden;position:relative;}
+.photo-ph:hover{border-color:var(--brand);}
+.photo-ph .ico{font-size:32px;margin-bottom:8px;}
+.photo-ph .t{font-size:14px;font-weight:700;color:var(--g600);}
+.photo-ph .s{font-size:12px;color:var(--g400);margin-top:3px;}
+.photo-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.photo-clear{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;z-index:2;}
 
 /* signature */
 .sig-box{border:1.5px solid var(--g200);border-radius:14px;background:#fff;position:relative;overflow:hidden;}
-.sig-box canvas{display:block;width:100%;height:160px;touch-action:none;}
-.sig-line{position:absolute;bottom:26px;left:20px;right:20px;border-bottom:1.5px solid var(--g200);pointer-events:none;}
-.sig-x{position:absolute;bottom:28px;left:20px;color:var(--g400);font-size:18px;pointer-events:none;}
+.sig-box canvas{display:block;width:100%;height:150px;touch-action:none;}
+.sig-line{position:absolute;bottom:26px;left:22px;right:22px;border-bottom:1.5px solid var(--g200);pointer-events:none;}
+.sig-x{position:absolute;bottom:28px;left:22px;color:var(--g400);font-size:16px;pointer-events:none;}
+.sig-hint{position:absolute;bottom:6px;left:22px;color:var(--g400);font-size:11px;font-weight:700;pointer-events:none;}
 .sig-clear{position:absolute;top:8px;right:10px;font-size:12px;font-weight:700;color:var(--g500);background:var(--g100);border-radius:8px;padding:5px 10px;}
 
-.form-footer{position:sticky;bottom:0;background:var(--g50);padding:14px 0 4px;display:flex;gap:12px;border-top:1px solid var(--g200);margin-top:8px;}
-.form-footer .btn{flex:1;padding:16px;}
-.form-footer .btn.cancel{background:var(--g100);color:var(--g600);font-weight:700;border-radius:14px;}
+/* buttons */
+.actions{display:flex;gap:12px;margin-top:28px;}
+.btn{border-radius:14px;font-weight:800;font-size:16px;padding:16px;transition:opacity .15s,background .15s;}
+.btn-primary{background:var(--brand);color:#fff;flex:1;}
+.btn-primary:hover{opacity:.9;}
+.btn-clear{background:var(--g100);color:var(--g600);}
 
-/* ── SIGN OUT list ── */
-.onsite-empty{text-align:center;color:var(--g400);padding:60px 20px;font-weight:600;}
-.onsite-empty .ico{font-size:44px;display:block;margin-bottom:12px;}
-.visitor-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--g200);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
-.visitor-card .av{width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--brand-light);color:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0;overflow:hidden;}
-.visitor-card .av img{width:100%;height:100%;object-fit:cover;}
-.visitor-card .info{flex:1;min-width:0;}
-.visitor-card .nm{font-weight:800;font-size:16px;color:var(--g800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.visitor-card .meta{font-size:13px;color:var(--g500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.visitor-card .out-btn{background:var(--brand);color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;font-size:14px;flex-shrink:0;}
+/* ── MODAL ── */
+.modal{position:fixed;inset:0;background:rgba(20,30,30,.5);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:24px 16px;overflow-y:auto;}
+.modal.open{display:flex;}
+.sheet{background:#fff;border-radius:20px;width:100%;max-width:560px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);}
+.sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.sheet-top h2{font-size:19px;font-weight:900;}
+.sheet-close{font-size:26px;color:var(--g400);line-height:1;padding:2px 8px;}
+.color-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;}
+.color-sw{width:42px;height:42px;border-radius:12px;border:3px solid transparent;position:relative;}
+.color-sw.sel{border-color:var(--g800);}
+.color-sw.sel::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;}
+.logo-prev{max-height:48px;max-width:170px;object-fit:contain;margin-top:10px;display:block;}
+.file-btn{display:inline-block;background:var(--g100);color:var(--g600);font-weight:700;font-size:14px;padding:11px 18px;border-radius:12px;cursor:pointer;margin-top:6px;}
 
-/* ── THANK YOU ── */
-#thanksScreen{align-items:center;justify-content:center;background:var(--success);color:#fff;text-align:center;padding:24px;}
-.thanks-check{width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:52px;margin-bottom:24px;}
-.thanks-h{font-size:32px;font-weight:900;margin-bottom:8px;}
-.thanks-sub{font-size:17px;color:#d1fae5;}
-
-/* ── ADMIN / LOG ── */
-.pin-gate{max-width:340px;margin:60px auto;text-align:center;}
-.pin-gate .lock{font-size:40px;margin-bottom:12px;}
-.pin-gate h2{font-size:20px;font-weight:800;margin-bottom:6px;}
-.pin-gate p{font-size:14px;color:var(--g500);margin-bottom:20px;}
-.pin-input{width:100%;text-align:center;font-size:24px;letter-spacing:8px;padding:14px;border:1.5px solid var(--g200);border-radius:12px;}
-.tabs{display:flex;gap:6px;background:var(--g100);padding:5px;border-radius:12px;margin-bottom:18px;}
-.tab{flex:1;text-align:center;padding:10px;border-radius:9px;font-size:14px;font-weight:700;color:var(--g500);}
-.tab.active{background:#fff;color:var(--brand);box-shadow:0 1px 3px rgba(0,0,0,.08);}
-.log-toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-.log-toolbar input{flex:1;min-width:140px;}
-.log-toolbar .btn{padding:12px 16px;font-size:14px;}
-.rec{background:#fff;border:1px solid var(--g200);border-radius:14px;padding:14px;margin-bottom:10px;}
+/* ── RECORDS ── */
+.rec{border:1px solid var(--g200);border-radius:14px;padding:14px;margin-bottom:10px;}
 .rec-top{display:flex;gap:12px;align-items:flex-start;}
-.rec-photo{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--g100);flex-shrink:0;}
-.rec-main{flex:1;min-width:0;}
+.rec-photo{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--g100);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--g400);font-weight:800;}
 .rec-nm{font-weight:800;font-size:16px;}
 .rec-sub{font-size:13px;color:var(--g500);margin-top:2px;}
-.rec-badge{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
-.badge-in{background:#dcfce7;color:var(--success-dark);}
-.badge-out{background:var(--g100);color:var(--g500);}
-.rec-times{display:flex;gap:20px;margin-top:12px;padding-top:12px;border-top:1px solid var(--g100);font-size:13px;}
-.rec-times .t-lbl{color:var(--g400);font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.05em;}
-.rec-times .t-val{font-weight:700;color:var(--g800);margin-top:2px;}
-.rec-sig{max-height:44px;margin-top:10px;border-top:1px solid var(--g100);padding-top:10px;}
-.rec-sig img{height:40px;}
-.empty-log{text-align:center;color:var(--g400);padding:50px 20px;font-weight:600;}
+.rec-times{font-size:12px;color:var(--g600);margin-top:10px;padding-top:10px;border-top:1px solid var(--g100);display:flex;gap:18px;flex-wrap:wrap;}
+.rec-times b{color:var(--g800);}
+.rec-sig{margin-top:8px;}.rec-sig img{height:34px;}
+.empty{text-align:center;color:var(--g400);padding:44px 20px;font-weight:600;}
+.rec-tools{display:flex;gap:10px;margin-bottom:16px;}
+.rec-tools .inp{flex:1;}
+.tool-btn{background:var(--brand-light);color:var(--brand-dark);font-weight:800;font-size:14px;padding:0 16px;border-radius:12px;}
 
-/* settings */
-.set-group{background:#fff;border:1px solid var(--g200);border-radius:14px;padding:18px;margin-bottom:16px;}
-.set-group h3{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--g600);margin-bottom:14px;}
-.color-row{display:flex;gap:10px;flex-wrap:wrap;}
-.color-sw{width:38px;height:38px;border-radius:10px;border:3px solid transparent;}
-.color-sw.sel{border-color:var(--g800);}
-.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--g100);}
-.toggle-row:last-child{border-bottom:none;}
-.toggle-row span{font-size:14px;font-weight:600;color:var(--g600);}
-.sw{position:relative;width:46px;height:26px;background:var(--g300);border-radius:999px;transition:background .15s;flex-shrink:0;}
-.sw.on{background:var(--success);}
-.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .15s;}
-.sw.on::after{left:23px;}
-.logo-preview{max-height:44px;max-width:140px;object-fit:contain;margin-top:8px;}
-
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--g800);color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--g800);color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:700;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none;}
 .toast.show{opacity:1;}
-
-@media(max-width:400px){.w-clock{font-size:52px;}}
+@media(max-width:460px){.checks{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 
-<!-- ══════════ WELCOME / KIOSK HOME ══════════ -->
-<div class="screen active" id="welcomeScreen">
-  <img id="wLogo" class="w-logo hidden" alt="">
-  <div id="wLogoText" class="w-logo-text">Welcome</div>
-  <div class="w-welcome" id="wBiz">Please sign in</div>
-  <div class="w-clock" id="wClock">--:--</div>
-  <div class="w-date" id="wDate"></div>
-  <div class="w-actions">
-    <button class="btn w-signin" onclick="startSignIn()">👋&nbsp; Sign In</button>
-    <button class="btn w-signout" onclick="openSignOut()">👋&nbsp; Sign Out</button>
+<!-- ── HEADER ── -->
+<div class="hdr">
+  <div class="hdr-brand">
+    <div id="hdrLogoPh">🪧</div>
+    <img id="hdrLogo" class="hidden" alt="">
+    <div class="hdr-name" id="hdrName">Visitor Sign-In</div>
   </div>
-  <div class="w-onsite" id="wOnsite"></div>
-  <button class="w-admin" onclick="openAdmin()">⚙ Staff</button>
+  <button class="hdr-btn" onclick="openRecords()">Records</button>
+  <button class="hdr-btn" onclick="openCustomize()">⚙ Customize</button>
 </div>
 
-<!-- ══════════ SIGN IN ══════════ -->
-<div class="screen sub" id="signInScreen">
-  <div class="sub-top">
-    <button class="back" onclick="go('welcomeScreen')">‹ Cancel</button>
-    <div class="ttl">Visitor Sign-In</div>
-  </div>
-  <div class="sub-body">
-    <div class="field">
-      <label class="lbl">Full name <span class="req">*</span></label>
-      <input class="inp" id="fName" placeholder="Jane Doe" autocomplete="off">
+<!-- ── INTAKE FORM ── -->
+<div class="wrap">
+  <div class="card">
+    <div class="form-title">Visitor Sign-In</div>
+    <div class="form-sub">Please complete the fields below.</div>
+
+    <div class="row2 field">
+      <div>
+        <label class="lbl">Date</label>
+        <input class="inp" type="date" id="fDate">
+      </div>
+      <div>
+        <label class="lbl">Time in</label>
+        <input class="inp" type="time" id="fTimeIn">
+      </div>
     </div>
-    <div class="field" id="fCompanyWrap">
-      <label class="lbl">Company / Organization</label>
+
+    <div class="field">
+      <label class="lbl">Visitor name <span class="req">*</span></label>
+      <input class="inp" id="fName" placeholder="Full name" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label class="lbl">Company / Affiliation</label>
       <input class="inp" id="fCompany" placeholder="(optional)" autocomplete="off">
     </div>
-    <div class="field" id="fHostWrap">
-      <label class="lbl">Who are you here to see?</label>
-      <input class="inp" id="fHost" placeholder="Host name or department" autocomplete="off">
-    </div>
-    <div class="field" id="fPhoneWrap">
-      <label class="lbl">Phone / Email</label>
-      <input class="inp" id="fPhone" placeholder="(optional)" autocomplete="off">
-    </div>
+
     <div class="field">
       <label class="lbl">Purpose of visit</label>
-      <div class="chips" id="purposeChips"></div>
-      <input class="inp" id="fPurposeOther" placeholder="Or type a reason…" style="margin-top:10px;">
-    </div>
-    <div class="field" id="fPhotoWrap">
-      <label class="lbl">Photo</label>
-      <div class="photo-box" id="photoBox">
-        <div class="photo-hint" id="photoHint"><span class="ico">📷</span>Tap “Take photo” to capture</div>
-        <video id="photoVideo" class="hidden" playsinline></video>
-        <img id="photoImg" class="hidden" alt="">
+      <div class="checks" id="purposeChecks">
+        <div class="chk" data-p="Business"><span class="box"></span>Business</div>
+        <div class="chk" data-p="Delivery"><span class="box"></span>Delivery</div>
+        <div class="chk" data-p="Personal"><span class="box"></span>Personal</div>
+        <div class="chk" data-p="Other"><span class="box"></span>Other</div>
       </div>
-      <div class="photo-actions">
-        <button class="btn btn-outline" id="btnCamera" onclick="startCamera()">Take photo</button>
-        <button class="btn btn-outline hidden" id="btnCapture" onclick="capturePhoto()">Capture</button>
-        <button class="btn btn-outline hidden" id="btnRetake" onclick="retakePhoto()">Retake</button>
-        <label class="btn btn-outline" style="text-align:center;">Upload
-          <input type="file" accept="image/*" capture="user" style="display:none" onchange="uploadPhoto(event)">
+      <input class="inp" id="fOther" placeholder="If other, please specify…" style="margin-top:10px;">
+    </div>
+
+    <div class="row2 field">
+      <div>
+        <label class="lbl">Time out</label>
+        <input class="inp" type="time" id="fTimeOut" placeholder="On exit">
+      </div>
+      <div>
+        <label class="lbl">Photo / ID</label>
+        <label class="photo-ph" id="photoPh">
+          <input type="file" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(event)">
+          <div id="photoInner"><div class="ico">🪪</div><div class="t">Add photo / ID</div><div class="s">Tap to capture or upload</div></div>
+          <img id="photoImg" class="hidden" alt="">
+          <span class="photo-clear hidden" id="photoClear" onclick="clearPhoto(event)">Remove</span>
         </label>
       </div>
     </div>
+
     <div class="field">
       <label class="lbl">Signature</label>
       <div class="sig-box">
         <canvas id="sigCanvas"></canvas>
         <div class="sig-x">✕</div>
         <div class="sig-line"></div>
+        <div class="sig-hint">Sign above</div>
         <button class="sig-clear" onclick="clearSig()">Clear</button>
       </div>
     </div>
-    <div class="form-footer">
-      <button class="btn cancel" onclick="go('welcomeScreen')">Cancel</button>
-      <button class="btn btn-success" onclick="completeSignIn()">Complete Sign-In</button>
+
+    <div class="actions">
+      <button class="btn btn-clear" onclick="resetForm(true)">Clear</button>
+      <button class="btn btn-primary" onclick="saveEntry()">Save entry</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════ SIGN OUT ══════════ -->
-<div class="screen sub" id="signOutScreen">
-  <div class="sub-top">
-    <button class="back" onclick="go('welcomeScreen')">‹ Back</button>
-    <div class="ttl">Sign Out</div>
+<!-- ── CUSTOMIZE MODAL ── -->
+<div class="modal" id="customizeModal">
+  <div class="sheet">
+    <div class="sheet-top"><h2>Customize header</h2><button class="sheet-close" onclick="close_('customizeModal')">×</button></div>
+    <div class="field">
+      <label class="lbl">Business name</label>
+      <input class="inp" id="setName" placeholder="Your business name">
+    </div>
+    <div class="field">
+      <label class="lbl">Logo</label>
+      <label class="file-btn">Upload logo<input type="file" accept="image/*" style="display:none" onchange="onLogo(event)"></label>
+      <img id="setLogoPrev" class="logo-prev hidden" alt="">
+      <button class="hdr-btn hidden" id="setLogoRemove" style="margin-top:10px" onclick="removeLogo()">Remove logo</button>
+    </div>
+    <div class="field">
+      <label class="lbl">Brand color</label>
+      <div class="color-row" id="colorRow"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveCustomize()">Save</button>
   </div>
-  <div class="sub-body" id="signOutBody"></div>
 </div>
 
-<!-- ══════════ THANK YOU ══════════ -->
-<div class="screen" id="thanksScreen">
-  <div class="thanks-check" id="thanksIcon">✓</div>
-  <div class="thanks-h" id="thanksH">Thank you!</div>
-  <div class="thanks-sub" id="thanksSub">You're signed in.</div>
-</div>
-
-<!-- ══════════ ADMIN / LOG ══════════ -->
-<div class="screen sub" id="adminScreen">
-  <div class="sub-top">
-    <button class="back" onclick="go('welcomeScreen')">‹ Home</button>
-    <div class="ttl">Visitor Log</div>
-  </div>
-  <div class="sub-body">
-    <!-- gate -->
-    <div id="pinGate" class="pin-gate">
-      <div class="lock">🔒</div>
-      <h2>Staff access</h2>
-      <p>Enter the passcode to view the visitor log.</p>
-      <input class="pin-input" id="pinInput" type="password" inputmode="numeric" placeholder="••••" maxlength="8">
-      <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="checkPin()">Unlock</button>
+<!-- ── RECORDS MODAL ── -->
+<div class="modal" id="recordsModal">
+  <div class="sheet">
+    <div class="sheet-top"><h2>Visitor records</h2><button class="sheet-close" onclick="close_('recordsModal')">×</button></div>
+    <div class="rec-tools">
+      <input class="inp" id="recSearch" placeholder="Search name…" oninput="renderRecords()">
+      <button class="tool-btn" onclick="exportCSV()">⬇ CSV</button>
+      <button class="tool-btn" onclick="window.print()">🖨</button>
     </div>
-    <!-- panel -->
-    <div id="adminPanel" class="hidden">
-      <div class="tabs">
-        <div class="tab active" id="tabLog" onclick="switchTab('log')">Log</div>
-        <div class="tab" id="tabSettings" onclick="switchTab('settings')">Settings</div>
-      </div>
-      <!-- LOG TAB -->
-      <div id="logTab">
-        <div class="log-toolbar">
-          <input class="inp" id="logSearch" placeholder="Search name…" oninput="renderLog()">
-          <button class="btn btn-outline" onclick="exportCSV()">⬇ CSV</button>
-          <button class="btn btn-outline" onclick="window.print()">🖨 Print</button>
-        </div>
-        <div id="logList"></div>
-      </div>
-      <!-- SETTINGS TAB -->
-      <div id="settingsTab" class="hidden">
-        <div class="set-group">
-          <h3>Business</h3>
-          <div class="field"><label class="lbl">Business name</label>
-            <input class="inp" id="setBiz" placeholder="Acme Inc."></div>
-          <div class="field"><label class="lbl">Welcome message</label>
-            <input class="inp" id="setWelcome" placeholder="Please sign in"></div>
-          <div class="field"><label class="lbl">Logo</label>
-            <input type="file" accept="image/*" onchange="uploadLogo(event)">
-            <img id="setLogoPrev" class="logo-preview hidden" alt=""></div>
-        </div>
-        <div class="set-group">
-          <h3>Brand color</h3>
-          <div class="color-row" id="colorRow"></div>
-        </div>
-        <div class="set-group">
-          <h3>Visit purposes</h3>
-          <div class="field"><label class="lbl">Comma-separated list</label>
-            <input class="inp" id="setPurposes" placeholder="Meeting, Delivery, Interview"></div>
-        </div>
-        <div class="set-group">
-          <h3>Fields</h3>
-          <div class="toggle-row"><span>Ask for company</span><div class="sw" id="tgCompany" onclick="tog('tgCompany')"></div></div>
-          <div class="toggle-row"><span>Ask who they're visiting</span><div class="sw" id="tgHost" onclick="tog('tgHost')"></div></div>
-          <div class="toggle-row"><span>Ask for phone / email</span><div class="sw" id="tgPhone" onclick="tog('tgPhone')"></div></div>
-          <div class="toggle-row"><span>Require a photo</span><div class="sw" id="tgPhoto" onclick="tog('tgPhoto')"></div></div>
-        </div>
-        <div class="set-group">
-          <h3>Security</h3>
-          <div class="field"><label class="lbl">Staff passcode</label>
-            <input class="inp" id="setPin" inputmode="numeric" placeholder="1234"></div>
-        </div>
-        <button class="btn btn-primary btn-block" onclick="saveSettings()">Save settings</button>
-        <button class="btn btn-ghost btn-block" style="margin-top:14px;color:var(--danger)" onclick="clearAll()">Delete all visitor records</button>
-        <div style="text-align:center;margin-top:24px;color:var(--g400);font-size:12px;">Signpost · visitor sign-in · data stays on this device</div>
-      </div>
-    </div>
+    <div id="recList"></div>
+    <button class="hdr-btn" style="color:#e05252;margin-top:12px" onclick="clearAll()">Delete all records</button>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-/* ══════════ STATE ══════════ */
+/* ── STATE ── */
 const LS_REC='signpost_records', LS_SET='signpost_settings';
-const DEFAULTS={
-  biz:'', welcome:'Please sign in', logo:'', color:'#1a2b8c',
-  purposes:['Meeting','Delivery','Interview','Contractor','Guest'],
-  askCompany:true, askHost:true, askPhone:false, requirePhoto:false, pin:'1234'
-};
+const DEFAULTS={ name:'Visitor Sign-In', logo:'', color:'#2a9d8f' };
 let settings = load(LS_SET, DEFAULTS);
 let records  = load(LS_REC, []);
-let selPurpose='', photoData='', camStream=null;
+let purposes=[], photoData='', pendingLogo=undefined, pendingColor='';
 
-function load(k,def){ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?def:{...(Array.isArray(def)?{}:def),...v}; }catch(e){ return def; } }
-function save(){ localStorage.setItem(LS_REC,JSON.stringify(records)); localStorage.setItem(LS_SET,JSON.stringify(settings)); }
-function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
+function load(k,def){ try{ const v=JSON.parse(localStorage.getItem(k)); if(v==null) return def; return Array.isArray(def)?v:{...def,...v}; }catch(e){ return def; } }
+function saveLS(){ localStorage.setItem(LS_REC,JSON.stringify(records)); localStorage.setItem(LS_SET,JSON.stringify(settings)); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pad(n){ return String(n).padStart(2,'0'); }
 
-/* ══════════ NAV ══════════ */
-function go(id){
-  stopCamera();
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  window.scrollTo(0,0);
-}
-
-/* ══════════ THEME ══════════ */
+/* ── THEME / HEADER ── */
 function applyTheme(){
   document.documentElement.style.setProperty('--brand', settings.color);
-  document.documentElement.style.setProperty('--brand-dark', shade(settings.color,-28));
-  document.documentElement.style.setProperty('--brand-light', shade(settings.color,90));
-  const lt=document.getElementById('wLogoText'), lg=document.getElementById('wLogo');
-  if(settings.logo){ lg.src=settings.logo; lg.classList.remove('hidden'); lt.classList.add('hidden'); }
-  else { lg.classList.add('hidden'); lt.classList.remove('hidden'); lt.textContent=settings.biz||'Welcome'; }
-  document.getElementById('wBiz').textContent = settings.welcome||'Please sign in';
+  document.documentElement.style.setProperty('--brand-dark', shade(settings.color,-24));
+  document.documentElement.style.setProperty('--brand-light', shade(settings.color,88));
+  const ph=document.getElementById('hdrLogoPh'), lg=document.getElementById('hdrLogo');
+  if(settings.logo){ lg.src=settings.logo; lg.classList.remove('hidden'); ph.classList.add('hidden'); }
+  else { lg.classList.add('hidden'); ph.classList.remove('hidden'); }
+  document.getElementById('hdrName').textContent = settings.name || 'Visitor Sign-In';
 }
-function shade(hex,pct){
-  const n=parseInt(hex.slice(1),16); let r=n>>16,g=(n>>8)&255,b=n&255;
+function shade(hex,pct){ const n=parseInt(hex.slice(1),16); const r=n>>16,g=(n>>8)&255,b=n&255;
   const f=v=> pct<0 ? Math.round(v*(1+pct/100)) : Math.round(v+(255-v)*pct/100);
-  return '#'+[f(r),f(g),f(b)].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
-}
+  return '#'+[f(r),f(g),f(b)].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join(''); }
 
-/* ══════════ CLOCK ══════════ */
-function tick(){
-  const d=new Date();
-  document.getElementById('wClock').textContent = d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
-  document.getElementById('wDate').textContent = d.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  const on=records.filter(r=>!r.timeOut).length;
-  document.getElementById('wOnsite').textContent = on ? `${on} visitor${on>1?'s':''} on-site` : '';
+/* ── FORM ── */
+function initForm(){
+  const now=new Date();
+  document.getElementById('fDate').value = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  document.getElementById('fTimeIn').value = pad(now.getHours())+':'+pad(now.getMinutes());
 }
-setInterval(tick,1000);
-
-/* ══════════ SIGN IN ══════════ */
-function startSignIn(){
-  resetForm();
-  document.getElementById('fCompanyWrap').classList.toggle('hidden',!settings.askCompany);
-  document.getElementById('fHostWrap').classList.toggle('hidden',!settings.askHost);
-  document.getElementById('fPhoneWrap').classList.toggle('hidden',!settings.askPhone);
-  renderPurposeChips();
-  go('signInScreen');
-  setTimeout(setupSigCanvas,50);
+document.querySelectorAll('#purposeChecks .chk').forEach(c=>{
+  c.onclick=()=>{ const p=c.dataset.p; c.classList.toggle('on');
+    if(c.classList.contains('on')) purposes.push(p); else purposes=purposes.filter(x=>x!==p); };
+});
+function resetForm(refill){
+  ['fName','fCompany','fOther','fTimeOut'].forEach(id=>document.getElementById(id).value='');
+  purposes=[]; document.querySelectorAll('#purposeChecks .chk').forEach(c=>c.classList.remove('on'));
+  clearPhoto(); clearSig(); if(refill) initForm();
 }
-function renderPurposeChips(){
-  const box=document.getElementById('purposeChips'); box.innerHTML='';
-  (settings.purposes||[]).forEach(p=>{
-    const c=document.createElement('div'); c.className='chip'; c.textContent=p;
-    c.onclick=()=>{ selPurpose= selPurpose===p?'':p;
-      document.getElementById('fPurposeOther').value = selPurpose?'':document.getElementById('fPurposeOther').value;
-      renderPurposeChips(); };
-    if(selPurpose===p) c.classList.add('sel');
-    box.appendChild(c);
-  });
-}
-function resetForm(){
-  ['fName','fCompany','fHost','fPhone','fPurposeOther'].forEach(id=>document.getElementById(id).value='');
-  selPurpose=''; photoData='';
-  document.getElementById('photoImg').classList.add('hidden');
-  document.getElementById('photoVideo').classList.add('hidden');
-  document.getElementById('photoHint').classList.remove('hidden');
-  document.getElementById('btnCamera').classList.remove('hidden');
-  document.getElementById('btnCapture').classList.add('hidden');
-  document.getElementById('btnRetake').classList.add('hidden');
-  clearSig();
-}
-function completeSignIn(){
+function saveEntry(){
   const name=document.getElementById('fName').value.trim();
-  if(!name){ toast('Please enter a name'); return; }
-  const purpose = selPurpose || document.getElementById('fPurposeOther').value.trim();
-  if(settings.requirePhoto && !photoData){ toast('A photo is required'); return; }
-  const rec={
-    id:Date.now(), name,
-    company:document.getElementById('fCompany').value.trim(),
-    host:document.getElementById('fHost').value.trim(),
-    phone:document.getElementById('fPhone').value.trim(),
-    purpose, photo:photoData, signature:getSigData(),
-    timeIn:new Date().toISOString(), timeOut:null
-  };
-  records.unshift(rec); save(); stopCamera();
-  showThanks(true, name);
+  if(!name){ toast('Please enter a visitor name'); return; }
+  const rec={ id:Date.now(),
+    date:document.getElementById('fDate').value,
+    timeIn:document.getElementById('fTimeIn').value,
+    timeOut:document.getElementById('fTimeOut').value,
+    name, company:document.getElementById('fCompany').value.trim(),
+    purposes:[...purposes], other:document.getElementById('fOther').value.trim(),
+    photo:photoData, signature:getSigData() };
+  records.unshift(rec); saveLS(); resetForm(true); toast('Entry saved ✓');
 }
 
-/* ══════════ PHOTO ══════════ */
-async function startCamera(){
-  try{
-    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
-    const v=document.getElementById('photoVideo');
-    v.srcObject=camStream; await v.play();
-    document.getElementById('photoHint').classList.add('hidden');
-    v.classList.remove('hidden');
-    document.getElementById('btnCamera').classList.add('hidden');
-    document.getElementById('btnCapture').classList.remove('hidden');
-  }catch(e){ toast('Camera unavailable — use Upload'); }
-}
-function capturePhoto(){
-  const v=document.getElementById('photoVideo');
-  const c=document.createElement('canvas');
-  const w=640, h=Math.round(640*(v.videoHeight/v.videoWidth||0.75));
-  c.width=w; c.height=h; c.getContext('2d').drawImage(v,0,0,w,h);
-  photoData=c.toDataURL('image/jpeg',0.7);
-  showPhoto(); stopCamera();
-}
-function uploadPhoto(e){
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=()=>{ shrink(r.result,640,d=>{ photoData=d; showPhoto(); }); };
-  r.readAsDataURL(f);
-}
-function shrink(dataURL,max,cb){
-  const img=new Image(); img.onload=()=>{
-    const s=Math.min(1,max/img.width); const c=document.createElement('canvas');
-    c.width=img.width*s; c.height=img.height*s; c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    cb(c.toDataURL('image/jpeg',0.7));
-  }; img.src=dataURL;
-}
-function showPhoto(){
-  const im=document.getElementById('photoImg'); im.src=photoData; im.classList.remove('hidden');
-  document.getElementById('photoVideo').classList.add('hidden');
-  document.getElementById('photoHint').classList.add('hidden');
-  document.getElementById('btnCamera').classList.add('hidden');
-  document.getElementById('btnCapture').classList.add('hidden');
-  document.getElementById('btnRetake').classList.remove('hidden');
-}
-function retakePhoto(){ photoData=''; document.getElementById('photoImg').classList.add('hidden');
-  document.getElementById('btnRetake').classList.add('hidden'); document.getElementById('photoHint').classList.remove('hidden');
-  document.getElementById('btnCamera').classList.remove('hidden'); }
-function stopCamera(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-  const v=document.getElementById('photoVideo'); if(v) v.srcObject=null; }
+/* ── PHOTO / ID ── */
+function onPhoto(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>shrink(r.result,720,d=>{ photoData=d; showPhoto(); }); r.readAsDataURL(f); }
+function showPhoto(){ const im=document.getElementById('photoImg'); im.src=photoData; im.classList.remove('hidden');
+  document.getElementById('photoInner').classList.add('hidden'); document.getElementById('photoClear').classList.remove('hidden'); }
+function clearPhoto(e){ if(e) e.preventDefault(); photoData='';
+  document.getElementById('photoImg').classList.add('hidden'); document.getElementById('photoInner').classList.remove('hidden');
+  document.getElementById('photoClear').classList.add('hidden'); }
+function shrink(dataURL,max,cb){ const img=new Image(); img.onload=()=>{ const s=Math.min(1,max/img.width);
+  const c=document.createElement('canvas'); c.width=img.width*s; c.height=img.height*s;
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height); cb(c.toDataURL('image/jpeg',0.72)); }; img.src=dataURL; }
 
-/* ══════════ SIGNATURE ══════════ */
+/* ── SIGNATURE ── */
 let sigCtx,sigDrawing=false,sigDirty=false;
-function setupSigCanvas(){
-  const c=document.getElementById('sigCanvas');
-  const r=c.getBoundingClientRect(); const dpr=window.devicePixelRatio||1;
-  c.width=r.width*dpr; c.height=160*dpr; sigCtx=c.getContext('2d');
-  sigCtx.scale(dpr,dpr); sigCtx.lineWidth=2.5; sigCtx.lineCap='round'; sigCtx.strokeStyle='#1f2937';
-  sigDirty=false;
+function setupSig(){ const c=document.getElementById('sigCanvas'); const r=c.getBoundingClientRect(); const dpr=window.devicePixelRatio||1;
+  c.width=r.width*dpr; c.height=150*dpr; sigCtx=c.getContext('2d'); sigCtx.scale(dpr,dpr);
+  sigCtx.lineWidth=2.4; sigCtx.lineCap='round'; sigCtx.strokeStyle='#232b2b'; sigDirty=false;
   const pos=e=>{ const b=c.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return [t.clientX-b.left,t.clientY-b.top]; };
   const start=e=>{ e.preventDefault(); sigDrawing=true; sigDirty=true; const[x,y]=pos(e); sigCtx.beginPath(); sigCtx.moveTo(x,y); };
   const move=e=>{ if(!sigDrawing)return; e.preventDefault(); const[x,y]=pos(e); sigCtx.lineTo(x,y); sigCtx.stroke(); };
   const end=()=>sigDrawing=false;
-  c.onmousedown=start; c.onmousemove=move; window.onmouseup=end;
-  c.ontouchstart=start; c.ontouchmove=move; c.ontouchend=end;
-}
+  c.onmousedown=start; c.onmousemove=move; window.addEventListener('mouseup',end);
+  c.ontouchstart=start; c.ontouchmove=move; c.ontouchend=end; }
 function clearSig(){ const c=document.getElementById('sigCanvas'); if(sigCtx&&c) sigCtx.clearRect(0,0,c.width,c.height); sigDirty=false; }
-function getSigData(){ if(!sigDirty) return ''; return document.getElementById('sigCanvas').toDataURL('image/png'); }
+function getSigData(){ return sigDirty ? document.getElementById('sigCanvas').toDataURL('image/png') : ''; }
 
-/* ══════════ SIGN OUT ══════════ */
-function openSignOut(){
-  const onsite=records.filter(r=>!r.timeOut);
-  const b=document.getElementById('signOutBody');
-  if(!onsite.length){ b.innerHTML='<div class="onsite-empty"><span class="ico">🎉</span>No one is signed in right now.</div>'; go('signOutScreen'); return; }
-  b.innerHTML = onsite.map(r=>{
-    const av = r.photo ? `<div class="av"><img src="${r.photo}"></div>` : `<div class="av">${initials(r.name)}</div>`;
-    return `<div class="visitor-card">${av}
-      <div class="info"><div class="nm">${esc(r.name)}</div>
-      <div class="meta">In at ${fmtTime(r.timeIn)}${r.host?' · '+esc(r.host):''}</div></div>
-      <button class="out-btn" onclick="signOut(${r.id})">Sign out</button></div>`;
-  }).join('');
-  go('signOutScreen');
+/* ── CUSTOMIZE ── */
+const PALETTE=['#2a9d8f','#0f766e','#3b6b8f','#64748b','#7c5cbf','#c26d3f','#3a7d44','#b0476b','#1f2937'];
+function openCustomize(){
+  pendingLogo=undefined; pendingColor=settings.color;
+  document.getElementById('setName').value=settings.name;
+  const lp=document.getElementById('setLogoPrev'), rm=document.getElementById('setLogoRemove');
+  if(settings.logo){ lp.src=settings.logo; lp.classList.remove('hidden'); rm.classList.remove('hidden'); } else { lp.classList.add('hidden'); rm.classList.add('hidden'); }
+  renderColors(); open_('customizeModal');
 }
-function signOut(id){
-  const r=records.find(x=>x.id===id); if(!r) return;
-  r.timeOut=new Date().toISOString(); save();
-  showThanks(false, r.name);
-}
-
-/* ══════════ THANK YOU ══════════ */
-function showThanks(isIn, name){
-  document.getElementById('thanksIcon').textContent = isIn?'✓':'👋';
-  document.getElementById('thanksH').textContent = isIn?`Welcome, ${name.split(' ')[0]}!`:`Goodbye, ${name.split(' ')[0]}!`;
-  document.getElementById('thanksSub').textContent = isIn?"You're signed in.":"You're signed out — thanks for visiting.";
-  go('thanksScreen');
-  setTimeout(()=>{ if(document.getElementById('thanksScreen').classList.contains('active')) go('welcomeScreen'); }, 3200);
+function renderColors(){ const cr=document.getElementById('colorRow'); cr.innerHTML='';
+  PALETTE.forEach(c=>{ const d=document.createElement('div'); d.className='color-sw'+(c===pendingColor?' sel':''); d.style.background=c;
+    d.onclick=()=>{ pendingColor=c; renderColors(); }; cr.appendChild(d); }); }
+function onLogo(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>shrink(r.result,440,d=>{ pendingLogo=d; const lp=document.getElementById('setLogoPrev');
+    lp.src=d; lp.classList.remove('hidden'); document.getElementById('setLogoRemove').classList.remove('hidden'); }); r.readAsDataURL(f); }
+function removeLogo(){ pendingLogo=''; document.getElementById('setLogoPrev').classList.add('hidden'); document.getElementById('setLogoRemove').classList.add('hidden'); }
+function saveCustomize(){
+  settings.name=document.getElementById('setName').value.trim()||'Visitor Sign-In';
+  if(pendingLogo!==undefined) settings.logo=pendingLogo;
+  settings.color=pendingColor||settings.color;
+  saveLS(); applyTheme(); close_('customizeModal'); toast('Saved ✓');
 }
 
-/* ══════════ ADMIN ══════════ */
-function openAdmin(){
-  document.getElementById('pinGate').classList.remove('hidden');
-  document.getElementById('adminPanel').classList.add('hidden');
-  document.getElementById('pinInput').value='';
-  go('adminScreen');
-  setTimeout(()=>document.getElementById('pinInput').focus(),100);
-}
-function checkPin(){
-  if(document.getElementById('pinInput').value === (settings.pin||'1234')){
-    document.getElementById('pinGate').classList.add('hidden');
-    document.getElementById('adminPanel').classList.remove('hidden');
-    switchTab('log'); loadSettingsForm();
-  } else toast('Wrong passcode');
-}
-document.getElementById('pinInput').addEventListener('keydown',e=>{ if(e.key==='Enter') checkPin(); });
-function switchTab(t){
-  document.getElementById('tabLog').classList.toggle('active',t==='log');
-  document.getElementById('tabSettings').classList.toggle('active',t==='settings');
-  document.getElementById('logTab').classList.toggle('hidden',t!=='log');
-  document.getElementById('settingsTab').classList.toggle('hidden',t!=='settings');
-  if(t==='log') renderLog();
-}
-function renderLog(){
-  const q=(document.getElementById('logSearch').value||'').toLowerCase();
+/* ── RECORDS ── */
+function openRecords(){ renderRecords(); open_('recordsModal'); }
+function renderRecords(){
+  const q=(document.getElementById('recSearch').value||'').toLowerCase();
   const list=records.filter(r=>r.name.toLowerCase().includes(q));
-  const el=document.getElementById('logList');
-  if(!list.length){ el.innerHTML='<div class="empty-log">No visitor records yet.</div>'; return; }
+  const el=document.getElementById('recList');
+  if(!list.length){ el.innerHTML='<div class="empty">No visitor records yet.</div>'; return; }
   el.innerHTML=list.map(r=>{
-    const photo = r.photo ? `<img class="rec-photo" src="${r.photo}">` : `<div class="rec-photo" style="display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--g400)">${initials(r.name)}</div>`;
-    const badge = r.timeOut ? '<span class="rec-badge badge-out">Signed out</span>' : '<span class="rec-badge badge-in">On-site</span>';
-    const sub=[r.company,r.host?'→ '+r.host:'',r.purpose].filter(Boolean).map(esc).join(' · ');
+    const photo = r.photo ? `<img class="rec-photo" src="${r.photo}">` : `<div class="rec-photo">🪪</div>`;
+    const purp=[...(r.purposes||[]),r.other].filter(Boolean).map(esc).join(', ');
     const sig = r.signature ? `<div class="rec-sig"><img src="${r.signature}"></div>` : '';
-    return `<div class="rec"><div class="rec-top">${photo}
-      <div class="rec-main"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="rec-nm">${esc(r.name)}</span>${badge}</div>
-      <div class="rec-sub">${sub||'—'}</div></div></div>
-      <div class="rec-times"><div><div class="t-lbl">Signed in</div><div class="t-val">${fmtFull(r.timeIn)}</div></div>
-      <div><div class="t-lbl">Signed out</div><div class="t-val">${r.timeOut?fmtFull(r.timeOut):'—'}</div></div></div>
+    return `<div class="rec"><div class="rec-top">${photo}<div><div class="rec-nm">${esc(r.name)}</div>
+      <div class="rec-sub">${[esc(r.company),purp].filter(Boolean).join(' · ')||'—'}</div></div></div>
+      <div class="rec-times"><span>📅 <b>${esc(r.date)||'—'}</b></span><span>In <b>${esc(r.timeIn)||'—'}</b></span><span>Out <b>${esc(r.timeOut)||'—'}</b></span></div>
       ${sig}</div>`;
   }).join('');
 }
 function exportCSV(){
-  const head=['Name','Company','Visiting','Phone/Email','Purpose','Signed in','Signed out'];
-  const rows=records.map(r=>[r.name,r.company,r.host,r.phone,r.purpose,fmtFull(r.timeIn),r.timeOut?fmtFull(r.timeOut):'']
+  const head=['Date','Time In','Time Out','Visitor Name','Company/Affiliation','Purpose'];
+  const rows=records.map(r=>[r.date,r.timeIn,r.timeOut,r.name,r.company,[...(r.purposes||[]),r.other].filter(Boolean).join('; ')]
     .map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(','));
   const csv=[head.join(','),...rows].join('\n');
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='visitor-log-'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
-  toast('CSV downloaded');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='visitor-log-'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); toast('CSV downloaded');
 }
-function clearAll(){
-  if(confirm('Delete ALL visitor records permanently? This cannot be undone.')){
-    records=[]; save(); renderLog(); tick(); toast('All records deleted');
-  }
-}
+function clearAll(){ if(confirm('Delete ALL visitor records permanently?')){ records=[]; saveLS(); renderRecords(); toast('All records deleted'); } }
 
-/* ══════════ SETTINGS ══════════ */
-const PALETTE=['#1a2b8c','#0d9488','#7c3aed','#dc2626','#ea580c','#0369a1','#15803d','#be185d','#334155'];
-function loadSettingsForm(){
-  document.getElementById('setBiz').value=settings.biz;
-  document.getElementById('setWelcome').value=settings.welcome;
-  document.getElementById('setPurposes').value=(settings.purposes||[]).join(', ');
-  document.getElementById('setPin').value=settings.pin;
-  const lp=document.getElementById('setLogoPrev');
-  if(settings.logo){ lp.src=settings.logo; lp.classList.remove('hidden'); } else lp.classList.add('hidden');
-  setSw('tgCompany',settings.askCompany); setSw('tgHost',settings.askHost);
-  setSw('tgPhone',settings.askPhone); setSw('tgPhoto',settings.requirePhoto);
-  const cr=document.getElementById('colorRow'); cr.innerHTML='';
-  PALETTE.forEach(c=>{ const d=document.createElement('div'); d.className='color-sw'+(c===settings.color?' sel':''); d.style.background=c;
-    d.onclick=()=>{ settings.color=c; loadSettingsForm(); }; cr.appendChild(d); });
-}
-function setSw(id,on){ document.getElementById(id).classList.toggle('on',!!on); }
-function tog(id){ document.getElementById(id).classList.toggle('on'); }
-function uploadLogo(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=()=>shrink(r.result,400,d=>{ settings.logo=d; loadSettingsForm(); }); r.readAsDataURL(f); }
-function saveSettings(){
-  settings.biz=document.getElementById('setBiz').value.trim();
-  settings.welcome=document.getElementById('setWelcome').value.trim()||'Please sign in';
-  settings.purposes=document.getElementById('setPurposes').value.split(',').map(s=>s.trim()).filter(Boolean);
-  settings.pin=document.getElementById('setPin').value.trim()||'1234';
-  settings.askCompany=document.getElementById('tgCompany').classList.contains('on');
-  settings.askHost=document.getElementById('tgHost').classList.contains('on');
-  settings.askPhone=document.getElementById('tgPhone').classList.contains('on');
-  settings.requirePhoto=document.getElementById('tgPhoto').classList.contains('on');
-  save(); applyTheme(); toast('Settings saved');
-}
+/* ── MODAL HELPERS ── */
+function open_(id){ document.getElementById(id).classList.add('open'); }
+function close_(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
 
-/* ══════════ UTIL ══════════ */
-function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function initials(n){ return (n||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
-function fmtTime(iso){ return new Date(iso).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }
-function fmtFull(iso){ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
-
-/* ══════════ INIT ══════════ */
-applyTheme(); tick();
-window.addEventListener('resize',()=>{ if(document.getElementById('signInScreen').classList.contains('active')) setupSigCanvas(); });
+/* ── INIT ── */
+applyTheme(); initForm(); setTimeout(setupSig,60);
+window.addEventListener('resize',()=>{ const d=sigDirty; setupSig(); });
 </script>
 </body>
 </html>
