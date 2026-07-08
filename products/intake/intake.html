@@ -51,7 +51,11 @@ input,textarea,select{font-family:inherit;font-size:16px;}
 .hdr{background:var(--surface);border-bottom:1px solid var(--g200);padding:14px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;}
 .hdr-brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
 #hdrLogo{max-height:44px;max-width:190px;object-fit:contain;}
-#hdrLogoPh{width:44px;height:44px;border-radius:10px;background:var(--brand-light);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+#hdrLogoPh{width:44px;height:44px;border-radius:10px;background:var(--brand-light);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;position:relative;}
+/* make the top-left logo clickable to upload/replace (hidden in embed mode) */
+body:not(.embed) #hdrLogoPh,body:not(.embed) #hdrLogo{cursor:pointer;}
+body:not(.embed) #hdrLogoPh:hover{filter:brightness(.96);}
+body:not(.embed) #hdrLogoPh::after{content:"＋";position:absolute;right:-4px;bottom:-4px;width:17px;height:17px;border-radius:50%;background:var(--brand);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);line-height:1;}
 .hdr-name{font-family:var(--font-head);font-size:19px;font-weight:800;color:var(--g800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hdr-btn{color:var(--g500);font-size:13px;font-weight:700;padding:9px 12px;border-radius:10px;background:var(--g100);white-space:nowrap;}
 .hdr-btn:hover{background:var(--g200);}
@@ -166,8 +170,8 @@ body.embed .admin-only{display:none!important;}
 <!-- ── HEADER ── -->
 <div class="hdr">
   <div class="hdr-brand">
-    <div id="hdrLogoPh">⚖️</div>
-    <img id="hdrLogo" class="hidden" alt="">
+    <div id="hdrLogoPh" onclick="brandLogoClick()" title="Add your firm's logo">⚖️</div>
+    <img id="hdrLogo" class="hidden" onclick="brandLogoClick()" title="Change your logo" alt="">
     <div class="hdr-name" id="hdrName">Client Intake</div>
   </div>
   <button class="hdr-btn icon" id="themeBtn" onclick="toggleTheme()" title="Toggle day / night">🌙</button>
@@ -367,7 +371,7 @@ body.embed .admin-only{display:none!important;}
     </div>
     <div class="field">
       <label class="lbl">Your logo</label>
-      <label class="file-btn">📷 Upload logo<input type="file" accept="image/*" style="display:none" onchange="onLogo(event)"></label>
+      <label class="file-btn">📷 Upload logo<input type="file" id="setLogoInput" accept="image/*" style="display:none" onchange="onLogo(event)"></label>
       <img id="setLogoPrev" class="logo-prev hidden" alt="">
       <button class="hdr-btn hidden" id="setLogoRemove" style="margin-top:10px" onclick="removeLogo()">Remove logo</button>
     </div>
@@ -448,6 +452,8 @@ function applyTheme(){
     : '🔒 <b>You own your data.</b> Submissions are stored only on this device, in this browser — nothing is uploaded to any server. Export to CSV anytime from “Submissions.”'; }
 }
 function toggleTheme(){ settings.theme = settings.theme==='dark'?'light':'dark'; applyTheme(); saveLS(); }
+/* click the top-left icon/logo to add or change the firm's logo */
+function brandLogoClick(){ if(document.body.classList.contains('embed')) return; openCustomize(); document.getElementById('setLogoInput').click(); }
 
 /* ── CASCADING DROPDOWN ── */
 function onAreaChange(){
