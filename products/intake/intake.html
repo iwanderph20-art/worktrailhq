@@ -154,6 +154,9 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
 /* day / night toggle button */
 .hdr-btn.icon{font-size:16px;padding:9px 11px;line-height:1;}
 
+/* embed mode — clean public form, no admin chrome (?embed=1) */
+body.embed .admin-only{display:none!important;}
+
 @media(max-width:480px){.row2{grid-template-columns:1fr;}.checks{grid-template-columns:1fr;}.hdr-name{font-size:17px;}}
 @media print{.hdr,.actions,.privacy-note{display:none;}}
 </style>
@@ -168,8 +171,8 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
     <div class="hdr-name" id="hdrName">Client Intake</div>
   </div>
   <button class="hdr-btn icon" id="themeBtn" onclick="toggleTheme()" title="Toggle day / night">🌙</button>
-  <button class="hdr-btn accent" onclick="openRecords()">Submissions</button>
-  <button class="hdr-btn" onclick="openCustomize()">⚙</button>
+  <button class="hdr-btn accent admin-only" onclick="openRecords()">Submissions</button>
+  <button class="hdr-btn admin-only" onclick="openCustomize()">⚙</button>
 </div>
 
 <!-- ── INTAKE FORM ── -->
@@ -323,7 +326,7 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
       <button class="btn btn-primary" onclick="submitIntake()">Submit intake</button>
     </div>
 
-    <div class="privacy-note">
+    <div class="privacy-note" id="privacyNote">
       🔒 <b>You own your data.</b> Submissions are stored only on this device, in this browser —
       nothing is uploaded to any server. Export to CSV anytime from “Submissions.”
     </div>
@@ -368,6 +371,16 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
       <img id="setLogoPrev" class="logo-prev hidden" alt="">
       <button class="hdr-btn hidden" id="setLogoRemove" style="margin-top:10px" onclick="removeLogo()">Remove logo</button>
     </div>
+    <div class="field">
+      <label class="lbl">Send submissions to (optional)</label>
+      <input class="inp" id="setWebhook" placeholder="https://… endpoint URL" autocomplete="off" spellcheck="false" oninput="document.getElementById('setWebhookTest').classList.toggle('hidden', !this.value.trim())">
+      <div class="hint">Paste a delivery URL to receive inquiries by email or spreadsheet — e.g. a
+        Formspree/Web3Forms address, a Google Sheet Apps-Script URL, or a Zapier/Make webhook.
+        Needed when you <b>post or embed this form for remote clients</b> (each submission also
+        saves on the visitor's device). Leave blank for on-device / kiosk use.
+        <a href="setup-guide.html" target="_blank" style="color:var(--brand);font-weight:700">Setup guide →</a></div>
+      <button class="hdr-btn hidden" id="setWebhookTest" style="margin-top:10px" onclick="testWebhook()">Send test submission</button>
+    </div>
     <div class="sheet-foot">
       <button class="btn btn-primary" style="width:100%" onclick="saveCustomize()">Save</button>
     </div>
@@ -406,7 +419,7 @@ const MATTERS = {
 const LS_REC='intake_records', LS_SET='intake_settings';
 const DEFAULTS={ name:'Client Intake', title:'New Client Intake',
   sub:'Please share a few details about your legal matter. All fields marked * are required. Your information is kept confidential.',
-  logo:'', theme:'light' };
+  logo:'', theme:'light', webhook:'' };
 let settings = load(LS_SET, DEFAULTS);
 let records  = load(LS_REC, []);
 let callTimes=[], pendingLogo=undefined;
@@ -429,6 +442,10 @@ function applyTheme(){
   document.getElementById('hdrName').textContent = settings.name || 'Client Intake';
   document.getElementById('formTitle').textContent = settings.title || 'New Client Intake';
   document.getElementById('formSub').innerHTML = esc(settings.sub||'').replace(/\*/g,'<span style="color:var(--danger)">*</span>');
+  const pn=document.getElementById('privacyNote');
+  if(pn){ pn.innerHTML = settings.webhook
+    ? '🔒 Your inquiry is sent securely to <b>'+esc(settings.name||'our team')+'</b>. Your information is used only to respond to your request.'
+    : '🔒 <b>You own your data.</b> Submissions are stored only on this device, in this browser — nothing is uploaded to any server. Export to CSV anytime from “Submissions.”'; }
 }
 function toggleTheme(){ settings.theme = settings.theme==='dark'?'light':'dark'; applyTheme(); saveLS(); }
 
@@ -485,11 +502,31 @@ function submitIntake(){
     callTimes:[...callTimes],
     source:document.getElementById('fSource').value };
   records.unshift(rec);
-  if(!saveLS()){ records.shift(); toast('⚠ Couldn’t save — this device’s storage is full. Please export or delete old submissions and try again.'); return; }
+  const saved=saveLS();
+  if(!saved) records.shift();                       // keep in-memory list consistent with storage
+  if(!saved && !settings.webhook){ toast('⚠ Couldn’t save — this device’s storage is full. Please export or delete old submissions and try again.'); return; }
+  sendWebhook(rec);                                 // deliver to the firm if a URL is configured
   document.getElementById('confirmH').textContent='Thank you, '+first+'!';
   document.getElementById('confirmP').textContent='Your inquiry has been submitted. A member of our team will contact you shortly.';
   document.getElementById('confirmRef').textContent=ref;
   resetForm(true); open_('confirmModal');
+}
+/* deliver a submission to the firm's endpoint (email/sheet/CRM) — fire-and-forget */
+function sendWebhook(rec){
+  if(!settings.webhook) return;
+  const payload={ source:'law-firm-intake', firm:settings.name||'', receivedAt:new Date().toISOString(), ...rec };
+  try{ fetch(settings.webhook,{ method:'POST', mode:'no-cors', keepalive:true,
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload) }).catch(()=>{}); }catch(e){}
+}
+function testWebhook(){
+  const url=document.getElementById('setWebhook').value.trim();
+  if(!url){ toast('Enter a delivery URL first'); return; }
+  const prev=settings.webhook; settings.webhook=url;
+  sendWebhook({ id:Date.now(), ref:'TEST-000', submitted:new Date().toISOString(), first:'Test', last:'Submission',
+    phone:'(000) 000-0000', email:'test@example.com', area:'Connection test', matter:'Test',
+    desc:'This is a test inquiry sent from your intake form.', test:true });
+  settings.webhook=prev;
+  toast('Test sent — check your email / spreadsheet');
 }
 function resetForm(refill){
   ['fFirst','fLast','fPhone','fEmail','fAddress','fDesc','fDeadline','fParties'].forEach(id=>document.getElementById(id).value='');
@@ -507,6 +544,8 @@ function openCustomize(){
   document.getElementById('setSub').value=settings.sub;
   const lp=document.getElementById('setLogoPrev'), rm=document.getElementById('setLogoRemove');
   if(settings.logo){ lp.src=settings.logo; lp.classList.remove('hidden'); rm.classList.remove('hidden'); } else { lp.classList.add('hidden'); rm.classList.add('hidden'); }
+  const wh=document.getElementById('setWebhook'); wh.value=settings.webhook||'';
+  document.getElementById('setWebhookTest').classList.toggle('hidden', !wh.value.trim());
   open_('customizeModal');
 }
 function onLogo(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
@@ -520,6 +559,7 @@ function saveCustomize(){
   settings.name=document.getElementById('setName').value.trim()||'Client Intake';
   settings.title=document.getElementById('setTitle').value.trim()||'New Client Intake';
   settings.sub=document.getElementById('setSub').value.trim()||DEFAULTS.sub;
+  settings.webhook=document.getElementById('setWebhook').value.trim();
   if(pendingLogo!==undefined) settings.logo=pendingLogo;
   applyTheme();
   if(saveLS()){ close_('customizeModal'); toast('Saved ✓'); }
@@ -572,6 +612,11 @@ function close_(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
 
 /* ── INIT ── */
+(function boot(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('embed')==='1'||p.get('embed')==='true') document.body.classList.add('embed');
+  const t=p.get('theme'); if(t==='dark'||t==='light') settings.theme=t;   // display override for embeds
+})();
 applyTheme(); onAreaChange();
 </script>
 </body>

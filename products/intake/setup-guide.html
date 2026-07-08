@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Client Intake — Setup &amp; Integration Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+body{background:#eef1f5;color:#1f2733;line-height:1.6;padding:40px 20px;}
+.card{max-width:680px;margin:0 auto;background:#fff;border-radius:20px;padding:44px;box-shadow:0 10px 40px rgba(20,30,50,.08);}
+.brand{font-size:26px;font-weight:900;color:#1f3a5f;letter-spacing:-.5px;}
+.tag{color:#6b7280;font-size:14px;margin-bottom:28px;}
+h2{color:#1f3a5f;margin:34px 0 8px;text-transform:uppercase;letter-spacing:.05em;font-size:13px;font-weight:800;}
+p{font-size:15px;color:#4b5563;}
+.step{display:flex;gap:16px;margin:16px 0;}
+.num{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:#1f3a5f;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.step b{color:#111;}
+.note{background:#e6ecf3;border-radius:12px;padding:16px 18px;font-size:14px;color:#33455f;margin-top:22px;}
+.note b{color:#1f3a5f;}
+code{background:#eef1f4;padding:2px 8px;border-radius:6px;font-size:13.5px;font-weight:700;color:#1f3a5f;word-break:break-all;}
+pre{background:#0f1620;color:#e9eef4;border-radius:12px;padding:16px 18px;margin:12px 0;overflow-x:auto;font-size:13px;line-height:1.5;}
+pre code{background:none;color:#e9eef4;padding:0;font-weight:500;}
+ul{margin:6px 0 6px 22px;}li{font-size:15px;color:#4b5563;margin:4px 0;}
+a{color:#1f3a5f;font-weight:700;}
+.foot{margin-top:34px;padding-top:20px;border-top:1px solid #eef1f4;font-size:13px;color:#98a2b3;text-align:center;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">⚖️ Client Intake</div>
+  <div class="tag">Law-Firm Intake Form · Setup &amp; Integration Guide</div>
+
+  <p>Thanks for your purchase! Client Intake is a single file (<code>intake.html</code>) that runs
+  in any browser — no install, no account. You can use it three ways: on an <b>office device</b>,
+  as a <b>link you post</b>, or <b>embedded in your website</b>. Here's how to set up each.</p>
+
+  <h2>1 · Brand it (2 minutes)</h2>
+  <div class="step"><div class="num">1</div><div><b>Open the app.</b><p>Double-click <code>intake.html</code> — it opens in your browser.</p></div></div>
+  <div class="step"><div class="num">2</div><div><b>Customize.</b><p>Click <b>⚙</b> (top-right). Set your <b>firm name</b>, <b>form heading</b>, an intro line, and <b>upload your logo</b>. Tap <b>Save</b>.</p></div></div>
+  <div class="step"><div class="num">3</div><div><b>Day or night.</b><p>Use the <b>🌙 / ☀️</b> button to pick a light or dark look. Your choice is remembered.</p></div></div>
+
+  <h2>Option A · Use it on an office device (kiosk)</h2>
+  <p>Perfect for a front-desk tablet or reception computer. Clients (or staff) fill in the form and
+  tap <b>Submit</b>. Every inquiry is saved on <b>that device</b> — open <b>Submissions</b> to search,
+  export a <b>CSV</b>, or print. Nothing is uploaded. This is the most private option.</p>
+  <div class="note"><b>Tip.</b> On an iPad, open the file in Safari and choose <b>Add to Home Screen</b> for a clean full-screen form.</div>
+
+  <h2>Option B · Post it as a link</h2>
+  <p>Put the file online and share the address anywhere — your website "Contact us" button, Google
+  Business profile, email signature, or social bio. Free ways to host it:</p>
+  <ul>
+    <li><b>Netlify Drop</b> — go to <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a> and drag <code>intake.html</code> in. You instantly get a public link.</li>
+    <li><b>Your existing web host</b> — upload <code>intake.html</code> to your site (e.g. <code>yourfirm.com/intake.html</code>).</li>
+    <li><b>GitHub Pages, Cloudflare Pages, Google Sites</b> — any static hosting works.</li>
+  </ul>
+  <p>Want just the form, without the firm-only <b>Submissions</b> and <b>⚙</b> buttons? Add
+  <code>?embed=1</code> to the link:</p>
+  <pre><code>https://yourfirm.com/intake.html?embed=1</code></pre>
+  <p>You can also force a look with <code>?theme=dark</code> or <code>?theme=light</code>.</p>
+
+  <h2>Option C · Embed it in your website</h2>
+  <p>Paste this where you want the form to appear (most site builders have an "Embed" or "Custom HTML"
+  block — Squarespace, Wix, WordPress, Webflow, GoDaddy, etc.):</p>
+  <pre><code>&lt;iframe
+  src="https://yourfirm.com/intake.html?embed=1"
+  style="width:100%;height:1200px;border:0;"
+  title="New Client Intake"&gt;&lt;/iframe&gt;</code></pre>
+  <p>Replace the <code>src</code> with wherever you hosted the file (Option B).</p>
+
+  <h2>Receiving inquiries from a posted / embedded form</h2>
+  <p>When a client fills out a <b>posted or embedded</b> form on their own phone or computer, the entry
+  is saved <b>on their device</b> — so to receive it, connect a free <b>delivery URL</b> once. Open
+  <b>⚙ → “Send submissions to”</b> and paste an endpoint. Every submission is then sent there
+  automatically (and you can hit <b>Send test submission</b> to confirm it arrives).</p>
+  <ul>
+    <li><b>Email it to you</b> — create a free form endpoint at <a href="https://web3forms.com" target="_blank">Web3Forms</a> or <a href="https://formspree.io" target="_blank">Formspree</a>, copy the URL, and paste it in. Inquiries land in your inbox.</li>
+    <li><b>Log to a spreadsheet</b> — use a Google Sheet + Apps Script Web App URL (same method as our other tools).</li>
+    <li><b>Into your CRM / anywhere</b> — paste a <b>Zapier</b> or <b>Make.com</b> webhook to route inquiries to Clio, MyCase, Slack, SMS, or 6,000+ apps.</li>
+  </ul>
+  <div class="note"><b>Which option do I need?</b> Using the form on <b>your own office device</b>?
+  No delivery URL needed — everything's in <b>Submissions</b>. <b>Posting a link or embedding</b> it
+  for clients to fill remotely? Add a delivery URL so the inquiries reach you.</div>
+
+  <div class="note"><b>A note for your clients.</b> The form reminds visitors that submitting it does
+  <b>not</b> create an attorney-client relationship and asks them not to share highly sensitive
+  details — standard, protective language for a law firm. Edit the intro text anytime under <b>⚙</b>.</div>
+
+  <div class="foot">Need a hand? support@worktrailhq.com · worktrailhq.com</div>
+</div>
+</body>
+</html>
