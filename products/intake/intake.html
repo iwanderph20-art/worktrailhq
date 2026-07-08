@@ -116,8 +116,10 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
 /* ── MODAL ── */
 .modal{position:fixed;inset:0;background:rgba(20,25,35,.5);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:24px 16px;overflow-y:auto;}
 .modal.open{display:flex;}
-.sheet{background:#fff;border-radius:20px;width:100%;max-width:640px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);}
-.sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.sheet{background:#fff;border-radius:20px;width:100%;max-width:640px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;}
+.sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;position:sticky;top:-2px;background:#fff;padding-top:2px;z-index:2;}
+/* always-visible action footer inside a scrollable sheet */
+.sheet-foot{position:sticky;bottom:0;margin:18px -26px -26px;padding:14px 26px calc(24px + env(safe-area-inset-bottom,0px));background:#fff;box-shadow:0 -14px 22px -14px rgba(20,25,35,.16);border-radius:0 0 20px 20px;z-index:2;}
 .sheet-top h2{font-size:19px;font-weight:900;}
 .sheet-close{font-size:26px;color:var(--g400);line-height:1;padding:2px 8px;}
 .color-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;}
@@ -452,7 +454,9 @@ body[data-ui="minimal"] .btn-primary{box-shadow:none;}
       <label class="lbl">Brand color</label>
       <div class="color-row" id="colorRow"></div>
     </div>
-    <button class="btn btn-primary" style="width:100%" onclick="saveCustomize()">Save</button>
+    <div class="sheet-foot">
+      <button class="btn btn-primary" style="width:100%" onclick="saveCustomize()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -503,7 +507,7 @@ const UI_STYLES=[
 ];
 
 function load(k,def){ try{ const v=JSON.parse(localStorage.getItem(k)); if(v==null) return def; return Array.isArray(def)?v:{...def,...v}; }catch(e){ return def; } }
-function saveLS(){ localStorage.setItem(LS_REC,JSON.stringify(records)); localStorage.setItem(LS_SET,JSON.stringify(settings)); }
+function saveLS(){ try{ localStorage.setItem(LS_REC,JSON.stringify(records)); localStorage.setItem(LS_SET,JSON.stringify(settings)); return true; }catch(e){ console.error('saveLS failed',e); return false; } }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2100); }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function pad(n){ return String(n).padStart(2,'0'); }
@@ -592,7 +596,8 @@ function submitIntake(){
     callTimes:[...callTimes],
     source:document.getElementById('fSource').value,
     signature:getSigData() };
-  records.unshift(rec); saveLS();
+  records.unshift(rec);
+  if(!saveLS()){ records.shift(); toast('⚠ Couldn’t save — this device’s storage is full. Please export or delete old submissions and try again.'); return; }
   document.getElementById('confirmH').textContent='Thank you, '+first+'!';
   document.getElementById('confirmP').textContent='We’ve received your intake and a member of our team will reach out soon.';
   document.getElementById('confirmRef').textContent=ref;
@@ -641,7 +646,9 @@ function saveCustomize(){
   if(pendingLogo!==undefined) settings.logo=pendingLogo;
   settings.color=pendingColor||settings.color;
   settings.ui=pendingUI||settings.ui||'modern';
-  saveLS(); applyTheme(); close_('customizeModal'); toast('Saved ✓');
+  applyTheme();
+  if(saveLS()){ close_('customizeModal'); toast('Saved ✓'); }
+  else { toast('⚠ Storage full — couldn’t save. Try a smaller logo, or export & delete old submissions.'); }
 }
 
 /* ── RECORDS ── */
