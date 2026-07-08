@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Client Intake — Live Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--brand:#1f3a5f;--brand-dark:#162c48;--brand-light:#e6ecf3;--ink:#1f2733;--muted:#5b6472;--line:#e3e7ee;--bg:#eef1f5;--gold:#c99a3f;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;}
+a{color:inherit;}
+
+/* BUY BAR */
+#buyBar{background:linear-gradient(90deg,#1f3a5f,#2f5a8f);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(15,25,40,.25);}
+.buy-msg{font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px;}
+.demo-tag{background:rgba(255,255,255,.16);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:800;letter-spacing:.03em;}
+.buy-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.buy-price{font-size:13px;opacity:.85;font-weight:600;}
+.buy-btn{background:var(--gold);color:#20170a;border:none;border-radius:10px;padding:11px 22px;font-size:14px;font-weight:900;white-space:nowrap;cursor:pointer;text-decoration:none;transition:transform .12s,filter .15s;}
+.buy-btn:hover{transform:translateY(-1px);filter:brightness(1.05);}
+
+/* LAYOUT */
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px;}
+.hero{text-align:center;padding:54px 20px 30px;}
+.eyebrow{color:var(--brand);font-weight:800;text-transform:uppercase;letter-spacing:.12em;font-size:12.5px;}
+.hero h1{font-size:40px;font-weight:900;letter-spacing:-1px;margin:12px 0 10px;line-height:1.1;}
+.hero p{font-size:17px;color:var(--muted);max-width:640px;margin:0 auto;}
+.chips{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin:22px auto 0;max-width:760px;}
+.chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 15px;font-size:13px;font-weight:700;color:var(--brand-dark);box-shadow:0 1px 2px rgba(20,30,50,.04);}
+
+/* SECTION */
+.section{padding:34px 0;}
+.section-head{text-align:center;max-width:640px;margin:0 auto 26px;}
+.section-head h2{font-size:27px;font-weight:900;letter-spacing:-.5px;}
+.section-head p{color:var(--muted);font-size:15px;margin-top:6px;}
+
+/* LIVE DEMO FRAME */
+.try{display:flex;flex-direction:column;align-items:center;}
+.try-hint{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 18px;font-size:14px;color:var(--muted);max-width:680px;text-align:center;margin-bottom:18px;}
+.try-hint b{color:var(--ink);}
+.browser{width:100%;max-width:760px;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 24px 60px -20px rgba(20,30,50,.35);}
+.browser-bar{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#f4f6f9;border-bottom:1px solid var(--line);}
+.dot{width:11px;height:11px;border-radius:50%;}
+.dot.r{background:#ec6a5e;}.dot.y{background:#f4bf4f;}.dot.g{background:#61c554;}
+.browser-url{flex:1;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;color:var(--muted);margin-left:8px;text-align:center;}
+.frame{width:100%;height:780px;border:0;display:block;background:#fff;}
+
+/* FEATURE GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
+.feat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(20,30,50,.04);}
+.feat .ic{width:44px;height:44px;border-radius:11px;background:var(--brand-light);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px;}
+.feat h3{font-size:16px;font-weight:800;margin-bottom:4px;}
+.feat p{font-size:14px;color:var(--muted);}
+
+/* DEPLOY MODES */
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+.mode{background:linear-gradient(180deg,#fff,#f7f9fc);border:1px solid var(--line);border-radius:16px;padding:24px;}
+.mode .tag{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--brand);background:var(--brand-light);border-radius:999px;padding:4px 11px;margin-bottom:12px;}
+.mode h3{font-size:18px;font-weight:900;margin-bottom:6px;}
+.mode p{font-size:14px;color:var(--muted);}
+.mode code{background:#eef1f4;padding:1px 7px;border-radius:6px;font-size:12.5px;font-weight:700;color:var(--brand);}
+
+/* CTA */
+.cta{background:linear-gradient(120deg,var(--brand),var(--brand-dark));color:#fff;border-radius:22px;padding:44px 30px;text-align:center;margin:20px 0 50px;}
+.cta h2{font-size:28px;font-weight:900;letter-spacing:-.5px;}
+.cta p{opacity:.85;margin:8px auto 22px;max-width:520px;}
+.cta .buy-btn{font-size:16px;padding:15px 32px;}
+.cta-note{font-size:12.5px;opacity:.7;margin-top:14px;}
+.foot{text-align:center;color:var(--muted);font-size:13px;padding:0 0 40px;}
+@media(max-width:560px){.hero h1{font-size:31px;}.frame{height:640px;}}
+</style>
+</head>
+<body>
+
+<!-- BUY BAR -->
+<div id="buyBar">
+  <div class="buy-msg">⚖️ Client Intake — Law-Firm Intake Form <span class="demo-tag">🎭 LIVE DEMO</span></div>
+  <div class="buy-right">
+    <span class="buy-price">One-time · $39 · no subscription</span>
+    <a class="buy-btn" href="https://worktrailhq.gumroad.com/l/client-intake" target="_blank" rel="noopener">Get it — $39 →</a>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">For litigation · estate · elder law · guardianship · probate</div>
+    <h1>A professional client intake form,<br>in one file you own</h1>
+    <p>Prospective clients tell you who they are and exactly what they need. Use it at your front desk,
+       post it as a link, or embed it on your website — with inquiries delivered straight to you.</p>
+    <div class="chips">
+      <div class="chip">Cascading practice-area menu</div>
+      <div class="chip">Conflict-check field</div>
+      <div class="chip">Best time &amp; way to reach</div>
+      <div class="chip">Day / night mode</div>
+      <div class="chip">Your logo &amp; branding</div>
+      <div class="chip">CSV export</div>
+      <div class="chip">Embed or link</div>
+    </div>
+  </div>
+</div>
+
+<!-- LIVE DEMO -->
+<div class="wrap section">
+  <div class="section-head">
+    <h2>Try the real thing — right here</h2>
+    <p>This is the actual form, fully working. Fill it in and hit <b>Submit</b>, open <b>Submissions</b>
+       to see sample inquiries, tap <b>🌙</b> for night mode, or click the <b>top-left icon</b> to drop in a logo.</p>
+  </div>
+  <div class="try">
+    <div class="try-hint">👇 Everything below is interactive. Nothing you type here is saved or sent — it's a sandbox.</div>
+    <div class="browser">
+      <div class="browser-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="browser-url">yourfirm.com/intake.html</span>
+      </div>
+      <iframe class="frame" src="intake.html?demo=1" title="Client Intake live demo"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="wrap section">
+  <div class="section-head">
+    <h2>What's inside</h2>
+    <p>Everything a small firm needs to capture a lead — nothing it doesn't.</p>
+  </div>
+  <div class="grid">
+    <div class="feat"><div class="ic">🗂️</div><h3>Smart practice-area menu</h3><p>Pick a practice area and a second menu narrows to exactly what they need — adult guardianship, contest a will, Medicaid planning, personal injury, and more.</p></div>
+    <div class="feat"><div class="ic">⚖️</div><h3>Conflict-check field</h3><p>Captures opposing / related parties up front so you can run a conflict check before you call back.</p></div>
+    <div class="feat"><div class="ic">📞</div><h3>How &amp; when to reach them</h3><p>Preferred contact method, best time to call, urgency, and any court deadline — so you follow up the right way.</p></div>
+    <div class="feat"><div class="ic">📜</div><h3>Built-in acknowledgment</h3><p>Standard "this does not create an attorney-client relationship" notice, with a required checkbox and a confirmation on submit.</p></div>
+    <div class="feat"><div class="ic">🎨</div><h3>Your brand, day or night</h3><p>Add your firm name, heading, intro, and logo in seconds. One tap switches between a light and dark look.</p></div>
+    <div class="feat"><div class="ic">📥</div><h3>Submissions &amp; export</h3><p>Every inquiry in one searchable list. Export a CSV or print for your files — no spreadsheet wrangling.</p></div>
+  </div>
+</div>
+
+<!-- DEPLOY MODES -->
+<div class="wrap section">
+  <div class="section-head">
+    <h2>Three ways to use it</h2>
+    <p>The same file works however your firm wants to collect inquiries.</p>
+  </div>
+  <div class="modes">
+    <div class="mode"><span class="tag">Office device</span><h3>Front-desk kiosk</h3><p>Open it on a tablet or reception computer. Inquiries save privately on that device — the most private option, nothing uploaded.</p></div>
+    <div class="mode"><span class="tag">Post a link</span><h3>Share anywhere</h3><p>Host the file for free and share the link on your site, Google profile, or email signature. Add <code>?embed=1</code> for a clean, client-only view.</p></div>
+    <div class="mode"><span class="tag">Website embed</span><h3>On your site</h3><p>Drop one <code>&lt;iframe&gt;</code> into any site builder. Connect a free delivery URL and inquiries arrive by email, spreadsheet, or CRM.</p></div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="wrap">
+  <div class="cta">
+    <h2>Own it forever — $39, one time</h2>
+    <p>No subscriptions, no per-inquiry fees, no accounts. Download the file, brand it, and you're live in minutes. A setup &amp; integration guide is included.</p>
+    <a class="buy-btn" href="https://worktrailhq.gumroad.com/l/client-intake" target="_blank" rel="noopener">Get Client Intake — $39 →</a>
+    <div class="cta-note">Instant download · works in any browser · not legal advice — review the form for your jurisdiction</div>
+  </div>
+  <div class="foot">Questions? support@worktrailhq.com · worktrailhq.com</div>
+</div>
+
+</body>
+</html>

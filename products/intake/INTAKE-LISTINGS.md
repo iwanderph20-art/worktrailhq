@@ -7,6 +7,9 @@ Because it's a single file, there are **no license keys to manage** — just del
 
 **Suggested price:** $39 one-time (Etsy & Gumroad).
 **What buyers download:** `intake.html` + `setup-guide.html`.
+**Seller/marketing asset:** `demo.html` — a self-contained showcase page with a sticky buy bar
+and the **real, fully-interactive form embedded** (`intake.html?demo=1`, pre-loaded with sample
+submissions, nothing saved). Host it and link buyers to it as a live preview.
 
 ---
 

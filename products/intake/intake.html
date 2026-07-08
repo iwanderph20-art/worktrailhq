@@ -426,10 +426,10 @@ const DEFAULTS={ name:'Client Intake', title:'New Client Intake',
   logo:'', theme:'light', webhook:'' };
 let settings = load(LS_SET, DEFAULTS);
 let records  = load(LS_REC, []);
-let callTimes=[], pendingLogo=undefined;
+let callTimes=[], pendingLogo=undefined, DEMO=false;
 
 function load(k,def){ try{ const v=JSON.parse(localStorage.getItem(k)); if(v==null) return def; return Array.isArray(def)?v:{...def,...v}; }catch(e){ return def; } }
-function saveLS(){ try{ localStorage.setItem(LS_REC,JSON.stringify(records)); localStorage.setItem(LS_SET,JSON.stringify(settings)); return true; }catch(e){ console.error('saveLS failed',e); return false; } }
+function saveLS(){ if(DEMO) return true; try{ localStorage.setItem(LS_REC,JSON.stringify(records)); localStorage.setItem(LS_SET,JSON.stringify(settings)); return true; }catch(e){ console.error('saveLS failed',e); return false; } }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2100); }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function pad(n){ return String(n).padStart(2,'0'); }
@@ -622,6 +622,14 @@ document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ i
   const p=new URLSearchParams(location.search);
   if(p.get('embed')==='1'||p.get('embed')==='true') document.body.classList.add('embed');
   const t=p.get('theme'); if(t==='dark'||t==='light') settings.theme=t;   // display override for embeds
+  if(p.get('demo')==='1'){                                                 // sample data, nothing persisted
+    DEMO=true; settings={...DEFAULTS, theme:(t==='dark'||t==='light')?t:'light'};
+    records=[
+      { id:3, ref:'INT-20260706-003', submitted:'2026-07-06T15:12:00.000Z', first:'Eleanor', last:'Whitfield', phone:'(555) 204-1187', email:'eleanor.w@example.com', address:'42 Oak Lane, Springfield', clientType:'New client', area:'Elder Law Planning', matter:'Medicaid / long-term care planning', desc:'My mother is entering assisted living and we need help protecting her savings.', urgency:'Within the next few weeks', deadline:'', parties:'', contactMethod:'Phone call', callTimes:['Morning (8am–12pm)'], source:'Referred by a friend or family member' },
+      { id:2, ref:'INT-20260707-002', submitted:'2026-07-07T18:44:00.000Z', first:'Marcus', last:'Donnelly', phone:'(555) 663-9042', email:'m.donnelly@example.com', address:'', clientType:'New client', area:'Litigation', matter:'Personal injury', desc:'Rear-ended at a stoplight three weeks ago; ongoing back treatment.', urgency:'Time-sensitive — within days', deadline:'2026-07-20', parties:'Ridgeway Freight Co.', contactMethod:'Text message', callTimes:['Afternoon (12–5pm)','Evening (5–8pm)'], source:'Online search' },
+      { id:1, ref:'INT-20260708-001', submitted:'2026-07-08T13:05:00.000Z', first:'Priya', last:'Nair', phone:'(555) 810-7725', email:'priya.nair@example.com', address:'9 Birch Ct, Riverton', clientType:'Existing client', area:'Estate Planning (Wills & Trusts)', matter:'Create a living trust', desc:'Want to set up a living trust for our two kids and update our wills.', urgency:'No deadline — just planning ahead', deadline:'', parties:'', contactMethod:'Email', callTimes:['Anytime'], source:'Existing client' }
+    ];
+  }
 })();
 applyTheme(); onAreaChange();
 </script>
