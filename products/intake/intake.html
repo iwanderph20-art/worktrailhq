@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Client Intake — Law Firm</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --brand:#1f3a5f;        /* deep navy (default) */
+  --brand-dark:#162c48;
+  --brand-light:#e6ecf3;
+  --g50:#f7f8fa;--g100:#eef1f4;--g200:#e0e4ea;--g300:#cad0da;
+  --g400:#98a2b3;--g500:#6b7280;--g600:#4b5563;--g800:#1f2733;
+  --danger:#c0392b;--ok:#2f8f6b;--ok-light:#e2f3ec;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--g50);color:var(--g800);min-height:100vh;-webkit-tap-highlight-color:transparent;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+input,textarea,select{font-family:inherit;font-size:16px;}
+.hidden{display:none!important;}
+
+/* ── HEADER ── */
+.hdr{background:#fff;border-bottom:1px solid var(--g200);padding:14px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;}
+.hdr-brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+#hdrLogo{max-height:44px;max-width:190px;object-fit:contain;}
+#hdrLogoPh{width:44px;height:44px;border-radius:10px;background:var(--brand-light);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.hdr-name{font-size:19px;font-weight:800;color:var(--g800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hdr-btn{color:var(--g500);font-size:13px;font-weight:700;padding:9px 12px;border-radius:10px;background:var(--g100);white-space:nowrap;}
+.hdr-btn:hover{background:var(--g200);}
+.hdr-btn.accent{background:var(--brand-light);color:var(--brand-dark);}
+
+/* ── LAYOUT ── */
+.wrap{max-width:680px;margin:0 auto;padding:26px 18px 70px;}
+.card{background:#fff;border:1px solid var(--g200);border-radius:20px;padding:30px;box-shadow:0 6px 26px rgba(20,30,50,.05);}
+.form-title{font-size:25px;font-weight:900;letter-spacing:-.5px;margin-bottom:4px;}
+.form-sub{font-size:14px;color:var(--g500);margin-bottom:8px;line-height:1.5;}
+
+/* section header */
+.sec{font-size:12px;font-weight:900;color:var(--brand);text-transform:uppercase;letter-spacing:.08em;margin:26px 0 14px;padding-bottom:8px;border-bottom:1.5px solid var(--g100);}
+
+.field{margin-bottom:18px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+label.lbl{font-size:12px;font-weight:800;color:var(--g600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:7px;}
+label.lbl .req{color:var(--danger);}
+.hint{font-size:12px;color:var(--g400);font-weight:600;margin-top:6px;line-height:1.4;}
+.inp{width:100%;padding:13px 14px;border:1.5px solid var(--g200);border-radius:12px;color:var(--g800);outline:none;background:#fff;transition:border-color .15s;}
+.inp:focus{border-color:var(--brand);}
+textarea.inp{resize:vertical;min-height:90px;line-height:1.5;}
+select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px;}
+
+/* chip choices (radio-style) */
+.chips{display:flex;flex-wrap:wrap;gap:9px;}
+.chip{border:1.5px solid var(--g200);border-radius:999px;padding:10px 16px;cursor:pointer;font-size:14px;font-weight:700;color:var(--g600);user-select:none;transition:all .12s;}
+.chip.on{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);}
+
+/* time-to-call grid */
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.chk{display:flex;align-items:center;gap:11px;border:1.5px solid var(--g200);border-radius:12px;padding:12px 14px;cursor:pointer;font-size:14px;font-weight:700;color:var(--g600);user-select:none;transition:all .12s;}
+.chk .box{width:21px;height:21px;border-radius:6px;border:2px solid var(--g300);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900;transition:all .12s;}
+.chk.on{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);}
+.chk.on .box{background:var(--brand);border-color:var(--brand);}
+.chk.on .box::after{content:"✓";}
+
+/* consent box */
+.consent{border:1.5px solid var(--g200);border-radius:14px;background:var(--g50);padding:16px;font-size:13px;color:var(--g600);line-height:1.6;}
+.consent b{color:var(--g800);}
+.consent-check{display:flex;align-items:flex-start;gap:11px;margin-top:14px;cursor:pointer;user-select:none;}
+.consent-check .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--g300);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900;margin-top:1px;transition:all .12s;}
+.consent-check.on .box{background:var(--brand);border-color:var(--brand);}
+.consent-check.on .box::after{content:"✓";}
+.consent-check span{font-size:13px;font-weight:700;color:var(--g800);}
+
+/* signature */
+.sig-box{border:1.5px solid var(--g200);border-radius:14px;background:#fff;position:relative;overflow:hidden;}
+.sig-box canvas{display:block;width:100%;height:140px;touch-action:none;}
+.sig-line{position:absolute;bottom:26px;left:22px;right:22px;border-bottom:1.5px solid var(--g200);pointer-events:none;}
+.sig-x{position:absolute;bottom:28px;left:22px;color:var(--g400);font-size:16px;pointer-events:none;}
+.sig-hint{position:absolute;bottom:6px;left:22px;color:var(--g400);font-size:11px;font-weight:700;pointer-events:none;}
+.sig-clear{position:absolute;top:8px;right:10px;font-size:12px;font-weight:700;color:var(--g500);background:var(--g100);border-radius:8px;padding:5px 10px;}
+
+/* buttons */
+.actions{display:flex;gap:12px;margin-top:28px;}
+.btn{border-radius:14px;font-weight:800;font-size:16px;padding:16px;transition:opacity .15s,background .15s;}
+.btn-primary{background:var(--brand);color:#fff;flex:1;}
+.btn-primary:hover{opacity:.92;}
+.btn-clear{background:var(--g100);color:var(--g600);}
+
+.privacy-note{text-align:center;font-size:12px;color:var(--g400);margin-top:18px;line-height:1.5;font-weight:600;}
+.privacy-note b{color:var(--g500);}
+
+/* ── MODAL ── */
+.modal{position:fixed;inset:0;background:rgba(20,25,35,.5);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:24px 16px;overflow-y:auto;}
+.modal.open{display:flex;}
+.sheet{background:#fff;border-radius:20px;width:100%;max-width:640px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);}
+.sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.sheet-top h2{font-size:19px;font-weight:900;}
+.sheet-close{font-size:26px;color:var(--g400);line-height:1;padding:2px 8px;}
+.color-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;}
+.color-sw{width:42px;height:42px;border-radius:12px;border:3px solid transparent;position:relative;}
+.color-sw.sel{border-color:var(--g800);}
+.color-sw.sel::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;}
+.logo-prev{max-height:48px;max-width:190px;object-fit:contain;margin-top:10px;display:block;}
+.file-btn{display:inline-block;background:var(--g100);color:var(--g600);font-weight:700;font-size:14px;padding:11px 18px;border-radius:12px;cursor:pointer;margin-top:6px;}
+
+/* ── SUBMITTED CONFIRMATION ── */
+.confirm-body{text-align:center;padding:8px 4px 4px;}
+.confirm-check{width:70px;height:70px;border-radius:50%;background:var(--ok-light);color:var(--ok);font-size:38px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.confirm-h{font-size:24px;font-weight:900;}
+.confirm-p{font-size:15px;color:var(--g500);margin-top:8px;line-height:1.5;}
+.confirm-ref{background:var(--brand);color:#fff;border-radius:16px;padding:18px;margin:20px 0 10px;}
+.confirm-ref .nl{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.85;}
+.confirm-ref .nv{font-size:30px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;margin-top:2px;}
+
+/* ── RECORDS ── */
+.rec{border:1px solid var(--g200);border-radius:14px;padding:15px;margin-bottom:11px;}
+.rec-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+.rec-nm{font-weight:800;font-size:16px;}
+.rec-ref{font-size:12px;color:var(--g400);font-weight:700;font-variant-numeric:tabular-nums;}
+.rec-area{display:inline-block;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--brand-light);color:var(--brand-dark);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;}
+.rec-sub{font-size:13px;color:var(--g500);margin-top:6px;line-height:1.5;}
+.rec-sub b{color:var(--g600);}
+.rec-meta{font-size:12px;color:var(--g600);margin-top:11px;padding-top:11px;border-top:1px solid var(--g100);display:flex;gap:16px;flex-wrap:wrap;}
+.rec-meta b{color:var(--g800);}
+.rec-del{color:var(--danger);font-size:12px;font-weight:700;background:var(--g100);border-radius:8px;padding:5px 10px;margin-top:10px;display:inline-block;}
+.empty{text-align:center;color:var(--g400);padding:44px 20px;font-weight:600;}
+.rec-tools{display:flex;gap:10px;margin-bottom:16px;}
+.rec-tools .inp{flex:1;}
+.tool-btn{background:var(--brand-light);color:var(--brand-dark);font-weight:800;font-size:14px;padding:0 16px;border-radius:12px;white-space:nowrap;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--g800);color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:700;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;}
+.toast.show{opacity:1;}
+@media(max-width:480px){.row2{grid-template-columns:1fr;}.checks{grid-template-columns:1fr;}.hdr-name{font-size:17px;}}
+@media print{.hdr,.actions,.privacy-note{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="hdr">
+  <div class="hdr-brand">
+    <div id="hdrLogoPh">⚖️</div>
+    <img id="hdrLogo" class="hidden" alt="">
+    <div class="hdr-name" id="hdrName">Client Intake</div>
+  </div>
+  <button class="hdr-btn accent" onclick="openRecords()">Submissions</button>
+  <button class="hdr-btn" onclick="openCustomize()">⚙</button>
+</div>
+
+<!-- ── INTAKE FORM ── -->
+<div class="wrap">
+  <div class="card">
+    <div class="form-title" id="formTitle">New Client Intake</div>
+    <div class="form-sub" id="formSub">Please share a few details about your legal matter. All fields marked <span style="color:var(--danger)">*</span> are required. Your information is kept confidential.</div>
+
+    <!-- CONTACT -->
+    <div class="sec">Your information</div>
+
+    <div class="row2 field">
+      <div>
+        <label class="lbl">First name <span class="req">*</span></label>
+        <input class="inp" id="fFirst" placeholder="First name" autocomplete="given-name">
+      </div>
+      <div>
+        <label class="lbl">Last name <span class="req">*</span></label>
+        <input class="inp" id="fLast" placeholder="Last name" autocomplete="family-name">
+      </div>
+    </div>
+
+    <div class="row2 field">
+      <div>
+        <label class="lbl">Phone <span class="req">*</span></label>
+        <input class="inp" id="fPhone" type="tel" placeholder="(555) 123-4567" autocomplete="tel">
+      </div>
+      <div>
+        <label class="lbl">Email</label>
+        <input class="inp" id="fEmail" type="email" placeholder="you@email.com" autocomplete="email">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Mailing address</label>
+      <input class="inp" id="fAddress" placeholder="Street, city, state, ZIP" autocomplete="street-address">
+    </div>
+
+    <div class="field">
+      <label class="lbl">Are you a…</label>
+      <div class="chips" id="clientType">
+        <div class="chip" data-v="New client">New client</div>
+        <div class="chip" data-v="Existing client">Existing client</div>
+        <div class="chip" data-v="Inquiring for someone else">Inquiring for someone else</div>
+      </div>
+    </div>
+
+    <!-- MATTER -->
+    <div class="sec">Your legal matter</div>
+
+    <div class="field">
+      <label class="lbl">Practice area <span class="req">*</span></label>
+      <select class="inp" id="fArea" onchange="onAreaChange()">
+        <option value="">Select a practice area…</option>
+        <option>Litigation</option>
+        <option>Estate Planning (Wills &amp; Trusts)</option>
+        <option>Elder Law Planning</option>
+        <option>Guardianship &amp; Conservatorship</option>
+        <option>Probate &amp; Estate Administration</option>
+        <option>Power of Attorney / Advance Directives</option>
+        <option>Not sure / General consultation</option>
+      </select>
+    </div>
+
+    <div class="field" id="matterWrap">
+      <label class="lbl">What do you need help with? <span class="req">*</span></label>
+      <select class="inp" id="fMatter">
+        <option value="">Select the practice area first…</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Brief description of your matter <span class="req">*</span></label>
+      <textarea class="inp" id="fDesc" placeholder="In a few sentences, tell us what's going on and how we can help…"></textarea>
+    </div>
+
+    <div class="row2 field">
+      <div>
+        <label class="lbl">How urgent is this?</label>
+        <select class="inp" id="fUrgency">
+          <option value="">Select…</option>
+          <option>No deadline — just planning ahead</option>
+          <option>Within the next few weeks</option>
+          <option>Time-sensitive — within days</option>
+          <option>Urgent — there is a court date / deadline</option>
+        </select>
+      </div>
+      <div>
+        <label class="lbl">Deadline / court date (if any)</label>
+        <input class="inp" id="fDeadline" type="date">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Other parties involved</label>
+      <input class="inp" id="fParties" placeholder="Names of any opposing or related parties" autocomplete="off">
+      <div class="hint">Helps us check for conflicts of interest before we contact you.</div>
+    </div>
+
+    <!-- CONTACT PREFERENCES -->
+    <div class="sec">How &amp; when to reach you</div>
+
+    <div class="field">
+      <label class="lbl">Preferred contact method</label>
+      <div class="chips" id="contactMethod">
+        <div class="chip" data-v="Phone call">Phone call</div>
+        <div class="chip" data-v="Email">Email</div>
+        <div class="chip" data-v="Text message">Text message</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Best time to call</label>
+      <div class="checks" id="callTimes">
+        <div class="chk" data-v="Morning (8am–12pm)"><span class="box"></span>Morning (8am–12pm)</div>
+        <div class="chk" data-v="Afternoon (12–5pm)"><span class="box"></span>Afternoon (12–5pm)</div>
+        <div class="chk" data-v="Evening (5–8pm)"><span class="box"></span>Evening (5–8pm)</div>
+        <div class="chk" data-v="Anytime"><span class="box"></span>Anytime</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">How did you hear about us?</label>
+      <select class="inp" id="fSource">
+        <option value="">Select…</option>
+        <option>Referred by a friend or family member</option>
+        <option>Referred by another attorney</option>
+        <option>Online search</option>
+        <option>Social media</option>
+        <option>Existing client</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <!-- CONSENT -->
+    <div class="sec">Acknowledgment</div>
+    <div class="consent">
+      Submitting this form does <b>not</b> create an attorney-client relationship. An attorney-client
+      relationship is formed only after we complete a conflict check and both parties sign a written
+      engagement agreement. Please <b>do not include highly sensitive or confidential details</b> here —
+      we will gather those securely once we connect. The information you provide is used solely to evaluate
+      and respond to your inquiry.
+      <label class="consent-check" id="consentCheck">
+        <span class="box"></span>
+        <span>I have read and understand the above.</span>
+      </label>
+    </div>
+
+    <div class="field" style="margin-top:20px;">
+      <label class="lbl">Signature (optional)</label>
+      <div class="sig-box">
+        <canvas id="sigCanvas"></canvas>
+        <div class="sig-x">✕</div>
+        <div class="sig-line"></div>
+        <div class="sig-hint">Sign above</div>
+        <button class="sig-clear" onclick="clearSig()">Clear</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-clear" onclick="resetForm(true)">Clear</button>
+      <button class="btn btn-primary" onclick="submitIntake()">Submit intake</button>
+    </div>
+
+    <div class="privacy-note">
+      🔒 <b>You own your data.</b> Submissions are stored only on this device, in this browser —
+      nothing is uploaded to any server. Export to CSV anytime from “Submissions.”
+    </div>
+  </div>
+</div>
+
+<!-- ── SUBMITTED MODAL ── -->
+<div class="modal" id="confirmModal">
+  <div class="sheet">
+    <div class="confirm-body">
+      <div class="confirm-check">✓</div>
+      <div class="confirm-h" id="confirmH">Thank you!</div>
+      <div class="confirm-p" id="confirmP">We've received your intake and will reach out soon.</div>
+      <div class="confirm-ref">
+        <div class="nl">Your reference number</div>
+        <div class="nv" id="confirmRef">—</div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="close_('confirmModal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CUSTOMIZE MODAL ── -->
+<div class="modal" id="customizeModal">
+  <div class="sheet">
+    <div class="sheet-top"><h2>Customize form</h2><button class="sheet-close" onclick="close_('customizeModal')">×</button></div>
+    <div class="field">
+      <label class="lbl">Firm name</label>
+      <input class="inp" id="setName" placeholder="Your firm name">
+    </div>
+    <div class="field">
+      <label class="lbl">Form heading</label>
+      <input class="inp" id="setTitle" placeholder="New Client Intake">
+    </div>
+    <div class="field">
+      <label class="lbl">Intro text (shown under the heading)</label>
+      <textarea class="inp" id="setSub" placeholder="A short welcome / instructions for the client"></textarea>
+    </div>
+    <div class="field">
+      <label class="lbl">Your logo</label>
+      <label class="file-btn">📷 Upload logo<input type="file" accept="image/*" style="display:none" onchange="onLogo(event)"></label>
+      <img id="setLogoPrev" class="logo-prev hidden" alt="">
+      <button class="hdr-btn hidden" id="setLogoRemove" style="margin-top:10px" onclick="removeLogo()">Remove logo</button>
+    </div>
+    <div class="field">
+      <label class="lbl">Brand color</label>
+      <div class="color-row" id="colorRow"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="saveCustomize()">Save</button>
+  </div>
+</div>
+
+<!-- ── RECORDS MODAL ── -->
+<div class="modal" id="recordsModal">
+  <div class="sheet">
+    <div class="sheet-top"><h2>Intake submissions</h2><button class="sheet-close" onclick="close_('recordsModal')">×</button></div>
+    <div class="rec-tools">
+      <input class="inp" id="recSearch" placeholder="Search name, matter…" oninput="renderRecords()">
+      <button class="tool-btn" onclick="exportCSV()">⬇ CSV</button>
+      <button class="tool-btn" onclick="window.print()">🖨</button>
+    </div>
+    <div id="recList"></div>
+    <button class="hdr-btn" style="color:var(--danger);margin-top:12px" onclick="clearAll()">Delete all submissions</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── MATTER OPTIONS (cascading dropdown) ── */
+const MATTERS = {
+  "Litigation": ["Personal injury","Contract dispute","Business / commercial dispute","Real estate / property dispute","Employment dispute","Debt / collections","Insurance dispute","Other litigation matter"],
+  "Estate Planning (Wills & Trusts)": ["Prepare a will","Create a living trust","Update existing estate documents","Beneficiary / inheritance planning","Business succession planning","Tax / asset protection planning","Other estate planning"],
+  "Elder Law Planning": ["Medicaid / long-term care planning","Nursing home / assisted living issue","Asset protection for a senior","Special needs planning","Veterans benefits","Elder abuse or financial exploitation","Other elder law matter"],
+  "Guardianship & Conservatorship": ["Adult guardianship","Guardianship of a minor","Conservatorship (finances)","Contest / dispute a guardianship","Modify or terminate a guardianship","Other guardianship matter"],
+  "Probate & Estate Administration": ["Open / administer a probate estate","Serve as executor / personal representative","Contest a will","Estate or inheritance dispute","Small estate / summary administration","Trust administration","Other probate matter"],
+  "Power of Attorney / Advance Directives": ["Financial power of attorney","Healthcare power of attorney","Living will / advance directive","Update existing directives","Other advance-planning matter"],
+  "Not sure / General consultation": ["I'd like to speak with someone to figure out my options"]
+};
+
+/* ── STATE ── */
+const LS_REC='intake_records', LS_SET='intake_settings';
+const DEFAULTS={ name:'Client Intake', title:'New Client Intake',
+  sub:'Please share a few details about your legal matter. All fields marked * are required. Your information is kept confidential.',
+  logo:'', color:'#1f3a5f' };
+let settings = load(LS_SET, DEFAULTS);
+let records  = load(LS_REC, []);
+let callTimes=[], pendingLogo=undefined, pendingColor='';
+
+function load(k,def){ try{ const v=JSON.parse(localStorage.getItem(k)); if(v==null) return def; return Array.isArray(def)?v:{...def,...v}; }catch(e){ return def; } }
+function saveLS(){ localStorage.setItem(LS_REC,JSON.stringify(records)); localStorage.setItem(LS_SET,JSON.stringify(settings)); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2100); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pad(n){ return String(n).padStart(2,'0'); }
+
+/* ── THEME / HEADER ── */
+function applyTheme(){
+  document.documentElement.style.setProperty('--brand', settings.color);
+  document.documentElement.style.setProperty('--brand-dark', shade(settings.color,-24));
+  document.documentElement.style.setProperty('--brand-light', shade(settings.color,88));
+  const ph=document.getElementById('hdrLogoPh'), lg=document.getElementById('hdrLogo');
+  if(settings.logo){ lg.src=settings.logo; lg.classList.remove('hidden'); ph.classList.add('hidden'); }
+  else { lg.classList.add('hidden'); ph.classList.remove('hidden'); }
+  document.getElementById('hdrName').textContent = settings.name || 'Client Intake';
+  document.getElementById('formTitle').textContent = settings.title || 'New Client Intake';
+  document.getElementById('formSub').innerHTML = esc(settings.sub||'').replace(/\*/g,'<span style="color:var(--danger)">*</span>');
+}
+function shade(hex,pct){ const n=parseInt(hex.slice(1),16); const r=n>>16,g=(n>>8)&255,b=n&255;
+  const f=v=> pct<0 ? Math.round(v*(1+pct/100)) : Math.round(v+(255-v)*pct/100);
+  return '#'+[f(r),f(g),f(b)].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join(''); }
+
+/* ── CASCADING DROPDOWN ── */
+function onAreaChange(){
+  const area=document.getElementById('fArea').value;
+  const sel=document.getElementById('fMatter');
+  const opts=MATTERS[area]||[];
+  sel.innerHTML = '<option value="">'+(area?'Select what you need help with…':'Select the practice area first…')+'</option>'
+    + opts.map(o=>`<option>${esc(o)}</option>`).join('');
+}
+
+/* ── CHIP / CHECK toggles ── */
+document.querySelectorAll('#clientType .chip, #contactMethod .chip').forEach(c=>{
+  c.onclick=()=>{ c.parentElement.querySelectorAll('.chip').forEach(x=>{ if(x!==c)x.classList.remove('on'); }); c.classList.toggle('on'); };
+});
+document.querySelectorAll('#callTimes .chk').forEach(c=>{
+  c.onclick=()=>{ const v=c.dataset.v; c.classList.toggle('on');
+    if(c.classList.contains('on')) callTimes.push(v); else callTimes=callTimes.filter(x=>x!==v); };
+});
+const consentEl=document.getElementById('consentCheck');
+consentEl.onclick=()=>consentEl.classList.toggle('on');
+function selectedChip(id){ const el=document.querySelector('#'+id+' .chip.on'); return el?el.dataset.v:''; }
+
+/* ── SIGNATURE ── */
+let sigCtx,sigDrawing=false,sigDirty=false;
+function setupSig(){ const c=document.getElementById('sigCanvas'); const r=c.getBoundingClientRect(); const dpr=window.devicePixelRatio||1;
+  c.width=r.width*dpr; c.height=140*dpr; sigCtx=c.getContext('2d'); sigCtx.scale(dpr,dpr);
+  sigCtx.lineWidth=2.4; sigCtx.lineCap='round'; sigCtx.strokeStyle='#1f2733'; sigDirty=false;
+  const pos=e=>{ const b=c.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return [t.clientX-b.left,t.clientY-b.top]; };
+  const start=e=>{ e.preventDefault(); sigDrawing=true; sigDirty=true; const[x,y]=pos(e); sigCtx.beginPath(); sigCtx.moveTo(x,y); };
+  const move=e=>{ if(!sigDrawing)return; e.preventDefault(); const[x,y]=pos(e); sigCtx.lineTo(x,y); sigCtx.stroke(); };
+  const end=()=>sigDrawing=false;
+  c.onmousedown=start; c.onmousemove=move; window.addEventListener('mouseup',end);
+  c.ontouchstart=start; c.ontouchmove=move; c.ontouchend=end; }
+function clearSig(){ const c=document.getElementById('sigCanvas'); if(sigCtx&&c) sigCtx.clearRect(0,0,c.width,c.height); sigDirty=false; }
+function getSigData(){ return sigDirty ? document.getElementById('sigCanvas').toDataURL('image/png') : ''; }
+
+/* ── SUBMIT ── */
+function submitIntake(){
+  const first=document.getElementById('fFirst').value.trim();
+  const last =document.getElementById('fLast').value.trim();
+  const phone=document.getElementById('fPhone').value.trim();
+  const area =document.getElementById('fArea').value;
+  const matter=document.getElementById('fMatter').value;
+  const desc =document.getElementById('fDesc').value.trim();
+  if(!first||!last){ toast('Please enter your first and last name'); return; }
+  if(!phone){ toast('Please enter a phone number'); return; }
+  if(!area){ toast('Please choose a practice area'); return; }
+  if(!matter){ toast('Please choose what you need help with'); return; }
+  if(!desc){ toast('Please briefly describe your matter'); return; }
+  if(!consentEl.classList.contains('on')){ toast('Please acknowledge the notice to continue'); return; }
+
+  const now=new Date();
+  const ref='INT-'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'-'+String(records.length+1).padStart(3,'0');
+  const rec={ id:Date.now(), ref,
+    submitted: now.toISOString(),
+    first, last, phone,
+    email:document.getElementById('fEmail').value.trim(),
+    address:document.getElementById('fAddress').value.trim(),
+    clientType:selectedChip('clientType'),
+    area, matter,
+    desc,
+    urgency:document.getElementById('fUrgency').value,
+    deadline:document.getElementById('fDeadline').value,
+    parties:document.getElementById('fParties').value.trim(),
+    contactMethod:selectedChip('contactMethod'),
+    callTimes:[...callTimes],
+    source:document.getElementById('fSource').value,
+    signature:getSigData() };
+  records.unshift(rec); saveLS();
+  document.getElementById('confirmH').textContent='Thank you, '+first+'!';
+  document.getElementById('confirmP').textContent='We’ve received your intake and a member of our team will reach out soon.';
+  document.getElementById('confirmRef').textContent=ref;
+  resetForm(true); open_('confirmModal');
+}
+function resetForm(refill){
+  ['fFirst','fLast','fPhone','fEmail','fAddress','fDesc','fDeadline','fParties'].forEach(id=>document.getElementById(id).value='');
+  ['fArea','fUrgency','fSource'].forEach(id=>document.getElementById(id).value='');
+  onAreaChange();
+  callTimes=[]; document.querySelectorAll('.chip.on,.chk.on').forEach(c=>c.classList.remove('on'));
+  consentEl.classList.remove('on'); clearSig();
+}
+
+/* ── CUSTOMIZE ── */
+const PALETTE=['#1f3a5f','#0f3d3e','#4a2c4d','#5c4a2e','#37474f','#6b1f2e','#264653','#1f2937','#3a3d6b'];
+function openCustomize(){
+  pendingLogo=undefined; pendingColor=settings.color;
+  document.getElementById('setName').value=settings.name;
+  document.getElementById('setTitle').value=settings.title;
+  document.getElementById('setSub').value=settings.sub;
+  const lp=document.getElementById('setLogoPrev'), rm=document.getElementById('setLogoRemove');
+  if(settings.logo){ lp.src=settings.logo; lp.classList.remove('hidden'); rm.classList.remove('hidden'); } else { lp.classList.add('hidden'); rm.classList.add('hidden'); }
+  renderColors(); open_('customizeModal');
+}
+function renderColors(){ const cr=document.getElementById('colorRow'); cr.innerHTML='';
+  PALETTE.forEach(c=>{ const d=document.createElement('div'); d.className='color-sw'+(c===pendingColor?' sel':''); d.style.background=c;
+    d.onclick=()=>{ pendingColor=c; renderColors(); }; cr.appendChild(d); }); }
+function onLogo(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>shrink(r.result,440,d=>{ pendingLogo=d; const lp=document.getElementById('setLogoPrev');
+    lp.src=d; lp.classList.remove('hidden'); document.getElementById('setLogoRemove').classList.remove('hidden'); }); r.readAsDataURL(f); }
+function removeLogo(){ pendingLogo=''; document.getElementById('setLogoPrev').classList.add('hidden'); document.getElementById('setLogoRemove').classList.add('hidden'); }
+function shrink(dataURL,max,cb){ const img=new Image(); img.onload=()=>{ const s=Math.min(1,max/img.width);
+  const c=document.createElement('canvas'); c.width=img.width*s; c.height=img.height*s;
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height); cb(c.toDataURL('image/png')); }; img.src=dataURL; }
+function saveCustomize(){
+  settings.name=document.getElementById('setName').value.trim()||'Client Intake';
+  settings.title=document.getElementById('setTitle').value.trim()||'New Client Intake';
+  settings.sub=document.getElementById('setSub').value.trim()||DEFAULTS.sub;
+  if(pendingLogo!==undefined) settings.logo=pendingLogo;
+  settings.color=pendingColor||settings.color;
+  saveLS(); applyTheme(); close_('customizeModal'); toast('Saved ✓');
+}
+
+/* ── RECORDS ── */
+function openRecords(){ renderRecords(); open_('recordsModal'); }
+function fmtDate(iso){ try{ const d=new Date(iso); return d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso; } }
+function renderRecords(){
+  const q=(document.getElementById('recSearch').value||'').toLowerCase();
+  const list=records.filter(r=>((r.first+' '+r.last+' '+r.area+' '+r.matter+' '+r.desc).toLowerCase().includes(q)));
+  const el=document.getElementById('recList');
+  if(!list.length){ el.innerHTML='<div class="empty">No intake submissions yet.</div>'; return; }
+  el.innerHTML=list.map(r=>{
+    const contact=[r.contactMethod, (r.callTimes||[]).join(', ')].filter(Boolean).join(' · ');
+    return `<div class="rec">
+      <div class="rec-top">
+        <div><span class="rec-nm">${esc(r.first)} ${esc(r.last)}</span>${r.clientType?' <span class="rec-ref">· '+esc(r.clientType)+'</span>':''}<div class="rec-ref">${esc(r.ref)}</div></div>
+        <span class="rec-area">${esc(r.area||'—')}</span>
+      </div>
+      <div class="rec-sub"><b>Needs:</b> ${esc(r.matter||'—')}<br>${esc(r.desc||'')}</div>
+      <div class="rec-meta">
+        <span>📞 <b>${esc(r.phone||'—')}</b></span>
+        ${r.email?`<span>✉️ <b>${esc(r.email)}</b></span>`:''}
+        ${r.urgency?`<span>⏱ <b>${esc(r.urgency)}</b></span>`:''}
+        ${r.deadline?`<span>📅 <b>${esc(r.deadline)}</b></span>`:''}
+      </div>
+      ${contact?`<div class="rec-meta" style="border-top:none;padding-top:0;margin-top:6px"><span>Reach via <b>${esc(contact)}</b></span></div>`:''}
+      ${r.parties?`<div class="rec-meta" style="border-top:none;padding-top:0;margin-top:6px"><span>Other parties: <b>${esc(r.parties)}</b></span></div>`:''}
+      <div class="rec-meta" style="border-top:none;padding-top:0;margin-top:6px;color:var(--g400)"><span>Submitted ${esc(fmtDate(r.submitted))}</span></div>
+      <span class="rec-del" onclick="delRec(${r.id})">Delete</span>
+    </div>`;
+  }).join('');
+}
+function delRec(id){ if(confirm('Delete this submission permanently?')){ records=records.filter(r=>r.id!==id); saveLS(); renderRecords(); toast('Submission deleted'); } }
+function exportCSV(){
+  const head=['Reference','Submitted','First','Last','Phone','Email','Address','Client Type','Practice Area','Needs','Description','Urgency','Deadline','Other Parties','Contact Method','Best Time to Call','Heard About Us'];
+  const rows=records.map(r=>[r.ref,r.submitted,r.first,r.last,r.phone,r.email,r.address,r.clientType,r.area,r.matter,r.desc,r.urgency,r.deadline,r.parties,r.contactMethod,(r.callTimes||[]).join('; '),r.source]
+    .map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv=[head.join(','),...rows].join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='intake-'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); toast('CSV downloaded');
+}
+function clearAll(){ if(confirm('Delete ALL intake submissions permanently? This cannot be undone.')){ records=[]; saveLS(); renderRecords(); toast('All submissions deleted'); } }
+
+/* ── MODAL HELPERS ── */
+function open_(id){ document.getElementById(id).classList.add('open'); }
+function close_(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+/* ── INIT ── */
+applyTheme(); onAreaChange(); setTimeout(setupSig,60);
+window.addEventListener('resize',()=>{ setupSig(); });
+</script>
+</body>
+</html>
