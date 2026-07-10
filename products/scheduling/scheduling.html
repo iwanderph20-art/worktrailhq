@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book an Appointment</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  color-scheme:light;
+  --brand:#5b5bd6;--brand-dark:#4646b8;--brand-light:#e8e8fb;
+  --g50:#f7f8fa;--g100:#eef1f4;--g200:#e0e4ea;--g300:#cad0da;
+  --g400:#98a2b3;--g500:#6b7280;--g600:#4b5563;--g800:#1f2733;
+  --danger:#c0392b;--ok:#2f8f6b;--ok-light:#e2f3ec;
+  --surface:#fff;
+  --toast-bg:#1f2733;--toast-fg:#fff;
+  --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-head:var(--font-body);
+  --page-bg:linear-gradient(180deg,#fbfcfd 0%,#eef0f7 100%);
+  --card-bg:#fff;
+  --card-border:1px solid var(--g200);
+  --card-radius:22px;
+  --card-shadow:0 1px 2px rgba(20,30,50,.04),0 18px 46px -12px rgba(20,30,50,.14);
+  --inp-radius:12px;
+  --inp-bg:#fff;
+}
+body[data-theme="dark"]{
+  color-scheme:dark;
+  --brand:#9a9af0;--brand-dark:#8080e6;--brand-light:#232346;
+  --g50:#0f1620;--g100:#1b2430;--g200:#2a3644;--g300:#3a4a5c;
+  --g400:#8593a5;--g500:#9aa8ba;--g600:#c0cad6;--g800:#e9eef4;
+  --danger:#f0776a;--ok:#4cc79a;--ok-light:#173026;
+  --surface:#18212c;
+  --toast-bg:#e9eef4;--toast-fg:#0f1620;
+  --page-bg:linear-gradient(180deg,#0f1620 0%,#141824 100%);
+  --card-bg:#18212c;
+  --card-border:1px solid #2a3644;
+  --card-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 46px -12px rgba(0,0,0,.65);
+  --inp-bg:#111a24;
+}
+body{font-family:var(--font-body);background:var(--page-bg);background-attachment:fixed;color:var(--g800);min-height:100vh;-webkit-tap-highlight-color:transparent;transition:background .25s,color .25s;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+input,textarea,select{font-family:inherit;font-size:16px;}
+.hidden{display:none!important;}
+
+/* ── HEADER ── */
+.hdr{background:var(--surface);border-bottom:1px solid var(--g200);padding:14px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;}
+.hdr-brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+#hdrLogo{max-height:44px;max-width:190px;object-fit:contain;}
+#hdrLogoPh{width:44px;height:44px;border-radius:12px;background:var(--brand-light);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;position:relative;}
+body:not(.embed) #hdrLogoPh,body:not(.embed) #hdrLogo{cursor:pointer;}
+body:not(.embed) #hdrLogoPh:hover{filter:brightness(.96);}
+body:not(.embed) #hdrLogoPh::after{content:"＋";position:absolute;right:-4px;bottom:-4px;width:17px;height:17px;border-radius:50%;background:var(--brand);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);line-height:1;}
+.hdr-name{font-family:var(--font-head);font-size:19px;font-weight:800;color:var(--g800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hdr-btn{color:var(--g500);font-size:13px;font-weight:700;padding:9px 12px;border-radius:10px;background:var(--g100);white-space:nowrap;}
+.hdr-btn:hover{background:var(--g200);}
+.hdr-btn.accent{background:var(--brand-light);color:var(--brand-dark);}
+.hdr-btn.icon{font-size:16px;padding:9px 11px;line-height:1;}
+
+/* ── LAYOUT ── */
+.wrap{max-width:620px;margin:0 auto;padding:30px 18px 76px;}
+.card{background:var(--card-bg);border:var(--card-border);border-radius:var(--card-radius);padding:30px;box-shadow:var(--card-shadow);position:relative;overflow:hidden;}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--brand),var(--brand-dark));}
+.form-title{font-family:var(--font-head);font-size:26px;font-weight:900;letter-spacing:-.6px;line-height:1.15;}
+.form-sub{font-size:14.5px;color:var(--g500);margin-top:6px;line-height:1.5;}
+
+/* steps indicator */
+.steps{display:flex;align-items:center;gap:6px;margin:22px 0 4px;}
+.stp{display:flex;align-items:center;gap:8px;flex:1;}
+.stp .n{width:26px;height:26px;border-radius:50%;background:var(--g100);color:var(--g500);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s;}
+.stp .t{font-size:12px;font-weight:800;color:var(--g400);white-space:nowrap;}
+.stp .bar{flex:1;height:2px;background:var(--g100);border-radius:2px;}
+.stp.done .n,.stp.on .n{background:var(--brand);color:#fff;}
+.stp.done .t,.stp.on .t{color:var(--g800);}
+.stp.done .bar{background:var(--brand);}
+@media(max-width:520px){.stp .t{display:none;}.stp{flex:0 0 auto;}.stp .bar{flex:1;min-width:14px;}.steps{gap:4px;}.stp{gap:4px;}}
+
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--brand-dark);background:var(--brand-light);border-radius:9px;padding:7px 12px;margin-bottom:18px;}
+.step-h{font-family:var(--font-head);font-size:18px;font-weight:900;margin:24px 0 4px;letter-spacing:-.3px;}
+.step-p{font-size:13.5px;color:var(--g500);margin-bottom:16px;}
+
+/* service cards */
+.svc{border:1.5px solid var(--g200);border-radius:16px;padding:16px 18px;margin-bottom:12px;cursor:pointer;transition:all .14s;display:flex;align-items:center;gap:14px;}
+.svc:hover{border-color:var(--brand);box-shadow:0 6px 18px -8px var(--brand);}
+.svc-ic{width:46px;height:46px;border-radius:13px;background:var(--brand-light);color:var(--brand);font-size:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.svc-body{flex:1;min-width:0;}
+.svc-nm{font-weight:800;font-size:16px;}
+.svc-desc{font-size:13px;color:var(--g500);margin-top:2px;}
+.svc-meta{display:flex;gap:12px;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--g600);}
+.svc-meta .price{color:var(--brand-dark);}
+.svc-arrow{color:var(--g300);font-size:22px;font-weight:900;flex-shrink:0;}
+
+/* mini calendar */
+.mini-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.mini-title{font-family:var(--font-head);font-size:17px;font-weight:900;}
+.mini-arrow{width:36px;height:36px;border-radius:10px;background:var(--g100);color:var(--g600);font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center;}
+.mini-arrow:disabled{opacity:.3;cursor:default;}
+.mini-arrow:not(:disabled):hover{background:var(--g200);}
+.mini-dow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px;}
+.mini-dow div{text-align:center;font-size:11px;font-weight:800;color:var(--g400);padding:4px 0;text-transform:uppercase;letter-spacing:.03em;}
+.mini-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.mday{aspect-ratio:1;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--g600);border:1.5px solid transparent;position:relative;}
+.mday.avail{background:var(--brand-light);color:var(--brand-dark);cursor:pointer;font-weight:800;}
+.mday.avail:hover{background:var(--brand);color:#fff;}
+.mday.off{color:var(--g300);}
+.mday.sel{background:var(--brand);color:#fff;}
+.mday.today-mk::after{content:"";position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:currentColor;}
+
+/* time slots */
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;}
+.slot{border:1.5px solid var(--g200);border-radius:11px;padding:12px 6px;font-size:14px;font-weight:800;color:var(--g800);text-align:center;transition:all .12s;font-variant-numeric:tabular-nums;}
+.slot:hover{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);}
+.no-slots{text-align:center;color:var(--g400);padding:30px 20px;font-weight:600;}
+
+/* summary + details */
+.summary{background:var(--g50);border:1.5px solid var(--g200);border-radius:14px;padding:16px 18px;margin-bottom:20px;}
+.summary-row{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:5px 0;}
+.summary-row .k{color:var(--g500);font-weight:600;}
+.summary-row .v{font-weight:800;text-align:right;}
+.field{margin-bottom:16px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+label.lbl{font-size:12px;font-weight:800;color:var(--g600);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:7px;}
+label.lbl .req{color:var(--danger);}
+.hint{font-size:12px;color:var(--g400);font-weight:600;margin-top:6px;line-height:1.4;}
+.inp{width:100%;padding:12px 13px;border:1.5px solid var(--g200);border-radius:var(--inp-radius);color:var(--g800);outline:none;background:var(--inp-bg);transition:border-color .15s,box-shadow .15s;}
+.inp:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-light);}
+textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
+select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 13px center;padding-right:38px;}
+
+.btn{border-radius:var(--inp-radius);font-weight:800;font-size:16px;padding:15px;transition:transform .12s,box-shadow .15s,opacity .15s;letter-spacing:.01em;}
+.btn-primary{background:linear-gradient(180deg,var(--brand),var(--brand-dark));color:#fff;width:100%;box-shadow:0 8px 20px -6px var(--brand);}
+.btn-primary:hover{transform:translateY(-1px);}
+.btn-clear{background:var(--g100);color:var(--g600);}
+.btn-clear:hover{background:var(--g200);}
+
+.privacy-note{text-align:center;font-size:12px;color:var(--g400);margin-top:16px;line-height:1.5;font-weight:600;}
+.privacy-note b{color:var(--g500);}
+
+/* confirmation */
+.confirm-body{text-align:center;padding:10px 4px 4px;}
+.confirm-check{width:70px;height:70px;border-radius:50%;background:var(--ok-light);color:var(--ok);font-size:38px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.confirm-h{font-family:var(--font-head);font-size:24px;font-weight:900;}
+.confirm-p{font-size:15px;color:var(--g500);margin-top:8px;line-height:1.5;}
+.confirm-ref{background:linear-gradient(180deg,var(--brand),var(--brand-dark));color:#fff;border-radius:16px;padding:18px;margin:20px 0 10px;box-shadow:0 10px 24px -8px var(--brand);}
+.confirm-ref .nl{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.85;}
+.confirm-ref .nv{font-size:26px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;margin-top:2px;}
+.confirm-when{font-size:15px;font-weight:800;margin-top:2px;}
+
+/* ── MODAL ── */
+.modal{position:fixed;inset:0;background:rgba(20,25,35,.5);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:24px 16px;overflow-y:auto;}
+.modal.open{display:flex;}
+.sheet{background:var(--surface);border-radius:20px;width:100%;max-width:620px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);max-height:calc(100dvh - 40px);overflow-y:auto;}
+.sheet-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;position:sticky;top:-2px;background:var(--surface);padding-top:2px;z-index:2;}
+.sheet-top h2{font-size:19px;font-weight:900;letter-spacing:-.3px;}
+.sheet-top .sub{font-size:13px;color:var(--g500);font-weight:600;margin-top:2px;}
+.sheet-close{font-size:26px;color:var(--g400);line-height:1;padding:2px 8px;}
+.sheet-foot{position:sticky;bottom:0;margin:18px -26px -26px;padding:14px 26px calc(24px + env(safe-area-inset-bottom,0px));background:var(--surface);box-shadow:0 -14px 22px -14px rgba(20,25,35,.16);border-radius:0 0 20px 20px;z-index:2;}
+.sec{font-family:var(--font-head);font-size:12px;font-weight:900;color:var(--brand);text-transform:uppercase;letter-spacing:.09em;margin:26px 0 14px;padding-bottom:8px;border-bottom:1.5px solid var(--g100);}
+.sec:first-of-type{margin-top:4px;}
+.file-btn{display:inline-block;background:var(--g100);color:var(--g600);font-weight:700;font-size:14px;padding:11px 18px;border-radius:12px;cursor:pointer;}
+.logo-prev{max-height:48px;max-width:190px;object-fit:contain;margin-top:10px;display:block;}
+.link-btn{color:var(--danger);font-size:12.5px;font-weight:700;background:var(--g100);border-radius:8px;padding:6px 12px;}
+.tool-btn{background:var(--brand-light);color:var(--brand-dark);font-weight:800;font-size:13.5px;padding:0 15px;border-radius:11px;white-space:nowrap;height:44px;}
+.add-btn{font-size:13.5px;font-weight:800;color:var(--brand-dark);background:var(--brand-light);border-radius:10px;padding:10px 16px;}
+
+/* services editor */
+.svc-edit{border:1.5px solid var(--g200);border-radius:14px;padding:14px;margin-bottom:12px;}
+.svc-edit .row3{display:grid;grid-template-columns:1fr 84px 90px;gap:10px;margin-top:10px;}
+.svc-edit .rm{color:var(--danger);font-size:12.5px;font-weight:700;background:var(--g100);border-radius:8px;padding:6px 12px;margin-top:10px;}
+
+/* hours editor */
+.hrow{display:grid;grid-template-columns:44px 96px 1fr auto 1fr;gap:9px;align-items:center;margin-bottom:9px;}
+.hrow .dn{font-size:13px;font-weight:800;color:var(--g600);}
+.toggle{width:44px;height:26px;border-radius:999px;background:var(--g300);position:relative;transition:background .15s;flex-shrink:0;}
+.toggle.on{background:var(--brand);}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s;}
+.toggle.on::after{transform:translateX(18px);}
+.hrow .inp{padding:9px 10px;}
+.hrow .dash{color:var(--g400);text-align:center;font-weight:700;}
+.hrow.off .inp,.hrow.off .dash{opacity:.4;pointer-events:none;}
+
+/* blocked dates */
+.blk-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.blk{background:var(--g100);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--g600);display:flex;align-items:center;gap:7px;}
+.blk button{color:var(--danger);font-weight:900;font-size:15px;line-height:1;}
+
+/* appointments list */
+.rec-tools{display:flex;gap:10px;margin-bottom:16px;}
+.rec-tools .inp{flex:1;}
+.appt{border:1px solid var(--g200);border-radius:14px;padding:15px;margin-bottom:11px;}
+.appt.past{opacity:.62;}
+.appt-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+.appt-when{font-weight:900;font-size:15px;}
+.appt-svc{display:inline-block;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--brand-light);color:var(--brand-dark);white-space:nowrap;}
+.appt-who{font-size:14px;font-weight:800;margin-top:8px;}
+.appt-meta{font-size:12.5px;color:var(--g600);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;}
+.appt-meta b{color:var(--g800);}
+.appt-notes{font-size:13px;color:var(--g500);margin-top:8px;padding-top:8px;border-top:1px solid var(--g100);}
+.appt-ref{font-size:11px;color:var(--g400);font-weight:700;font-variant-numeric:tabular-nums;margin-top:8px;}
+.appt-cancel{color:var(--danger);font-size:12px;font-weight:700;background:var(--g100);border-radius:8px;padding:5px 10px;margin-top:10px;display:inline-block;}
+.empty{text-align:center;color:var(--g400);padding:44px 20px;font-weight:600;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--toast-bg);color:var(--toast-fg);padding:12px 22px;border-radius:12px;font-size:14px;font-weight:700;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25);}
+.toast.show{opacity:1;}
+
+body.embed .admin-only{display:none!important;}
+@media(max-width:480px){.row2{grid-template-columns:1fr;}.hrow{grid-template-columns:40px 70px 1fr auto 1fr;gap:6px;}.svc-edit .row3{grid-template-columns:1fr;}}
+@media print{.hdr,.steps,.back-link,.btn{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="hdr">
+  <div class="hdr-brand">
+    <div id="hdrLogoPh" onclick="brandLogoClick()" title="Add your logo">📅</div>
+    <img id="hdrLogo" class="hidden" onclick="brandLogoClick()" title="Change your logo" alt="">
+    <div class="hdr-name" id="hdrName">Book an Appointment</div>
+  </div>
+  <button class="hdr-btn icon" id="themeBtn" onclick="toggleTheme()" title="Toggle day / night">🌙</button>
+  <button class="hdr-btn accent admin-only" onclick="openAppts()">Appointments</button>
+  <button class="hdr-btn admin-only" onclick="openSettings()">⚙</button>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="form-title" id="formTitle">Book an appointment</div>
+    <div class="form-sub" id="formSub">Choose a service, pick a time that works, and you're booked. It only takes a minute.</div>
+
+    <!-- STEPS -->
+    <div class="steps" id="stepsBar">
+      <div class="stp" data-s="1"><span class="n">1</span><span class="t">Service</span></div>
+      <div class="bar" style="flex:1;height:2px;background:var(--g100);border-radius:2px;margin:0 2px"></div>
+      <div class="stp" data-s="2"><span class="n">2</span><span class="t">Date</span></div>
+      <div class="bar" style="flex:1;height:2px;background:var(--g100);border-radius:2px;margin:0 2px"></div>
+      <div class="stp" data-s="3"><span class="n">3</span><span class="t">Time</span></div>
+      <div class="bar" style="flex:1;height:2px;background:var(--g100);border-radius:2px;margin:0 2px"></div>
+      <div class="stp" data-s="4"><span class="n">4</span><span class="t">Details</span></div>
+    </div>
+
+    <!-- STEP 1: SERVICE -->
+    <div id="step1">
+      <div class="step-h">What can we help you with?</div>
+      <div class="step-p">Pick a service to see available times.</div>
+      <div id="svcList"></div>
+    </div>
+
+    <!-- STEP 2: DATE -->
+    <div id="step2" class="hidden">
+      <button class="back-link" onclick="goStep(1)">‹ Service</button>
+      <div class="step-h" id="dateH">Pick a date</div>
+      <div class="step-p" id="dateP">Highlighted days have openings.</div>
+      <div class="mini-nav">
+        <button class="mini-arrow" id="miniPrev" onclick="miniShift(-1)">‹</button>
+        <div class="mini-title" id="miniTitle">—</div>
+        <button class="mini-arrow" id="miniNext" onclick="miniShift(1)">›</button>
+      </div>
+      <div class="mini-dow"><div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div></div>
+      <div class="mini-grid" id="miniGrid"></div>
+    </div>
+
+    <!-- STEP 3: TIME -->
+    <div id="step3" class="hidden">
+      <button class="back-link" onclick="goStep(2)">‹ Date</button>
+      <div class="step-h" id="timeH">Pick a time</div>
+      <div class="step-p" id="timeP"></div>
+      <div class="slots" id="slotList"></div>
+      <div class="no-slots hidden" id="noSlots">No open times left for this day.<br>Please choose another date.</div>
+    </div>
+
+    <!-- STEP 4: DETAILS -->
+    <div id="step4" class="hidden">
+      <button class="back-link" onclick="goStep(3)">‹ Time</button>
+      <div class="step-h">Your details</div>
+      <div class="step-p">So we can confirm your appointment.</div>
+      <div class="summary" id="summary"></div>
+      <div class="row2 field">
+        <div><label class="lbl">First name <span class="req">*</span></label><input class="inp" id="cFirst" placeholder="First name" autocomplete="given-name"></div>
+        <div><label class="lbl">Last name <span class="req">*</span></label><input class="inp" id="cLast" placeholder="Last name" autocomplete="family-name"></div>
+      </div>
+      <div class="row2 field">
+        <div><label class="lbl">Phone <span class="req">*</span></label><input class="inp" id="cPhone" type="tel" placeholder="(555) 123-4567" autocomplete="tel"></div>
+        <div><label class="lbl">Email</label><input class="inp" id="cEmail" type="email" placeholder="you@email.com" autocomplete="email"></div>
+      </div>
+      <div class="field">
+        <label class="lbl" id="notesLbl">Anything we should know?</label>
+        <textarea class="inp" id="cNotes" placeholder="Reason for visit, questions, etc. (optional)"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="confirmBooking()">Confirm booking</button>
+      <div class="privacy-note" id="privacyNote"></div>
+    </div>
+
+    <!-- CONFIRMATION -->
+    <div id="stepDone" class="hidden">
+      <div class="confirm-body">
+        <div class="confirm-check">✓</div>
+        <div class="confirm-h" id="doneH">You're booked!</div>
+        <div class="confirm-p" id="doneP">We've saved your appointment. See you then!</div>
+        <div class="confirm-ref">
+          <div class="nl">Confirmation</div>
+          <div class="nv" id="doneRef">—</div>
+          <div class="confirm-when" id="doneWhen">—</div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:10px" onclick="restart()">Book another</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ── -->
+<div class="modal" id="settingsModal">
+  <div class="sheet">
+    <div class="sheet-top"><div><h2>Settings</h2><div class="sub">Your business, services &amp; availability.</div></div><button class="sheet-close" onclick="close_('settingsModal')">×</button></div>
+
+    <div class="sec">Your business</div>
+    <div class="field"><label class="lbl">Business name</label><input class="inp" id="setBiz" placeholder="Your business name"></div>
+    <div class="field"><label class="lbl">Page heading</label><input class="inp" id="setTitle" placeholder="Book an appointment"></div>
+    <div class="field"><label class="lbl">Intro text</label><textarea class="inp" id="setSub" placeholder="A short line shown under the heading"></textarea></div>
+    <div class="field">
+      <label class="lbl">Logo</label>
+      <label class="file-btn">📷 Upload logo<input type="file" id="setLogoInput" accept="image/*" style="display:none" onchange="onLogo(event)"></label>
+      <img id="setLogoPrev" class="logo-prev hidden" alt="">
+      <button class="link-btn hidden" id="setLogoRemove" style="margin-top:10px" onclick="removeLogo()">Remove logo</button>
+    </div>
+
+    <div class="sec">Services</div>
+    <div id="svcEditList"></div>
+    <button class="add-btn" onclick="addSvcRow()">＋ Add a service</button>
+
+    <div class="sec">Weekly hours</div>
+    <p class="hint" style="margin-top:-6px;margin-bottom:12px">Turn on the days you take appointments and set your open hours. Times outside these hours are never offered.</p>
+    <div id="hoursList"></div>
+
+    <div class="sec">Booking rules</div>
+    <div class="row2 field">
+      <div><label class="lbl">Time-slot spacing</label>
+        <select class="inp" id="setSlot"><option value="15">Every 15 min</option><option value="20">Every 20 min</option><option value="30">Every 30 min</option><option value="60">Every hour</option></select></div>
+      <div><label class="lbl">Gap between appts</label>
+        <select class="inp" id="setBuffer"><option value="0">None</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option></select></div>
+    </div>
+    <div class="row2 field">
+      <div><label class="lbl">Minimum notice</label>
+        <select class="inp" id="setNotice"><option value="0">None</option><option value="2">2 hours</option><option value="12">12 hours</option><option value="24">1 day</option><option value="48">2 days</option></select></div>
+      <div><label class="lbl">How far ahead</label>
+        <select class="inp" id="setAhead"><option value="14">2 weeks</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option></select></div>
+    </div>
+
+    <div class="sec">Days off / blocked dates</div>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div style="flex:1"><label class="lbl">Block a date</label><input class="inp" id="setBlockDate" type="date"></div>
+      <button class="tool-btn" onclick="addBlocked()">Block</button>
+    </div>
+    <div class="blk-list" id="blkList"></div>
+
+    <div class="sec">Delivery &amp; data</div>
+    <div class="field">
+      <label class="lbl">Send bookings to (optional)</label>
+      <input class="inp" id="setWebhook" placeholder="https://… delivery URL" autocomplete="off" spellcheck="false" oninput="document.getElementById('setWebhookTest').classList.toggle('hidden', !this.value.trim())">
+      <div class="hint">Paste a free delivery URL and every booking is also emailed or logged to a spreadsheet/CRM — needed when you <b>post or embed</b> this page for clients. <a href="setup-guide.html" target="_blank" style="color:var(--brand);font-weight:700">Setup guide →</a></div>
+      <button class="link-btn hidden" id="setWebhookTest" style="margin-top:10px;color:var(--brand-dark);background:var(--brand-light)" onclick="testWebhook()">Send test booking</button>
+    </div>
+
+    <div class="sheet-foot"><button class="btn btn-primary" onclick="saveSettings()">Save settings</button></div>
+  </div>
+</div>
+
+<!-- ── APPOINTMENTS MODAL ── -->
+<div class="modal" id="apptsModal">
+  <div class="sheet">
+    <div class="sheet-top"><div><h2>Appointments</h2><div class="sub" id="apptCount"></div></div><button class="sheet-close" onclick="close_('apptsModal')">×</button></div>
+    <div class="rec-tools">
+      <input class="inp" id="apptSearch" placeholder="Search name, service…" oninput="renderAppts()">
+      <button class="tool-btn" onclick="exportCSV()">⬇ CSV</button>
+      <button class="tool-btn" onclick="window.print()">🖨</button>
+    </div>
+    <div id="apptList"></div>
+    <button class="link-btn" style="margin-top:12px" onclick="clearPast()">Clear past appointments</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── STATE ── */
+const LS_SET='sch_settings', LS_BK='sch_bookings';
+const SVC_ICONS=['💬','✂️','🧾','🩺','🧘','💅','🐾','📸','🔧','🎓','🏋️','🖥️'];
+const DEFAULTS={
+  biz:'Book an Appointment', title:'Book an appointment',
+  sub:"Choose a service, pick a time that works, and you're booked. It only takes a minute.",
+  logo:'', theme:'light', webhook:'',
+  services:[
+    {id:'s1',name:'Initial consultation',mins:30,price:'',desc:'A first conversation to see how we can help.'},
+    {id:'s2',name:'Standard appointment',mins:60,price:'',desc:'A full session.'}
+  ],
+  hours:{0:{on:false,start:'09:00',end:'17:00'},1:{on:true,start:'09:00',end:'17:00'},2:{on:true,start:'09:00',end:'17:00'},3:{on:true,start:'09:00',end:'17:00'},4:{on:true,start:'09:00',end:'17:00'},5:{on:true,start:'09:00',end:'16:00'},6:{on:false,start:'10:00',end:'14:00'}},
+  slotMins:30, bufferMins:0, minNoticeHrs:12, maxDaysAhead:30, blocked:[]
+};
+let settings=load(LS_SET,DEFAULTS);
+let bookings=load(LS_BK,[]);
+let DEMO=false;
+let step=1, bkService=null, bkDate=null, bkTime=null;
+let miniMonth=new Date(); miniMonth.setDate(1);
+let editServices=[], editHours=null, editBlocked=[], pendingLogo=undefined;
+
+function load(k,def){ try{ const v=JSON.parse(localStorage.getItem(k)); if(v==null) return def; return Array.isArray(def)?v:{...def,...v}; }catch(e){ return def; } }
+function saveLS(){ if(DEMO) return true; try{ localStorage.setItem(LS_SET,JSON.stringify(settings)); localStorage.setItem(LS_BK,JSON.stringify(bookings)); return true; }catch(e){ return false; } }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pad(n){ return String(n).padStart(2,'0'); }
+
+/* ── DATES ── */
+function ymd(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function parseYmd(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function toMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function fmt12(t){ const [h,m]=t.split(':').map(Number); const ap=h>=12?'PM':'AM'; const hh=((h+11)%12)+1; return hh+':'+pad(m)+' '+ap; }
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOWL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DOW3=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function slotDateTime(ds,t){ const d=parseYmd(ds); const [h,m]=t.split(':').map(Number); d.setHours(h,m,0,0); return d; }
+function fmtLong(ds){ const d=parseYmd(ds); return DOWL[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate(); }
+
+/* ── AVAILABILITY ENGINE ── */
+function svcById(id){ return settings.services.find(s=>s.id===id); }
+function bookingsOn(ds){ return bookings.filter(b=>b.date===ds); }
+function availableSlots(ds, svc){
+  if(!svc) return [];
+  const dow=parseYmd(ds).getDay();
+  const h=settings.hours[dow];
+  if(!h||!h.on) return [];
+  if((settings.blocked||[]).includes(ds)) return [];
+  const open=toMin(h.start), close=toMin(h.end);
+  const dur=+svc.mins, step=+settings.slotMins, buf=+settings.bufferMins;
+  const earliest=new Date(Date.now()+ (+settings.minNoticeHrs)*3600000);
+  const busy=bookingsOn(ds).map(b=>({s:toMin(b.time), e:toMin(b.time)+(+b.mins)}));
+  const out=[];
+  for(let s=open; s+dur<=close; s+=step){
+    const e=s+dur;
+    const t=pad(Math.floor(s/60))+':'+pad(s%60);
+    if(slotDateTime(ds,t) < earliest) continue;                 // min-notice
+    const clash=busy.some(b=> s < b.e+buf && b.s < e+buf );      // overlap incl. buffer
+    if(clash) continue;
+    out.push(t);
+  }
+  return out;
+}
+function dayHasSlots(ds, svc){ return availableSlots(ds,svc).length>0; }
+function windowBounds(){ const today=new Date(); today.setHours(0,0,0,0); return { min:today, max:addDays(today,+settings.maxDaysAhead) }; }
+
+/* ── THEME / BRAND ── */
+function applyTheme(){
+  const dark=settings.theme==='dark';
+  document.body.dataset.theme=dark?'dark':'light';
+  const tb=document.getElementById('themeBtn'); if(tb) tb.textContent=dark?'☀️':'🌙';
+  const ph=document.getElementById('hdrLogoPh'), lg=document.getElementById('hdrLogo');
+  if(settings.logo){ lg.src=settings.logo; lg.classList.remove('hidden'); ph.classList.add('hidden'); }
+  else { lg.classList.add('hidden'); ph.classList.remove('hidden'); }
+  document.getElementById('hdrName').textContent=settings.biz||'Book an Appointment';
+  document.getElementById('formTitle').textContent=settings.title||'Book an appointment';
+  document.getElementById('formSub').textContent=settings.sub||'';
+  const pn=document.getElementById('privacyNote');
+  if(pn) pn.innerHTML = settings.webhook
+    ? '🔒 Your booking is sent securely to <b>'+esc(settings.biz||'us')+'</b>.'
+    : '🔒 <b>Your booking is saved on this device.</b> No account needed.';
+}
+function toggleTheme(){ settings.theme=settings.theme==='dark'?'light':'dark'; applyTheme(); saveLS(); }
+function brandLogoClick(){ if(document.body.classList.contains('embed')) return; openSettings(); setTimeout(()=>document.getElementById('setLogoInput').click(),150); }
+
+/* ── STEP NAV ── */
+function goStep(n){
+  step=n;
+  [1,2,3,4].forEach(i=>document.getElementById('step'+i).classList.toggle('hidden',i!==n));
+  document.getElementById('stepDone').classList.add('hidden');
+  document.getElementById('stepsBar').classList.remove('hidden');
+  document.querySelectorAll('#stepsBar .stp').forEach(el=>{ const s=+el.dataset.s; el.classList.toggle('on',s===n); el.classList.toggle('done',s<n); });
+  if(n===2) renderMini();
+  if(n===3) renderTimes();
+  if(n===4) renderSummary();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ── STEP 1 · SERVICES ── */
+function renderServices(){
+  const el=document.getElementById('svcList');
+  if(!settings.services.length){ el.innerHTML='<div class="no-slots">No services set up yet. Tap ⚙ to add one.</div>'; return; }
+  el.innerHTML=settings.services.map((s,i)=>{
+    const meta=[`⏱ ${s.mins} min`, s.price?`<span class="price">$${esc(String(s.price))}</span>`:''].filter(Boolean).join(' ');
+    return `<div class="svc" onclick="selectService('${s.id}')">
+      <div class="svc-ic">${SVC_ICONS[i%SVC_ICONS.length]}</div>
+      <div class="svc-body"><div class="svc-nm">${esc(s.name)}</div>${s.desc?`<div class="svc-desc">${esc(s.desc)}</div>`:''}<div class="svc-meta">${meta}</div></div>
+      <div class="svc-arrow">›</div>
+    </div>`;
+  }).join('');
+}
+function selectService(id){ bkService=svcById(id); bkDate=null; bkTime=null; miniMonth=new Date(); miniMonth.setDate(1); goStep(2); }
+
+/* ── STEP 2 · DATE ── */
+function renderMini(){
+  document.getElementById('dateH').textContent='Pick a date for your '+ (bkService?bkService.name.toLowerCase():'appointment');
+  document.getElementById('miniTitle').textContent=MONTHS[miniMonth.getMonth()]+' '+miniMonth.getFullYear();
+  const {min,max}=windowBounds();
+  // disable nav outside window
+  const prevMonthEnd=new Date(miniMonth.getFullYear(),miniMonth.getMonth(),0);
+  document.getElementById('miniPrev').disabled = prevMonthEnd < min;
+  const nextMonthStart=new Date(miniMonth.getFullYear(),miniMonth.getMonth()+1,1);
+  document.getElementById('miniNext').disabled = nextMonthStart > max;
+  const grid=document.getElementById('miniGrid'); grid.innerHTML='';
+  const first=new Date(miniMonth.getFullYear(),miniMonth.getMonth(),1);
+  const gridStart=addDays(first,-first.getDay());
+  const tstr=ymd(new Date());
+  for(let i=0;i<42;i++){
+    const d=addDays(gridStart,i); const ds=ymd(d);
+    const cell=document.createElement('div'); cell.className='mday';
+    if(d.getMonth()!==miniMonth.getMonth()){ cell.style.visibility='hidden'; grid.appendChild(cell); continue; }
+    cell.textContent=d.getDate();
+    if(ds===tstr) cell.classList.add('today-mk');
+    const inWindow = d>=min && d<=max;
+    if(inWindow && dayHasSlots(ds,bkService)){ cell.classList.add('avail'); if(ds===bkDate) cell.classList.add('sel'); cell.onclick=()=>selectDate(ds); }
+    else cell.classList.add('off');
+    grid.appendChild(cell);
+  }
+}
+function miniShift(n){ miniMonth.setMonth(miniMonth.getMonth()+n); renderMini(); }
+function selectDate(ds){ bkDate=ds; bkTime=null; goStep(3); }
+
+/* ── STEP 3 · TIME ── */
+function renderTimes(){
+  document.getElementById('timeH').textContent=fmtLong(bkDate);
+  const slots=availableSlots(bkDate,bkService);
+  document.getElementById('timeP').textContent=slots.length? slots.length+' open time'+(slots.length>1?'s':'')+' · '+bkService.mins+' min each' : '';
+  const el=document.getElementById('slotList'), ns=document.getElementById('noSlots');
+  if(!slots.length){ el.innerHTML=''; ns.classList.remove('hidden'); return; }
+  ns.classList.add('hidden');
+  el.innerHTML=slots.map(t=>`<button class="slot" onclick="selectTime('${t}')">${fmt12(t)}</button>`).join('');
+}
+function selectTime(t){ bkTime=t; goStep(4); }
+
+/* ── STEP 4 · DETAILS ── */
+function renderSummary(){
+  const price=bkService.price?` · $${esc(String(bkService.price))}`:'';
+  document.getElementById('summary').innerHTML=`
+    <div class="summary-row"><span class="k">Service</span><span class="v">${esc(bkService.name)}</span></div>
+    <div class="summary-row"><span class="k">When</span><span class="v">${fmtLong(bkDate)}<br>${fmt12(bkTime)}</span></div>
+    <div class="summary-row"><span class="k">Length</span><span class="v">${bkService.mins} min${price}</span></div>`;
+}
+function confirmBooking(){
+  const first=document.getElementById('cFirst').value.trim();
+  const last=document.getElementById('cLast').value.trim();
+  const phone=document.getElementById('cPhone').value.trim();
+  if(!first||!last){ toast('Please enter your first and last name'); return; }
+  if(!phone){ toast('Please enter a phone number'); return; }
+  // guard against the slot being taken since it was shown
+  if(!availableSlots(bkDate,bkService).includes(bkTime)){ toast('Sorry, that time was just taken. Please pick another.'); goStep(3); return; }
+  const now=new Date();
+  const ref='APT-'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'-'+String(bookings.length+1).padStart(3,'0');
+  const rec={ id:Date.now(), ref, created:now.toISOString(),
+    serviceId:bkService.id, service:bkService.name, mins:+bkService.mins, price:bkService.price||'',
+    date:bkDate, time:bkTime,
+    first, last, phone,
+    email:document.getElementById('cEmail').value.trim(),
+    notes:document.getElementById('cNotes').value.trim() };
+  bookings.push(rec);
+  const ok=saveLS(); if(!ok) bookings.pop();
+  if(!ok && !settings.webhook){ toast('⚠ Couldn’t save — storage full.'); return; }
+  sendWebhook(rec);
+  document.getElementById('doneH').textContent='You\'re booked, '+first+'!';
+  document.getElementById('doneP').textContent = settings.biz && settings.biz!==DEFAULTS.biz ? 'Your appointment with '+settings.biz+' is confirmed.' : 'Your appointment is confirmed.';
+  document.getElementById('doneRef').textContent=ref;
+  document.getElementById('doneWhen').textContent=fmtLong(bkDate)+' · '+fmt12(bkTime);
+  [1,2,3,4].forEach(i=>document.getElementById('step'+i).classList.add('hidden'));
+  document.getElementById('stepsBar').classList.add('hidden');
+  document.getElementById('stepDone').classList.remove('hidden');
+  document.querySelectorAll('#cFirst,#cLast,#cPhone,#cEmail,#cNotes').forEach(el=>el.value='');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function restart(){ bkService=null; bkDate=null; bkTime=null; document.getElementById('stepDone').classList.add('hidden'); renderServices(); goStep(1); }
+
+/* ── WEBHOOK ── */
+function sendWebhook(rec){
+  if(!settings.webhook) return;
+  const payload={ source:'appointment-booking', business:settings.biz||'', bookedAt:new Date().toISOString(),
+    reference:rec.ref, service:rec.service, date:rec.date, time:fmt12(rec.time), length:rec.mins+' min', price:rec.price,
+    name:rec.first+' '+rec.last, phone:rec.phone, email:rec.email, notes:rec.notes };
+  try{ fetch(settings.webhook,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}).catch(()=>{}); }catch(e){}
+}
+function testWebhook(){ const url=document.getElementById('setWebhook').value.trim(); if(!url){ toast('Enter a delivery URL first'); return; }
+  const prev=settings.webhook; settings.webhook=url;
+  sendWebhook({ref:'TEST-000',service:'Connection test',date:ymd(new Date()),time:'15:00',mins:30,price:'',first:'Test',last:'Booking',phone:'(000) 000-0000',email:'test@example.com',notes:'Test booking from your scheduler.'});
+  settings.webhook=prev; toast('Test sent — check your email / sheet'); }
+
+/* ── SETTINGS ── */
+function openSettings(){
+  document.getElementById('setBiz').value=settings.biz===DEFAULTS.biz?'':settings.biz;
+  document.getElementById('setTitle').value=settings.title;
+  document.getElementById('setSub').value=settings.sub;
+  document.getElementById('setSlot').value=settings.slotMins;
+  document.getElementById('setBuffer').value=settings.bufferMins;
+  document.getElementById('setNotice').value=settings.minNoticeHrs;
+  document.getElementById('setAhead').value=settings.maxDaysAhead;
+  editServices=settings.services.map(s=>({...s}));
+  editHours=JSON.parse(JSON.stringify(settings.hours));
+  editBlocked=[...(settings.blocked||[])];
+  renderSvcEdit(); renderHours(); renderBlocked();
+  const lp=document.getElementById('setLogoPrev'), rm=document.getElementById('setLogoRemove');
+  if(settings.logo){ lp.src=settings.logo; lp.classList.remove('hidden'); rm.classList.remove('hidden'); } else { lp.classList.add('hidden'); rm.classList.add('hidden'); }
+  pendingLogo=undefined;
+  const wh=document.getElementById('setWebhook'); wh.value=settings.webhook||''; document.getElementById('setWebhookTest').classList.toggle('hidden',!wh.value.trim());
+  open_('settingsModal');
+}
+function renderSvcEdit(){
+  document.getElementById('svcEditList').innerHTML=editServices.map((s,i)=>`<div class="svc-edit">
+    <input class="inp" value="${esc(s.name)}" placeholder="Service name" oninput="editServices[${i}].name=this.value">
+    <div class="row3">
+      <input class="inp" value="${esc(s.desc||'')}" placeholder="Short description" oninput="editServices[${i}].desc=this.value">
+      <input class="inp" type="number" min="5" step="5" value="${esc(String(s.mins))}" placeholder="Min" oninput="editServices[${i}].mins=this.value" title="Minutes">
+      <input class="inp" value="${esc(String(s.price||''))}" placeholder="$ price" oninput="editServices[${i}].price=this.value">
+    </div>
+    <button class="rm" onclick="removeSvc(${i})">Remove</button>
+  </div>`).join('');
+}
+function addSvcRow(){ editServices.push({id:'s'+Date.now()+Math.floor(Math.random()*99),name:'',mins:30,price:'',desc:''}); renderSvcEdit(); }
+function removeSvc(i){ editServices.splice(i,1); renderSvcEdit(); }
+function renderHours(){
+  document.getElementById('hoursList').innerHTML=[1,2,3,4,5,6,0].map(d=>{
+    const h=editHours[d];
+    return `<div class="hrow ${h.on?'':'off'}" id="hrow${d}">
+      <div class="dn">${DOW3[d]}</div>
+      <div class="toggle ${h.on?'on':''}" onclick="toggleDay(${d})"></div>
+      <input class="inp" type="time" value="${h.start}" oninput="editHours[${d}].start=this.value">
+      <span class="dash">–</span>
+      <input class="inp" type="time" value="${h.end}" oninput="editHours[${d}].end=this.value">
+    </div>`;
+  }).join('');
+}
+function toggleDay(d){ editHours[d].on=!editHours[d].on; document.getElementById('hrow'+d).classList.toggle('off',!editHours[d].on); document.querySelector('#hrow'+d+' .toggle').classList.toggle('on',editHours[d].on); }
+function renderBlocked(){
+  const el=document.getElementById('blkList');
+  if(!editBlocked.length){ el.innerHTML='<span class="hint">No blocked dates.</span>'; return; }
+  el.innerHTML=editBlocked.slice().sort().map(ds=>`<span class="blk">${fmtLong(ds)} <button onclick="removeBlocked('${ds}')">×</button></span>`).join('');
+}
+function addBlocked(){ const d=document.getElementById('setBlockDate').value; if(!d){ toast('Pick a date to block'); return; } if(!editBlocked.includes(d)) editBlocked.push(d); document.getElementById('setBlockDate').value=''; renderBlocked(); }
+function removeBlocked(ds){ editBlocked=editBlocked.filter(x=>x!==ds); renderBlocked(); }
+function saveSettings(){
+  settings.biz=document.getElementById('setBiz').value.trim()||DEFAULTS.biz;
+  settings.title=document.getElementById('setTitle').value.trim()||DEFAULTS.title;
+  settings.sub=document.getElementById('setSub').value.trim()||DEFAULTS.sub;
+  settings.services=editServices.filter(s=>s.name.trim()).map(s=>({id:s.id,name:s.name.trim(),mins:Math.max(5,+s.mins||30),price:(s.price||'').toString().replace(/[^0-9.]/g,''),desc:(s.desc||'').trim()}));
+  settings.hours=editHours;
+  settings.blocked=editBlocked;
+  settings.slotMins=+document.getElementById('setSlot').value;
+  settings.bufferMins=+document.getElementById('setBuffer').value;
+  settings.minNoticeHrs=+document.getElementById('setNotice').value;
+  settings.maxDaysAhead=+document.getElementById('setAhead').value;
+  settings.webhook=document.getElementById('setWebhook').value.trim();
+  if(pendingLogo!==undefined) settings.logo=pendingLogo;
+  if(!settings.services.length){ toast('Add at least one service'); return; }
+  applyTheme();
+  if(saveLS()){ close_('settingsModal'); restart(); toast('Settings saved ✓'); }
+  else toast('⚠ Storage full — try a smaller logo.');
+}
+
+/* ── LOGO ── */
+function onLogo(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>shrink(r.result,440,d=>{ pendingLogo=d; const lp=document.getElementById('setLogoPrev'); lp.src=d; lp.classList.remove('hidden'); document.getElementById('setLogoRemove').classList.remove('hidden'); }); r.readAsDataURL(f); }
+function removeLogo(){ pendingLogo=''; document.getElementById('setLogoPrev').classList.add('hidden'); document.getElementById('setLogoRemove').classList.add('hidden'); }
+function shrink(dataURL,max,cb){ const img=new Image(); img.onload=()=>{ const s=Math.min(1,max/img.width); const c=document.createElement('canvas'); c.width=img.width*s; c.height=img.height*s; c.getContext('2d').drawImage(img,0,0,c.width,c.height); cb(c.toDataURL('image/png')); }; img.src=dataURL; }
+
+/* ── APPOINTMENTS ── */
+function openAppts(){ renderAppts(); open_('apptsModal'); }
+function renderAppts(){
+  const q=(document.getElementById('apptSearch').value||'').toLowerCase();
+  const now=new Date();
+  const list=bookings.filter(b=>((b.first+' '+b.last+' '+b.service+' '+b.notes).toLowerCase().includes(q)))
+    .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  document.getElementById('apptCount').textContent=bookings.length+' total';
+  const el=document.getElementById('apptList');
+  if(!list.length){ el.innerHTML='<div class="empty">No appointments yet.</div>'; return; }
+  el.innerHTML=list.map(b=>{
+    const past=slotDateTime(b.date,b.time)<now;
+    return `<div class="appt ${past?'past':''}">
+      <div class="appt-top"><div class="appt-when">${fmtLong(b.date)} · ${fmt12(b.time)}</div><span class="appt-svc">${esc(b.service)}</span></div>
+      <div class="appt-who">${esc(b.first)} ${esc(b.last)}</div>
+      <div class="appt-meta"><span>📞 <b>${esc(b.phone)}</b></span>${b.email?`<span>✉️ <b>${esc(b.email)}</b></span>`:''}<span>⏱ <b>${b.mins} min</b></span>${b.price?`<span>💵 <b>$${esc(String(b.price))}</b></span>`:''}</div>
+      ${b.notes?`<div class="appt-notes">${esc(b.notes)}</div>`:''}
+      <div class="appt-ref">${esc(b.ref)}${past?' · past':''}</div>
+      <span class="appt-cancel" onclick="cancelBooking(${b.id})">Cancel</span>
+    </div>`;
+  }).join('');
+}
+function cancelBooking(id){ if(!confirm('Cancel this appointment? The time slot will reopen.')) return; bookings=bookings.filter(b=>b.id!==id); saveLS(); renderAppts(); toast('Appointment cancelled'); }
+function clearPast(){ const now=new Date(); if(!confirm('Remove all past appointments?')) return; bookings=bookings.filter(b=>slotDateTime(b.date,b.time)>=now); saveLS(); renderAppts(); toast('Past appointments cleared'); }
+function exportCSV(){
+  const head=['Reference','Date','Time','Service','Length (min)','Price','First','Last','Phone','Email','Notes','Booked at'];
+  const rows=bookings.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(b=>
+    [b.ref,b.date,fmt12(b.time),b.service,b.mins,b.price,b.first,b.last,b.phone,b.email,b.notes,b.created]
+    .map(v=>`"${(v==null?'':v).toString().replace(/"/g,'""')}"`).join(','));
+  const csv=[head.join(','),...rows].join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='appointments-'+ymd(new Date())+'.csv'; a.click(); toast('CSV downloaded');
+}
+
+/* ── MODAL HELPERS ── */
+function open_(id){ document.getElementById(id).classList.add('open'); }
+function close_(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+/* ── DEMO SEED ── */
+function seedDemo(theme){
+  settings={ ...JSON.parse(JSON.stringify(DEFAULTS)), theme, biz:'Bright Smiles Studio', title:'Book your visit',
+    sub:'Pick a service and a time that suits you — booking takes under a minute.',
+    services:[
+      {id:'s1',name:'New patient consult',mins:30,price:'',desc:'Meet the team & a quick check.'},
+      {id:'s2',name:'Cleaning & checkup',mins:60,price:'120',desc:'Routine cleaning and exam.'},
+      {id:'s3',name:'Whitening session',mins:45,price:'200',desc:'In-chair whitening treatment.'}
+    ], minNoticeHrs:2 };
+  // a few bookings over the next couple days so some slots are taken
+  const t=ymd(new Date()), t1=ymd(addDays(new Date(),1)), t2=ymd(addDays(new Date(),2));
+  bookings=[
+    {id:1,ref:'APT-001',created:new Date().toISOString(),serviceId:'s2',service:'Cleaning & checkup',mins:60,price:'120',date:t1,time:'10:00',first:'Dana',last:'Reyes',phone:'(555) 200-1180',email:'dana@example.com',notes:'Sensitive teeth.'},
+    {id:2,ref:'APT-002',created:new Date().toISOString(),serviceId:'s1',service:'New patient consult',mins:30,price:'',date:t1,time:'13:30',first:'Omar',last:'Haddad',phone:'(555) 663-9042',email:'',notes:''},
+    {id:3,ref:'APT-003',created:new Date().toISOString(),serviceId:'s3',service:'Whitening session',mins:45,price:'200',date:t2,time:'11:00',first:'Priya',last:'Nair',phone:'(555) 810-7725',email:'priya@example.com',notes:'Before a wedding — thanks!'}
+  ];
+}
+
+/* ── INIT ── */
+(function boot(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('embed')==='1'||p.get('embed')==='true') document.body.classList.add('embed');
+  const th=p.get('theme'); if(th==='dark'||th==='light') settings.theme=th;
+  if(p.get('demo')==='1'){ DEMO=true; seedDemo((th==='dark'||th==='light')?th:'light'); }
+})();
+applyTheme(); renderServices(); goStep(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Appointment Booking — Setup &amp; Integration Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+body{background:#eef0f7;color:#1f2733;line-height:1.6;padding:40px 20px;}
+.card{max-width:680px;margin:0 auto;background:#fff;border-radius:20px;padding:44px;box-shadow:0 10px 40px rgba(20,30,50,.08);}
+.brand{font-size:26px;font-weight:900;color:#4646b8;letter-spacing:-.5px;}
+.tag{color:#6b7280;font-size:14px;margin-bottom:28px;}
+h2{color:#4646b8;margin:34px 0 8px;text-transform:uppercase;letter-spacing:.05em;font-size:13px;font-weight:800;}
+p{font-size:15px;color:#4b5563;}
+.step{display:flex;gap:16px;margin:16px 0;}
+.num{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:#5b5bd6;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.step b{color:#111;}
+.note{background:#e8e8fb;border-radius:12px;padding:16px 18px;font-size:14px;color:#33356b;margin-top:22px;}
+.note b{color:#3a3a8a;}
+code{background:#eef0f7;padding:2px 8px;border-radius:6px;font-size:13.5px;font-weight:700;color:#4646b8;word-break:break-all;}
+pre{background:#0f1620;color:#e9eef4;border-radius:12px;padding:16px 18px;margin:12px 0;overflow-x:auto;font-size:13px;line-height:1.5;}
+pre code{background:none;color:#e9eef4;padding:0;font-weight:500;}
+ul{margin:6px 0 6px 22px;}li{font-size:15px;color:#4b5563;margin:4px 0;}
+a{color:#4646b8;font-weight:700;}
+.foot{margin-top:34px;padding-top:20px;border-top:1px solid #eef0f7;font-size:13px;color:#98a2b3;text-align:center;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">📅 Appointment Booking</div>
+  <div class="tag">Intake Scheduler · Setup &amp; Integration Guide</div>
+
+  <p>Thanks for your purchase! This is a single file (<code>scheduling.html</code>) that runs in any
+  browser — no install, no account, no subscription. Clients pick a service, see your real openings,
+  and book. Here's how to set it up and put it to work.</p>
+
+  <h2>1 · Add your business, services &amp; hours</h2>
+  <div class="step"><div class="num">1</div><div><b>Open the app.</b><p>Double-click <code>scheduling.html</code> — it opens in your browser.</p></div></div>
+  <div class="step"><div class="num">2</div><div><b>Open Settings.</b><p>Tap <b>⚙</b> (top-right). Enter your <b>business name</b>, page heading, an intro line, and <b>upload your logo</b>.</p></div></div>
+  <div class="step"><div class="num">3</div><div><b>Add your services.</b><p>Under <b>Services</b>, give each one a name, a short description, its <b>length in minutes</b>, and an optional <b>price</b>. Add as many as you offer. Time slots are built from each service's length.</p></div></div>
+  <div class="step"><div class="num">4</div><div><b>Set your weekly hours.</b><p>Turn on the days you take appointments and set open/close times for each. Times outside your hours are never offered.</p></div></div>
+
+  <h2>2 · Fine-tune your booking rules</h2>
+  <p>Under <b>Booking rules</b> you control exactly how times are offered:</p>
+  <ul>
+    <li><b>Time-slot spacing</b> — how far apart start times are offered (e.g. every 30 min).</li>
+    <li><b>Gap between appts</b> — a buffer added after each booking for cleanup, travel, or notes.</li>
+    <li><b>Minimum notice</b> — how soon someone can book (e.g. no bookings within 12 hours).</li>
+    <li><b>How far ahead</b> — the furthest out clients can book (e.g. 30 days).</li>
+  </ul>
+  <p>Under <b>Days off / blocked dates</b>, block specific dates for holidays or vacation — those days show no openings.</p>
+  <div class="note"><b>How slots work.</b> For each open day, the app offers start times from your open hour
+  until the last time a full service still fits before you close — and it automatically hides any time
+  that overlaps an existing booking (plus your buffer). You can never be double-booked.</div>
+
+  <h2>Option A · Use it at your front desk</h2>
+  <p>Open the file on a tablet or reception computer to book walk-ins and phone calls yourself. Every
+  booking is saved on <b>that device</b> — open <b>Appointments</b> to search, cancel (which reopens the
+  slot), export a <b>CSV</b>, or print your day. Nothing is uploaded. This is the most private option.</p>
+
+  <h2>Option B · Post it as a link</h2>
+  <p>Put the file online and share the address anywhere — your "Book now" button, Google Business
+  profile, email signature, or bio. Free ways to host it:</p>
+  <ul>
+    <li><b>Netlify Drop</b> — go to <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a> and drag <code>scheduling.html</code> in. You instantly get a public link.</li>
+    <li><b>Your existing web host</b> — upload <code>scheduling.html</code> (e.g. <code>yourbusiness.com/book.html</code>).</li>
+    <li><b>GitHub Pages, Cloudflare Pages, Google Sites</b> — any static hosting works.</li>
+  </ul>
+  <p>Want just the booking flow, without the owner-only <b>Appointments</b> and <b>⚙</b> buttons? Add
+  <code>?embed=1</code>:</p>
+  <pre><code>https://yourbusiness.com/book.html?embed=1</code></pre>
+  <p>You can also force a look with <code>?theme=dark</code> or <code>?theme=light</code>.</p>
+
+  <h2>Option C · Embed it in your website</h2>
+  <p>Paste this where you want the booker to appear (most site builders have an "Embed" or "Custom HTML"
+  block — Squarespace, Wix, WordPress, Webflow, GoDaddy, etc.):</p>
+  <pre><code>&lt;iframe
+  src="https://yourbusiness.com/book.html?embed=1"
+  style="width:100%;height:900px;border:0;"
+  title="Book an appointment"&gt;&lt;/iframe&gt;</code></pre>
+  <p>Replace the <code>src</code> with wherever you hosted the file (Option B).</p>
+
+  <h2>Receiving bookings from a posted / embedded page</h2>
+  <p>When a client books on a <b>posted or embedded</b> page from their own phone, the booking is saved
+  <b>on their device</b> — so to receive it, connect a free <b>delivery URL</b> once. Open
+  <b>⚙ → Settings → "Send bookings to"</b> and paste an endpoint. Every booking is then sent there
+  automatically (hit <b>Send test booking</b> to confirm it arrives).</p>
+  <ul>
+    <li><b>Email it to you</b> — create a free endpoint at <a href="https://web3forms.com" target="_blank">Web3Forms</a> or <a href="https://formspree.io" target="_blank">Formspree</a>, copy the URL, and paste it in.</li>
+    <li><b>Log to a spreadsheet</b> — use a Google Sheet + Apps Script Web App URL so every booking lands in a row.</li>
+    <li><b>Into your CRM / calendar / SMS</b> — paste a <a href="https://zapier.com" target="_blank">Zapier</a> or <a href="https://make.com" target="_blank">Make.com</a> webhook to route bookings anywhere.</li>
+  </ul>
+  <div class="note"><b>Important — one shared list vs. separate devices.</b> Bookings are stored in the
+  browser they're made in. On a <b>front-desk device</b> that's perfect — every booking is in one place.
+  If you <b>post or embed</b> the page so clients book from their <i>own</i> phones, those bookings won't
+  appear in your front-desk list unless you connect a delivery URL — so <b>always add one for a public
+  booking page</b>, and treat the email/sheet it feeds as your master schedule.</div>
+
+  <div class="foot">Need a hand? support@worktrailhq.com · worktrailhq.com</div>
+</div>
+</body>
+</html>

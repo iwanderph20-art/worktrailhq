@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Co-Parenting Calendar — Setup Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+body{background:#eef4f2;color:#1f2733;line-height:1.6;padding:40px 20px;}
+.card{max-width:680px;margin:0 auto;background:#fff;border-radius:20px;padding:44px;box-shadow:0 10px 40px rgba(20,30,50,.08);}
+.brand{font-size:26px;font-weight:900;color:#227a62;letter-spacing:-.5px;}
+.tag{color:#6b7280;font-size:14px;margin-bottom:28px;}
+h2{color:#227a62;margin:34px 0 8px;text-transform:uppercase;letter-spacing:.05em;font-size:13px;font-weight:800;}
+p{font-size:15px;color:#4b5563;}
+.step{display:flex;gap:16px;margin:16px 0;}
+.num{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:#2e9e7f;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.step b{color:#111;}
+.note{background:#e2f4ee;border-radius:12px;padding:16px 18px;font-size:14px;color:#215c4c;margin-top:22px;}
+.note b{color:#1c5142;}
+code{background:#eef4f2;padding:2px 8px;border-radius:6px;font-size:13.5px;font-weight:700;color:#227a62;word-break:break-all;}
+pre{background:#0f1620;color:#e9eef4;border-radius:12px;padding:16px 18px;margin:12px 0;overflow-x:auto;font-size:13px;line-height:1.5;}
+pre code{background:none;color:#e9eef4;padding:0;font-weight:500;}
+ul{margin:6px 0 6px 22px;}li{font-size:15px;color:#4b5563;margin:4px 0;}
+a{color:#227a62;font-weight:700;}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef4f2;}
+th{color:#227a62;font-size:12px;text-transform:uppercase;letter-spacing:.04em;}
+.foot{margin-top:34px;padding-top:20px;border-top:1px solid #eef4f2;font-size:13px;color:#98a2b3;text-align:center;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">👨‍👩‍👧 Co-Parenting Calendar</div>
+  <div class="tag">Shared Custody Calendar · Setup Guide</div>
+
+  <p>Thanks for your purchase! This is a single file (<code>co-parenting.html</code>) that runs in any
+  browser — no install, no account, no subscription. Everything you enter is stored privately on your
+  own device. Here's how to get set up in a few minutes.</p>
+
+  <h2>1 · Set up your family</h2>
+  <div class="step"><div class="num">1</div><div><b>Open the app.</b><p>Double-click <code>co-parenting.html</code> — it opens in your browser.</p></div></div>
+  <div class="step"><div class="num">2</div><div><b>Open Setup.</b><p>Tap <b>⚙ Setup</b> (top-right). Name your calendar (e.g. "The Rivera Kids").</p></div></div>
+  <div class="step"><div class="num">3</div><div><b>Name both parents &amp; pick colors.</b><p>Enter a name for <b>Parent A</b> and <b>Parent B</b> (Mom / Dad / first names — whatever you use) and choose a color for each. Those colors run through the whole calendar so it's always clear whose day is whose.</p></div></div>
+  <div class="step"><div class="num">4</div><div><b>Add your kids.</b><p>Tap <b>＋ Add a child</b> for each child and give them a name. Tap the colored dot to change their color. Events can then be tagged to each child.</p></div></div>
+
+  <h2>2 · Fill your custody schedule</h2>
+  <p>In <b>⚙ Setup → Custody schedule</b>, choose the rotation your family uses, set the <b>start date</b>,
+  pick <b>who starts</b>, choose how far ahead to generate, and tap <b>Fill schedule from this pattern</b>.
+  The calendar fills in automatically. You can always tap any single day to change it.</p>
+  <table>
+    <tr><th>Pattern</th><th>How it works</th></tr>
+    <tr><td><b>Week on / week off</b></td><td>One parent for a full week, then the other.</td></tr>
+    <tr><td><b>2-2-3</b></td><td>2 days A, 2 days B, 3 days A — then it flips. Weekends alternate every two weeks.</td></tr>
+    <tr><td><b>2-2-5-5</b></td><td>2 days each, then 5 days each. Predictable weekdays.</td></tr>
+    <tr><td><b>3-4-4-3</b></td><td>A balanced near-50/50 split across a two-week cycle.</td></tr>
+    <tr><td><b>Every other weekend</b></td><td>One home base parent, the other has alternating weekends.</td></tr>
+  </table>
+  <div class="note"><b>Tip.</b> For the weekend patterns, set the <b>start date</b> to a Monday so the
+  weekends land where you expect. Not sure which day starts a cycle? Fill it, glance at the calendar,
+  and if it's a week off just re-run it with the other <b>starting parent</b>.</div>
+
+  <h2>3 · Add events &amp; handoffs</h2>
+  <p>Tap any day, then <b>＋ Add event</b>. Give it a name, pick a <b>type</b> (Handoff, Activity, School,
+  Medical, Expense, Other), set a time (or mark it all-day), tag the <b>child</b>, choose <b>who's
+  responsible</b>, and add a location and notes. Choose <b>Expense</b> to record a cost and how it splits.
+  Everything shows up on the calendar and in the <b>Agenda</b> view.</p>
+
+  <h2>Keeping the other parent in the loop</h2>
+  <p>Want new events to reach your co-parent automatically? Open <b>⚙ Setup → Notify the other parent</b>
+  and paste a free <b>delivery URL</b>. Each new event you save is then sent there (and you can hit
+  <b>Send test</b> to confirm it arrives).</p>
+  <ul>
+    <li><b>Email it</b> — create a free endpoint at <a href="https://web3forms.com" target="_blank">Web3Forms</a> or <a href="https://formspree.io" target="_blank">Formspree</a> and paste the URL. New events land in an inbox.</li>
+    <li><b>Log to a shared spreadsheet</b> — use a Google Sheet + Apps Script Web App URL so both parents can see the running list.</li>
+    <li><b>Anywhere else</b> — a <a href="https://zapier.com" target="_blank">Zapier</a> or <a href="https://make.com" target="_blank">Make.com</a> webhook can push events to a calendar, SMS, or another app.</li>
+  </ul>
+  <div class="note"><b>Private by default.</b> Nothing is uploaded unless <i>you</i> add a delivery URL.
+  Without one, your schedule and events live only in this browser, on this device.</div>
+
+  <h2>Use it on your phone</h2>
+  <p>Host the file for free (drag it onto <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a>
+  for an instant link), open the link on your phone, and choose <b>Add to Home Screen</b> for a one-tap,
+  full-screen calendar. Add <code>?embed=1</code> to share a clean view without the setup controls, or
+  <code>?theme=dark</code> / <code>?theme=light</code> to force a look.</p>
+
+  <h2>Save &amp; export</h2>
+  <p>Everything saves automatically on your device. Use <b>⚙ Setup → Export events (CSV)</b> to download a
+  spreadsheet of every event (handy for records or a mediator), or <b>Print</b> for a paper copy of the
+  month.</p>
+
+  <div class="note"><b>Please note.</b> This is an organizing tool to help two households stay coordinated —
+  it is <b>not</b> a legal custody agreement or legal advice. Follow your own parenting plan or court order.</div>
+
+  <div class="foot">Need a hand? support@worktrailhq.com · worktrailhq.com</div>
+</div>
+</body>
+</html>
