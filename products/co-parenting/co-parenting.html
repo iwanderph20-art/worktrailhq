@@ -8,16 +8,17 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
   color-scheme:light;
-  --brand:#7A5AF8;--brand-dark:#5B3FD6;--brand-light:#EEE9FF;
-  --g50:#f8f7fc;--g100:#efedf6;--g200:#e2dfee;--g300:#cbc7dd;
-  --g400:#9a95b0;--g500:#6d6883;--g600:#4d4863;--g800:#241f38;
-  --danger:#e0567a;--ok:#17b26a;--ok-light:#e4f7ee;
-  --surface:#fff;
-  --pa:#2DB4C0;--pb:#FF7A59;
+  --brand:#A98FB5;--brand-dark:#8C7299;--brand-light:#F1EBF4;
+  --g50:#f8f5f3;--g100:#efe9e6;--g200:#e4dcd7;--g300:#d0c5bf;
+  --g400:#a99e98;--g500:#7c716c;--g600:#574e4a;--g800:#2e2724;
+  --danger:#c77f88;--ok:#7fa98f;--ok-light:#e8f0ea;
+  --surface:#fffdfc;
+  --pill-bg:rgba(255,255,255,.62);
+  --pa:#DDA1A6;--pb:#8FB6AC;
   --toast-bg:#1f2733;--toast-fg:#fff;
   --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --font-head:var(--font-body);
-  --page-bg:linear-gradient(180deg,#FCFBFF 0%,#F1EEFB 100%);
+  --page-bg:linear-gradient(180deg,#FBF7F4 0%,#F2EAE5 100%);
   --card-bg:#fff;
   --card-border:1px solid var(--g200);
   --card-radius:22px;
@@ -27,18 +28,19 @@
 }
 body[data-theme="dark"]{
   color-scheme:dark;
-  --brand:#A896FF;--brand-dark:#9179F5;--brand-light:#2B2550;
-  --g50:#161327;--g100:#1f1b33;--g200:#302b48;--g300:#443d61;
-  --g400:#8b84a5;--g500:#a49dbc;--g600:#c8c2da;--g800:#eeeaf6;
-  --danger:#ff7a9c;--ok:#4cc79a;--ok-light:#17302a;
-  --surface:#1E1B2E;
-  --pa:#5AD1DC;--pb:#FF9576;
-  --toast-bg:#eeeaf6;--toast-fg:#161327;
-  --page-bg:linear-gradient(180deg,#141221 0%,#191630 100%);
-  --card-bg:#1E1B2E;
-  --card-border:1px solid #302B4A;
-  --card-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 46px -12px rgba(0,0,0,.65);
-  --inp-bg:#16132A;
+  --brand:#C6ABD6;--brand-dark:#B294C4;--brand-light:#332B3A;
+  --g50:#1e191f;--g100:#281f28;--g200:#372d38;--g300:#4a3f4c;
+  --g400:#9a8ea0;--g500:#b3a8b8;--g600:#d0c7d4;--g800:#f0eaf2;
+  --danger:#e79aa2;--ok:#93c7a7;--ok-light:#22302a;
+  --surface:#2A2430;
+  --pill-bg:rgba(255,255,255,.09);
+  --pa:#E0AEB2;--pb:#A6C9BF;
+  --toast-bg:#f0eaf2;--toast-fg:#1e191f;
+  --page-bg:linear-gradient(180deg,#1b171d 0%,#221c24 100%);
+  --card-bg:#2A2430;
+  --card-border:1px solid #38303c;
+  --card-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 46px -12px rgba(0,0,0,.6);
+  --inp-bg:#211b25;
 }
 body{font-family:var(--font-body);background:var(--page-bg);background-attachment:fixed;color:var(--g800);min-height:100vh;-webkit-tap-highlight-color:transparent;transition:background .25s,color .25s;}
 button{cursor:pointer;font-family:inherit;border:none;background:none;}
@@ -88,20 +90,20 @@ body:not(.embed) #hdrLogoPh::after{content:"＋";position:absolute;right:-4px;bo
 .cal{background:var(--card-bg);border:var(--card-border);border-radius:var(--card-radius);box-shadow:var(--card-shadow);overflow:hidden;}
 .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:var(--g50);border-bottom:1px solid var(--g200);}
 .cal-dow div{padding:11px 4px;text-align:center;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--g400);}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
-.cell{min-height:96px;border-right:1px solid var(--g100);border-bottom:1px solid var(--g100);padding:6px 6px 8px;cursor:pointer;position:relative;transition:background .12s;display:flex;flex-direction:column;gap:4px;}
-.cell:nth-child(7n){border-right:none;}
-.cell:hover{background:var(--g50);}
-.cell.oth{background:var(--g50);opacity:.55;}
-.cell.today-cell .daynum{background:var(--brand);color:#fff;}
-.cell-top{display:flex;align-items:center;justify-content:space-between;gap:4px;}
-.daynum{font-size:13px;font-weight:800;color:var(--g600);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.cust-tag{font-size:9.5px;font-weight:900;letter-spacing:.03em;padding:2px 6px;border-radius:6px;color:#fff;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;}
-.cust-band{height:4px;border-radius:3px;margin:-1px -2px 0;}
-.ev-list{display:flex;flex-direction:column;gap:3px;overflow:hidden;}
-.ev-pill{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--g100);color:var(--g600);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;padding:9px;}
+.cell{min-height:94px;border-radius:15px;padding:7px 7px 8px;cursor:pointer;position:relative;transition:transform .1s,box-shadow .14s;display:flex;flex-direction:column;gap:2px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--g100);}
+.cell:hover{transform:translateY(-1px);box-shadow:0 8px 16px -10px rgba(70,45,55,.4),inset 0 0 0 1px var(--g200);}
+.cell.oth{opacity:.42;}
+.cell.today-cell{box-shadow:inset 0 0 0 2px var(--brand);}
+.cell-top{display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:18px;}
+.daynum{font-size:12px;font-weight:800;color:var(--g500);}
+.cell.today-cell .daynum{color:var(--brand-dark);}
+.sticker{width:13px;height:13px;border-radius:4px;flex-shrink:0;opacity:.92;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.cust-name{font-family:var(--font-head);font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;text-align:center;line-height:1;margin:3px 0 1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ev-list{display:flex;flex-direction:column;gap:2px;overflow:hidden;margin-top:auto;}
+.ev-pill{font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--pill-bg);color:var(--g600);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;}
 .ev-pill .kd{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.ev-more{font-size:10px;font-weight:800;color:var(--g400);padding-left:2px;}
+.ev-more{font-size:9.5px;font-weight:800;color:var(--g500);padding-left:2px;text-align:center;}
 
 /* agenda */
 .agenda{background:var(--card-bg);border:var(--card-border);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:8px 4px;}
@@ -212,11 +214,11 @@ body.readonly .admin-only,body.readonly .rw-hide{display:none!important;}
 body.readonly .rw-banner{display:flex;}
 
 @media(max-width:640px){
-  .cell{min-height:74px;}
+  .cell{min-height:76px;border-radius:12px;}
   .today-who{font-size:20px;}
   .month-title{min-width:130px;font-size:18px;}
-  .cust-tag{max-width:40px;}
-  .ev-pill{font-size:9.5px;}
+  .cust-name{font-size:11px;letter-spacing:.03em;}
+  .ev-pill{font-size:9px;}
 }
 @media(max-width:420px){.row2{grid-template-columns:1fr;}.cust-pick{grid-template-columns:1fr;}}
 @media print{.hdr,.ctl,.today,.seg,.today-btn{display:none;}.cal,.agenda{box-shadow:none;border:1px solid #ccc;}}
@@ -485,7 +487,7 @@ body.readonly .rw-banner{display:flex;}
 <script>
 /* ── STATE ── */
 const LS_SET='cop_settings', LS_EVT='cop_events', LS_SCH='cop_schedule';
-const KID_PALETTE=['#FF7AB6','#FFB020','#33C48D','#6C8BFF','#A855F7','#FF6B6B','#22C1DC','#F97316'];
+const KID_PALETTE=['#E0A98F','#93BDB6','#C3A3CC','#9DB8D0','#D9C08A','#E3AEC0','#A8C3A0','#CDA08A'];
 const PATTERNS={
   'week':   {label:'Week on / week off',       cycle:['A','A','A','A','A','A','A','B','B','B','B','B','B','B']},
   '2-2-3':  {label:'2-2-3 (rotating weekends)', cycle:['A','A','B','B','A','A','A','B','B','A','A','B','B','B']},
@@ -494,7 +496,7 @@ const PATTERNS={
   'eow':    {label:'Every other weekend (one home base)', cycle:['A','A','A','A','A','A','A','A','A','A','A','A','B','B']}
 };
 const DEFAULTS={ family:'Co-Parenting Calendar', logo:'', theme:'light', webhook:'',
-  pA:{name:'Parent A', color:'#2DB4C0'}, pB:{name:'Parent B', color:'#FF7A59'}, kids:[] };
+  pA:{name:'Parent A', color:'#DDA1A6'}, pB:{name:'Parent B', color:'#8FB6AC'}, kids:[] };
 
 let settings = load(LS_SET, DEFAULTS);
 let events   = load(LS_EVT, []);
@@ -525,6 +527,12 @@ function fmt12(t){ if(!t) return ''; const [h,m]=t.split(':').map(Number); const
 function pName(k){ return (k==='A'?settings.pA.name:settings.pB.name)||('Parent '+k); }
 function pColor(k){ return k==='A'?settings.pA.color:settings.pB.color; }
 function kidById(id){ return settings.kids.find(k=>k.id===id); }
+/* soft pastel tints for the day tiles (theme-aware) */
+function _hx(c){ c=c.replace('#',''); if(c.length===3) c=c.split('').map(x=>x+x).join(''); return [parseInt(c.slice(0,2),16),parseInt(c.slice(2,4),16),parseInt(c.slice(4,6),16)]; }
+function _mix(a,b,t){ const A=_hx(a),B=_hx(b); return '#'+[0,1,2].map(i=>Math.round(A[i]+(B[i]-A[i])*t).toString(16).padStart(2,'0')).join(''); }
+function custTint(c){ const d=settings.theme==='dark'; return _mix(c, d?'#241d24':'#ffffff', d?0.70:0.48); }
+function custDeep(c){ const d=settings.theme==='dark'; return d?_mix(c,'#ffffff',0.14):_mix(c,'#332a2e',0.40); }
+function custSticker(c){ const d=settings.theme==='dark'; return _mix(c, d?'#241d24':'#ffffff', d?0.40:0.20); }
 
 /* ── THEME / BRAND ── */
 function applyTheme(){
@@ -571,18 +579,23 @@ function renderCalendar(){
     cell.className='cell'+(oth?' oth':'')+(ds===tstr?' today-cell':'');
     cell.onclick=()=>openDay(ds);
     const c=schedule[ds];
-    let bandColor='transparent', tag='';
-    if(c==='A'||c==='B'){ bandColor=pColor(c); tag=`<span class="cust-tag" style="background:${pColor(c)}">${esc(pName(c))}</span>`; }
-    else if(c==='S'){ bandColor='linear-gradient(90deg,'+settings.pA.color+','+settings.pB.color+')'; tag=`<span class="cust-tag" style="background:${bandColor}">Shared</span>`; }
+    let name='', sticker='';
+    if(c==='A'||c==='B'){ const col=pColor(c);
+      cell.style.background=custTint(col);
+      name=`<div class="cust-name" style="color:${custDeep(col)}">${esc(pName(c))}</div>`;
+      sticker=`<span class="sticker" style="background:${custSticker(col)}"></span>`;
+    } else if(c==='S'){
+      cell.style.background=`linear-gradient(135deg,${custTint(settings.pA.color)},${custTint(settings.pB.color)})`;
+      name=`<div class="cust-name" style="color:${custDeep(settings.pB.color)}">Shared</div>`;
+      sticker=`<span class="sticker" style="background:linear-gradient(135deg,${custSticker(settings.pA.color)},${custSticker(settings.pB.color)})"></span>`;
+    }
     const dayEv=events.filter(e=>e.date===ds).sort(evSort);
-    let pills=dayEv.slice(0,3).map(e=>{
+    let pills=dayEv.slice(0,2).map(e=>{
       const kc=(e.kids&&e.kids.length)?(kidById(e.kids[0])||{}).color:null;
       return `<div class="ev-pill">${kc?`<span class="kd" style="background:${kc}"></span>`:typeIc(e.type)} ${esc(e.time?fmt12(e.time)+' ':'')}${esc(e.title)}</div>`;
     }).join('');
-    if(dayEv.length>3) pills+=`<div class="ev-more">+${dayEv.length-3} more</div>`;
-    cell.innerHTML=`<div class="cust-band" style="background:${bandColor}"></div>
-      <div class="cell-top"><span class="daynum">${d.getDate()}</span>${tag}</div>
-      <div class="ev-list">${pills}</div>`;
+    if(dayEv.length>2) pills+=`<div class="ev-more">+${dayEv.length-2} more</div>`;
+    cell.innerHTML=`<div class="cell-top"><span class="daynum">${d.getDate()}</span>${sticker}</div>${name}<div class="ev-list">${pills}</div>`;
     grid.appendChild(cell);
   }
 }
@@ -769,7 +782,7 @@ function openSetup(){
   const wh=document.getElementById('setWebhook'); wh.value=settings.webhook||''; document.getElementById('setWebhookTest').classList.toggle('hidden',!wh.value.trim());
   open_('setupModal');
 }
-const PARENT_COLORS=['#2DB4C0','#FF7A59','#7A5AF8','#FF7AB6','#33C48D','#FFB020','#6C8BFF','#F43F5E'];
+const PARENT_COLORS=['#DDA1A6','#8FB6AC','#C9A3CC','#E0B48F','#A8C3A0','#9DB8D0','#D9C08A','#CDA08A'];
 function renderColorPicker(id, current){
   const el=document.getElementById(id);
   el.innerHTML=PARENT_COLORS.map(c=>`<div class="co ${c===current?'on':''}" style="background:${c}" data-c="${c}"></div>`).join('');
@@ -886,8 +899,8 @@ document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ i
 /* ── DEMO SEED ── */
 function seedDemo(theme){
   settings={ ...JSON.parse(JSON.stringify(DEFAULTS)), family:'The Rivera Kids', theme,
-    pA:{name:'Mom',color:'#2DB4C0'}, pB:{name:'Dad',color:'#FF7A59'},
-    kids:[{id:'k1',name:'Mia',color:'#FF7AB6'},{id:'k2',name:'Leo',color:'#33C48D'}] };
+    pA:{name:'Mum',color:'#DDA1A6'}, pB:{name:'Dad',color:'#8FB6AC'},
+    kids:[{id:'k1',name:'Mia',color:'#E0A98F'},{id:'k2',name:'Leo',color:'#9DB8D0'}] };
   // fill schedule: week on/off starting this week's Sunday
   const base=new Date(); base.setDate(base.getDate()-base.getDay());  // Sunday
   const cyc=PATTERNS['2-2-3'].cycle;
