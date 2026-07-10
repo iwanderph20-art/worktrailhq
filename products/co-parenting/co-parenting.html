@@ -8,16 +8,16 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
   color-scheme:light;
-  --brand:#2e9e7f;--brand-dark:#227a62;--brand-light:#e2f4ee;
-  --g50:#f7f8fa;--g100:#eef1f4;--g200:#e0e4ea;--g300:#cad0da;
-  --g400:#98a2b3;--g500:#6b7280;--g600:#4b5563;--g800:#1f2733;
-  --danger:#c0392b;--ok:#2f8f6b;--ok-light:#e2f3ec;
+  --brand:#7A5AF8;--brand-dark:#5B3FD6;--brand-light:#EEE9FF;
+  --g50:#f8f7fc;--g100:#efedf6;--g200:#e2dfee;--g300:#cbc7dd;
+  --g400:#9a95b0;--g500:#6d6883;--g600:#4d4863;--g800:#241f38;
+  --danger:#e0567a;--ok:#17b26a;--ok-light:#e4f7ee;
   --surface:#fff;
-  --pa:#3d7dd8;--pb:#e08b3e;
+  --pa:#2DB4C0;--pb:#FF7A59;
   --toast-bg:#1f2733;--toast-fg:#fff;
   --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --font-head:var(--font-body);
-  --page-bg:linear-gradient(180deg,#fbfcfd 0%,#eef4f2 100%);
+  --page-bg:linear-gradient(180deg,#FCFBFF 0%,#F1EEFB 100%);
   --card-bg:#fff;
   --card-border:1px solid var(--g200);
   --card-radius:22px;
@@ -27,18 +27,18 @@
 }
 body[data-theme="dark"]{
   color-scheme:dark;
-  --brand:#4cc79a;--brand-dark:#3aa982;--brand-light:#173026;
-  --g50:#0f1620;--g100:#1b2430;--g200:#2a3644;--g300:#3a4a5c;
-  --g400:#8593a5;--g500:#9aa8ba;--g600:#c0cad6;--g800:#e9eef4;
-  --danger:#f0776a;--ok:#4cc79a;--ok-light:#173026;
-  --surface:#18212c;
-  --pa:#6ea3e0;--pb:#e6a765;
-  --toast-bg:#e9eef4;--toast-fg:#0f1620;
-  --page-bg:linear-gradient(180deg,#0f1620 0%,#131c27 100%);
-  --card-bg:#18212c;
-  --card-border:1px solid #2a3644;
+  --brand:#A896FF;--brand-dark:#9179F5;--brand-light:#2B2550;
+  --g50:#161327;--g100:#1f1b33;--g200:#302b48;--g300:#443d61;
+  --g400:#8b84a5;--g500:#a49dbc;--g600:#c8c2da;--g800:#eeeaf6;
+  --danger:#ff7a9c;--ok:#4cc79a;--ok-light:#17302a;
+  --surface:#1E1B2E;
+  --pa:#5AD1DC;--pb:#FF9576;
+  --toast-bg:#eeeaf6;--toast-fg:#161327;
+  --page-bg:linear-gradient(180deg,#141221 0%,#191630 100%);
+  --card-bg:#1E1B2E;
+  --card-border:1px solid #302B4A;
   --card-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 46px -12px rgba(0,0,0,.65);
-  --inp-bg:#111a24;
+  --inp-bg:#16132A;
 }
 body{font-family:var(--font-body);background:var(--page-bg);background-attachment:fixed;color:var(--g800);min-height:100vh;-webkit-tap-highlight-color:transparent;transition:background .25s,color .25s;}
 button{cursor:pointer;font-family:inherit;border:none;background:none;}
@@ -460,7 +460,7 @@ body.embed .admin-only{display:none!important;}
 <script>
 /* ── STATE ── */
 const LS_SET='cop_settings', LS_EVT='cop_events', LS_SCH='cop_schedule';
-const KID_PALETTE=['#8e5ad8','#e05a8e','#2fa8a0','#e0663d','#4d8f2f','#c99a3f','#5a6cf0','#d84f7a'];
+const KID_PALETTE=['#FF7AB6','#FFB020','#33C48D','#6C8BFF','#A855F7','#FF6B6B','#22C1DC','#F97316'];
 const PATTERNS={
   'week':   {label:'Week on / week off',       cycle:['A','A','A','A','A','A','A','B','B','B','B','B','B','B']},
   '2-2-3':  {label:'2-2-3 (rotating weekends)', cycle:['A','A','B','B','A','A','A','B','B','A','A','B','B','B']},
@@ -469,7 +469,7 @@ const PATTERNS={
   'eow':    {label:'Every other weekend (one home base)', cycle:['A','A','A','A','A','A','A','A','A','A','A','A','B','B']}
 };
 const DEFAULTS={ family:'Co-Parenting Calendar', logo:'', theme:'light', webhook:'',
-  pA:{name:'Parent A', color:'#3d7dd8'}, pB:{name:'Parent B', color:'#e08b3e'}, kids:[] };
+  pA:{name:'Parent A', color:'#2DB4C0'}, pB:{name:'Parent B', color:'#FF7A59'}, kids:[] };
 
 let settings = load(LS_SET, DEFAULTS);
 let events   = load(LS_EVT, []);
@@ -743,7 +743,7 @@ function openSetup(){
   const wh=document.getElementById('setWebhook'); wh.value=settings.webhook||''; document.getElementById('setWebhookTest').classList.toggle('hidden',!wh.value.trim());
   open_('setupModal');
 }
-const PARENT_COLORS=['#3d7dd8','#e08b3e','#8e5ad8','#2fa8a0','#e05a8e','#4d8f2f','#c0392b','#5a6cf0'];
+const PARENT_COLORS=['#2DB4C0','#FF7A59','#7A5AF8','#FF7AB6','#33C48D','#FFB020','#6C8BFF','#F43F5E'];
 function renderColorPicker(id, current){
   const el=document.getElementById(id);
   el.innerHTML=PARENT_COLORS.map(c=>`<div class="co ${c===current?'on':''}" style="background:${c}" data-c="${c}"></div>`).join('');
@@ -826,8 +826,8 @@ document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ i
 /* ── DEMO SEED ── */
 function seedDemo(theme){
   settings={ ...JSON.parse(JSON.stringify(DEFAULTS)), family:'The Rivera Kids', theme,
-    pA:{name:'Mom',color:'#3d7dd8'}, pB:{name:'Dad',color:'#e08b3e'},
-    kids:[{id:'k1',name:'Mia',color:'#e05a8e'},{id:'k2',name:'Leo',color:'#2fa8a0'}] };
+    pA:{name:'Mom',color:'#2DB4C0'}, pB:{name:'Dad',color:'#FF7A59'},
+    kids:[{id:'k1',name:'Mia',color:'#FF7AB6'},{id:'k2',name:'Leo',color:'#33C48D'}] };
   // fill schedule: week on/off starting this week's Sunday
   const base=new Date(); base.setDate(base.getDate()-base.getDay());  // Sunday
   const cyc=PATTERNS['2-2-3'].cycle;
