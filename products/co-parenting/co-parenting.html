@@ -14,7 +14,7 @@
   --danger:#c77f88;--ok:#7fa98f;--ok-light:#e8f0ea;
   --surface:#fffdfc;
   --pill-bg:rgba(255,255,255,.62);
-  --pa:#DDA1A6;--pb:#8FB6AC;
+  --pa:#E8B4C4;--pb:#A6C4DB;
   --toast-bg:#1f2733;--toast-fg:#fff;
   --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --font-head:var(--font-body);
@@ -34,7 +34,7 @@ body[data-theme="dark"]{
   --danger:#e79aa2;--ok:#93c7a7;--ok-light:#22302a;
   --surface:#2A2430;
   --pill-bg:rgba(255,255,255,.09);
-  --pa:#E0AEB2;--pb:#A6C9BF;
+  --pa:#EEBECB;--pb:#B4CFE2;
   --toast-bg:#f0eaf2;--toast-fg:#1e191f;
   --page-bg:linear-gradient(180deg,#1b171d 0%,#221c24 100%);
   --card-bg:#2A2430;
@@ -496,7 +496,7 @@ const PATTERNS={
   'eow':    {label:'Every other weekend (one home base)', cycle:['A','A','A','A','A','A','A','A','A','A','A','A','B','B']}
 };
 const DEFAULTS={ family:'Co-Parenting Calendar', logo:'', theme:'light', webhook:'',
-  pA:{name:'Parent A', color:'#DDA1A6'}, pB:{name:'Parent B', color:'#8FB6AC'}, kids:[] };
+  pA:{name:'Parent A', color:'#E8B4C4'}, pB:{name:'Parent B', color:'#A6C4DB'}, kids:[] };
 
 let settings = load(LS_SET, DEFAULTS);
 let events   = load(LS_EVT, []);
@@ -782,7 +782,7 @@ function openSetup(){
   const wh=document.getElementById('setWebhook'); wh.value=settings.webhook||''; document.getElementById('setWebhookTest').classList.toggle('hidden',!wh.value.trim());
   open_('setupModal');
 }
-const PARENT_COLORS=['#DDA1A6','#8FB6AC','#C9A3CC','#E0B48F','#A8C3A0','#9DB8D0','#D9C08A','#CDA08A'];
+const PARENT_COLORS=['#E8B4C4','#A6C4DB','#C9A3CC','#E0B48F','#A8C3A0','#8FB6AC','#D9C08A','#CDA08A'];
 function renderColorPicker(id, current){
   const el=document.getElementById(id);
   el.innerHTML=PARENT_COLORS.map(c=>`<div class="co ${c===current?'on':''}" style="background:${c}" data-c="${c}"></div>`).join('');
@@ -899,8 +899,8 @@ document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ i
 /* ── DEMO SEED ── */
 function seedDemo(theme){
   settings={ ...JSON.parse(JSON.stringify(DEFAULTS)), family:'The Rivera Kids', theme,
-    pA:{name:'Mum',color:'#DDA1A6'}, pB:{name:'Dad',color:'#8FB6AC'},
-    kids:[{id:'k1',name:'Mia',color:'#E0A98F'},{id:'k2',name:'Leo',color:'#9DB8D0'}] };
+    pA:{name:'Mum',color:'#E8B4C4'}, pB:{name:'Dad',color:'#A6C4DB'},
+    kids:[{id:'k1',name:'Mia',color:'#E0A98F'},{id:'k2',name:'Leo',color:'#C3A3CC'}] };
   // fill schedule: week on/off starting this week's Sunday
   const base=new Date(); base.setDate(base.getDate()-base.getDay());  // Sunday
   const cyc=PATTERNS['2-2-3'].cycle;
