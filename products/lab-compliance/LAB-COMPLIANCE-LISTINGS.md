@@ -51,9 +51,12 @@ between catching a medical-necessity denial at the desk and eating it 45 days la
 physician office labs (POLs), and small reference labs who want a fast pre-bill sanity check without
 a five-figure claim-scrubbing platform.
 
-**Note:** Coverage data reflects the LCD/policy versions shown in the app and is provided as a
-decision-support aid, not billing, legal, or medical advice. Always confirm against your MAC's
-current policy. This is a digital tool, not a Canva/PDF template.
+**Please note — this is a guide, not a full compliance system.** Lab Compliance Pro checks CPT/ICD-10
+code coverage against LCD reference data. It does **not** review, create, store, or replace progress
+notes, physician/doctor's notes, medical records, or any other clinical documentation required to
+support a claim — that stays your responsibility. Coverage data reflects the LCD/policy versions shown
+in the app and is a decision-support aid only, not billing, legal, or medical advice; always confirm
+against your MAC's current policy. This is a digital tool, not a Canva/PDF template.
 
 **Delivery content (receipt note):**
 > Thanks! Your download includes `lab-compliance.html` (the tool) and `setup-guide.html`. Open
@@ -103,6 +106,11 @@ billing managers, coders & revenue-cycle staff
 ★ INSTANT DOWNLOAD
 You'll get lab-compliance.html (the tool) + a quick setup guide. Open it in any browser, pick a
 state, and start validating.
+
+⚠ PLEASE NOTE — this is a GUIDE, not a full compliance system. It checks CPT/ICD-10 code coverage
+against LCD reference data. It does NOT review, create, store, or replace progress notes,
+physician/doctor's notes, medical records, or any other clinical documentation required to support a
+claim — that stays your responsibility.
 
 This is a digital product — no physical item is shipped. Because it's delivered instantly and fully
 usable, all sales are final. It's decision-support only — not billing, legal, or medical advice;
