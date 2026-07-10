@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+html,body{width:1080px;height:1080px;overflow:hidden;}
+.stage{width:1080px;height:1080px;position:relative;overflow:hidden;
+  background:radial-gradient(ellipse 70% 60% at 50% -8%,rgba(99,120,255,.28) 0%,transparent 58%),linear-gradient(160deg,#1e2f96 0%,#152277 50%,#0d1657 100%);
+  display:flex;flex-direction:column;align-items:center;padding:70px;color:#fff;text-align:center;}
+.stage::before{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 78% 78% at 50% 40%,#000 42%,transparent 92%);mask-image:radial-gradient(ellipse 78% 78% at 50% 40%,#000 42%,transparent 92%);}
+.z{position:relative;z-index:2;}
+
+.kicker{font-size:23px;font-weight:800;letter-spacing:7px;color:#aeb9ff;text-transform:uppercase;}
+
+/* Circular price badge */
+.price{position:absolute;top:60px;right:60px;z-index:3;background:#f59e0b;color:#3a2708;
+  width:132px;height:132px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 16px 34px rgba(0,0,0,.4);transform:rotate(6deg);}
+.price b{font-size:48px;font-weight:900;line-height:1;}
+.price small{font-size:15px;font-weight:800;letter-spacing:1.5px;margin-top:4px;}
+
+/* Device */
+.device{width:430px;background:#fff;border-radius:30px;padding:28px 30px 30px;margin:40px 0 4px;
+  box-shadow:0 40px 80px rgba(0,0,0,.45);transform:rotate(-1.5deg);color:#111827;}
+.logo-ph{border:2px dashed #ccd1de;border-radius:12px;height:52px;display:flex;align-items:center;justify-content:center;
+  color:#9aa1b2;font-size:14px;font-weight:700;margin-bottom:18px;background:#f7f8fb;}
+.time{font-size:52px;font-weight:900;letter-spacing:-1px;color:#111827;line-height:1;}
+.date{font-size:15px;color:#9ca3af;margin-top:4px;margin-bottom:18px;}
+.klabel{font-size:15px;font-weight:600;color:#4b5563;margin-bottom:14px;}
+.dots{display:flex;justify-content:center;gap:14px;margin-bottom:20px;}
+.dot{width:15px;height:15px;border-radius:50%;background:#e5e7eb;}
+.dot.f{background:#1e2f96;}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
+.key{background:#fff;border:1.5px solid #eef0f4;border-radius:50%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  font-size:26px;font-weight:800;color:#1e2f96;box-shadow:0 4px 12px rgba(16,24,64,.08);}
+.clockin{background:#22c55e;color:#fff;border-radius:14px;padding:15px;font-size:18px;font-weight:800;letter-spacing:.3px;
+  display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 22px rgba(34,197,94,.35);}
+
+/* Title & chips */
+.title{font-size:78px;font-weight:900;line-height:1.0;letter-spacing:-2px;margin-top:28px;}
+.title span{color:#ffc75a;}
+.sub{font-size:27px;font-weight:500;color:#c3ccf5;margin-top:16px;line-height:1.35;}
+.chips{display:flex;gap:13px;flex-wrap:wrap;justify-content:center;margin-top:26px;}
+.chip{border:1.5px solid rgba(255,255,255,.32);border-radius:999px;padding:11px 22px;font-size:22px;font-weight:600;color:#eaefff;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="price"><b>$69</b><small>ONE-TIME</small></div>
+  <div class="z kicker">Clock In · Clock Out</div>
+
+  <div class="z device">
+    <div class="logo-ph">Your company logo</div>
+    <div class="time">8:56 AM</div>
+    <div class="date">Friday, July 3</div>
+    <div class="klabel">Enter your 4-digit employee code</div>
+    <div class="dots"><span class="dot f"></span><span class="dot f"></span><span class="dot"></span><span class="dot"></span></div>
+    <div class="pad">
+      <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+      <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+    </div>
+    <div class="clockin">✓ Clock In</div>
+  </div>
+
+  <div class="z title">Employee Time<br><span>Clock Kiosk</span></div>
+  <div class="z sub">Turn any phone or tablet into a clock-in station</div>
+  <div class="z chips"><span class="chip">Pay once</span><span class="chip">PIN + photo</span><span class="chip">CSV + payroll</span></div>
+</div>
+</body>
+</html>
