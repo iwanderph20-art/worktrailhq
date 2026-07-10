@@ -6928,7 +6928,23 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
 
   var drawWages   = r2(drawHrs   * rate);
   var travelWages = r2(travelHrs * travelRate);
-  var grossWages  = r2(drawWages + travelWages);
+  var earnedWages = r2(drawWages + travelWages);
+  var grossWages  = earnedWages;
+
+  // ── Guaranteed weekly minimum (Enrique Blanco contract) ──────────────
+  // Per contract, Enrique is paid at least $360/week — whichever is higher
+  // between his hours-based wages and the weekly guarantee. Applies even
+  // when he logs no hours for the period.
+  var guaranteeApplied = false, guaranteeMin = 0, guaranteeTopUp = 0;
+  if (emp.name === 'Enrique Blanco') {
+    var gWeeks   = Math.max(1, Math.round((periodDays || 7) / 7));
+    guaranteeMin = r2(360 * gWeeks);
+    if (grossWages < guaranteeMin) {
+      guaranteeTopUp   = r2(guaranteeMin - grossWages);
+      grossWages       = guaranteeMin;
+      guaranteeApplied = true;
+    }
+  }
 
   var fica            = r2(grossWages * 0.062);
   var medicare        = r2(grossWages * 0.0145);
@@ -6943,7 +6959,8 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
     hoursWorked: hoursWorked, hourlyRate: rate, travelRate: travelRate,
     drawHours: drawHrs, travelHours: travelHrs, hasSplit: !!hasSplit,
     drawWages: drawWages, travelWages: travelWages,
-    grossWages: grossWages,
+    earnedWages: earnedWages, grossWages: grossWages,
+    guaranteeApplied: guaranteeApplied, guaranteeMin: guaranteeMin, guaranteeTopUp: guaranteeTopUp,
     fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
     totalDeductions: totalDeductions,
     totalMiles: totalMiles, mileageReimb: mileageReimb,
@@ -7055,6 +7072,10 @@ function renderPaycheck(result, fromStr, toStr) {
     )
   )
     +sessBreakdown
+    +(result.guaranteeApplied
+      ? '<div class="paycheck-row"><span>Hours-Based Wages</span><span>'+fmt$(result.earnedWages)+'</span></div>'
+        +'<div class="paycheck-row" style="color:#1a7f37;"><span>Weekly Minimum Guarantee ($360/wk)</span><span>+ '+fmt$(result.guaranteeTopUp)+'</span></div>'
+      : '')
     +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>F.I.C.A. TAX WITHHOLDING</span><span>– '+fmt$(result.fica)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>MEDICARE TAX WITHHOLDING</span><span>– '+fmt$(result.medicare)+'</span></div>'
@@ -7423,6 +7444,10 @@ function printPayroll() {
           +'<td colspan="2" style="padding:5px 14px 3px;font-size:9px;font-weight:700;color:#4f46e5;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid #e0e7ff;">Shift Detail</td>'
           +'</tr>'+rows;
       })()
+      + (r.guaranteeApplied
+          ? pRow('Hours-Based Wages', fmt$(r.earnedWages), '#374151')
+            + pRow('Weekly Minimum Guarantee ($360/wk)', '+ '+fmt$(r.guaranteeTopUp), '#065f46')
+          : '')
       + pRow('WAGES EARNED', fmt$(r.grossWages), '#111827', true)
       + pRow('F.I.C.A. TAX WITHHOLDING', '– '+fmt$(r.fica), '#b91c1c')
       + pRow('MEDICARE TAX WITHHOLDING', '– '+fmt$(r.medicare), '#b91c1c')
