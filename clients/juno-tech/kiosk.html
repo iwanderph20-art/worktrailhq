@@ -6935,14 +6935,22 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   // Per contract, Enrique is paid at least $360/week — whichever is higher
   // between his hours-based wages and the weekly guarantee. Applies even
   // when he logs no hours for the period.
-  var guaranteeApplied = false, guaranteeMin = 0, guaranteeTopUp = 0;
+  var guaranteeApplied = false, guaranteeMin = 0, guaranteeTopUp = 0, guaranteeNonTax = 0;
   if (emp.name === 'Enrique Blanco') {
     var gWeeks   = Math.max(1, Math.round((periodDays || 7) / 7));
     guaranteeMin = r2(360 * gWeeks);
     if (grossWages < guaranteeMin) {
       guaranteeTopUp   = r2(guaranteeMin - grossWages);
-      grossWages       = guaranteeMin;
       guaranteeApplied = true;
+      if (earnedWages === 0) {
+        // No hours worked this week: only $289/wk of the $360 guarantee is
+        // taxable; the $71/wk difference is paid as a non-taxable amount.
+        grossWages      = r2(289 * gWeeks);
+        guaranteeNonTax = r2((360 - 289) * gWeeks);
+      } else {
+        // Some hours worked but below the guarantee — full top-up is taxable.
+        grossWages = guaranteeMin;
+      }
     }
   }
 
@@ -6952,7 +6960,7 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   var stateWith       = r2(grossWages * 0.04);
   var totalDeductions = r2(fica + medicare + fedWith + stateWith);
   var mileageReimb    = r2(totalMileageReimb || 0);
-  var netPay          = r2(grossWages - totalDeductions + mileageReimb);
+  var netPay          = r2(grossWages - totalDeductions + guaranteeNonTax + mileageReimb);
 
   return {
     empName: emp.name, role: 'phlebotomist',
@@ -6961,6 +6969,7 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
     drawWages: drawWages, travelWages: travelWages,
     earnedWages: earnedWages, grossWages: grossWages,
     guaranteeApplied: guaranteeApplied, guaranteeMin: guaranteeMin, guaranteeTopUp: guaranteeTopUp,
+    guaranteeNonTax: guaranteeNonTax,
     fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
     totalDeductions: totalDeductions,
     totalMiles: totalMiles, mileageReimb: mileageReimb,
@@ -7073,15 +7082,20 @@ function renderPaycheck(result, fromStr, toStr) {
   )
     +sessBreakdown
     +(result.guaranteeApplied
-      ? '<div class="paycheck-row"><span>Hours-Based Wages</span><span>'+fmt$(result.earnedWages)+'</span></div>'
-        +'<div class="paycheck-row" style="color:#1a7f37;"><span>Weekly Minimum Guarantee ($360/wk)</span><span>+ '+fmt$(result.guaranteeTopUp)+'</span></div>'
+      ? (result.guaranteeNonTax > 0
+          ? '<div class="paycheck-row"><span>Weekly Minimum Guarantee — no hours</span><span>'+fmt$(result.guaranteeMin)+'</span></div>'
+          : '<div class="paycheck-row"><span>Hours-Based Wages</span><span>'+fmt$(result.earnedWages)+'</span></div>'
+            +'<div class="paycheck-row" style="color:#1a7f37;"><span>Weekly Minimum Guarantee ($360/wk)</span><span>+ '+fmt$(result.guaranteeTopUp)+'</span></div>')
       : '')
-    +'<div class="paycheck-row" style="font-weight:600;"><span>WAGES EARNED</span><span>'+fmt$(result.grossWages)+'</span></div>'
+    +'<div class="paycheck-row" style="font-weight:600;"><span>'+(result.guaranteeNonTax > 0 ? 'TAXABLE WAGES' : 'WAGES EARNED')+'</span><span>'+fmt$(result.grossWages)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>F.I.C.A. TAX WITHHOLDING</span><span>– '+fmt$(result.fica)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>MEDICARE TAX WITHHOLDING</span><span>– '+fmt$(result.medicare)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>FED. WITHHOLDING TAX</span><span>– '+fmt$(result.fedWith)+'</span></div>'
     +'<div class="paycheck-row deduct"><span>STATE WITHHOLDING TAX</span><span>– '+fmt$(result.stateWith)+'</span></div>'
     +'<div class="paycheck-row total"><span>TOTAL DEDUCTIONS</span><span>– '+fmt$(result.totalDeductions)+'</span></div>'
+    +(result.guaranteeNonTax > 0
+      ? '<div class="paycheck-row reimb"><span>NON-TAXABLE GUARANTEE (no hours)</span><span>+ '+fmt$(result.guaranteeNonTax)+'</span></div>'
+      : '')
     +milesInfoRow
     +'<div class="paycheck-row net"><span>CHECK AMOUNT</span><span>'+fmt$(result.netPay)+'</span></div>'
     +'</div>';
@@ -7314,7 +7328,7 @@ function runPayroll() {
       results: allResults.map(function(r){ return {
         emp: r.empName, hours: r.hoursWorked||0, gross: r.grossWages||0,
         fica: r.fica||0, medicare: r.medicare||0, fedWith: r.fedWith||0,
-        stateWith: r.stateWith||0,
+        stateWith: r.stateWith||0, nonTaxGuarantee: r.guaranteeNonTax||0,
         mileageReimb: r.mileageReimb||0, net: r.netPay||0
       }; })
     };
@@ -7445,15 +7459,18 @@ function printPayroll() {
           +'</tr>'+rows;
       })()
       + (r.guaranteeApplied
-          ? pRow('Hours-Based Wages', fmt$(r.earnedWages), '#374151')
-            + pRow('Weekly Minimum Guarantee ($360/wk)', '+ '+fmt$(r.guaranteeTopUp), '#065f46')
+          ? (r.guaranteeNonTax > 0
+              ? pRow('Weekly Minimum Guarantee — no hours', fmt$(r.guaranteeMin), '#374151')
+              : pRow('Hours-Based Wages', fmt$(r.earnedWages), '#374151')
+                + pRow('Weekly Minimum Guarantee ($360/wk)', '+ '+fmt$(r.guaranteeTopUp), '#065f46'))
           : '')
-      + pRow('WAGES EARNED', fmt$(r.grossWages), '#111827', true)
+      + pRow(r.guaranteeNonTax > 0 ? 'TAXABLE WAGES' : 'WAGES EARNED', fmt$(r.grossWages), '#111827', true)
       + pRow('F.I.C.A. TAX WITHHOLDING', '– '+fmt$(r.fica), '#b91c1c')
       + pRow('MEDICARE TAX WITHHOLDING', '– '+fmt$(r.medicare), '#b91c1c')
       + pRow('FED. WITHHOLDING TAX', '– '+fmt$(r.fedWith), '#b91c1c')
       + pRow('STATE WITHHOLDING TAX', '– '+fmt$(r.stateWith), '#b91c1c')
       + pRow('TOTAL DEDUCTIONS', '– '+fmt$(r.totalDeductions), '#111827', true, '#f9fafb')
+      + (r.guaranteeNonTax > 0 ? pRow('NON-TAXABLE GUARANTEE (no hours)', '+ '+fmt$(r.guaranteeNonTax), '#065f46') : '')
       + pRow('MILEAGE + NON-TAXABLE'+(r.totalMiles>0?' ('+r.totalMiles.toFixed(1)+' mi @ $'+r.mileRate.toFixed(2)+'/mi)':''), '+ '+fmt$(r.mileageReimb), '#065f46')
       +'<tr style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#dcfce7;">'
       +'<td style="padding:11px 14px;font-size:14px;font-weight:900;color:#14532d;">CHECK AMOUNT</td>'
