@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lab Compliance Pro — Setup Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+body{background:#eef1f5;color:#1f2733;line-height:1.6;padding:40px 20px;}
+.card{max-width:680px;margin:0 auto;background:#fff;border-radius:20px;padding:44px;box-shadow:0 10px 40px rgba(20,30,50,.08);}
+.brand{font-size:26px;font-weight:900;color:#4F46E5;letter-spacing:-.5px;}
+.tag{color:#6b7280;font-size:14px;margin-bottom:28px;}
+h2{color:#4338CA;margin:34px 0 8px;text-transform:uppercase;letter-spacing:.05em;font-size:13px;font-weight:800;}
+p{font-size:15px;color:#4b5563;}
+.step{display:flex;gap:16px;margin:16px 0;}
+.num{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:#4F46E5;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.step b{color:#111;}
+.note{background:#eef0fe;border-radius:12px;padding:16px 18px;font-size:14px;color:#33455f;margin-top:22px;}
+.note b{color:#4338CA;}
+.warn{background:#fef3e6;border:1px solid #f6d9ac;border-radius:12px;padding:16px 18px;font-size:14px;color:#7a4a12;margin-top:22px;}
+.warn b{color:#a85a00;}
+code{background:#eef1f4;padding:2px 8px;border-radius:6px;font-size:13.5px;font-weight:700;color:#4338CA;word-break:break-all;}
+ul{margin:6px 0 6px 22px;}li{font-size:15px;color:#4b5563;margin:4px 0;}
+a{color:#4F46E5;font-weight:700;}
+.foot{margin-top:34px;padding-top:20px;border-top:1px solid #eef1f4;font-size:13px;color:#98a2b3;text-align:center;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">🧬 Lab Compliance Pro</div>
+  <div class="tag">CPT / ICD-10 Claim Validator · Setup Guide</div>
+
+  <p>Thanks for your purchase! Lab Compliance Pro is a single file
+  (<code>lab-compliance.html</code>) that runs in any browser — no install, no account, no cloud.
+  It processes billing codes only; no patient data is ever stored or sent.</p>
+
+  <h2>1 · Open it (10 seconds)</h2>
+  <div class="step"><div class="num">1</div><div><b>Double-click the file.</b><p><code>lab-compliance.html</code> opens in your default browser. That's it — it's ready to use offline.</p></div></div>
+  <div class="step"><div class="num">2</div><div><b>Bookmark or pin it.</b><p>Add it to your bookmarks bar (or, on a tablet, "Add to Home Screen") so your billing team can reach it in one tap.</p></div></div>
+  <div class="step"><div class="num">3</div><div><b>Day or night.</b><p>Use the <b>🌙 / ☀️</b> button (top-right) to pick a light or dark look. Your choice is remembered on that device.</p></div></div>
+
+  <h2>2 · Validate a claim</h2>
+  <div class="step"><div class="num">1</div><div><b>Pick the jurisdiction.</b><p>Choose the patient's <b>state / territory</b> on the left. The tool shows the governing <b>Medicare Administrative Contractor (MAC)</b> and its active policy.</p></div></div>
+  <div class="step"><div class="num">2</div><div><b>Enter the codes.</b><p>Type or pick <b>CPT procedure codes</b> and <b>ICD-10 diagnosis codes</b> — each becomes a chip. Start typing a code or name and pick from the suggestions.</p></div></div>
+  <div class="step"><div class="num">3</div><div><b>Validate.</b><p>Press <b>Validate</b> for an instant <b>COVERED / NOT COVERED / CONDITIONAL</b> verdict with the reason, the LCD/policy reference, and a next step.</p></div></div>
+
+  <h2>3 · Score &amp; audit log</h2>
+  <p>Each validation updates your <b>Compliance Health Score</b> (a live A–F grade for the share of
+  claims that come back covered) and is added to the <b>Audit Log</b> for the session — codes,
+  verdict, and policy reference. Open the <b>Audit Log</b> tab to review or clear it. The log holds
+  <b>billing codes only, never PHI</b>, and clears on page reload.</p>
+
+  <h2>Use it on a shared device (kiosk)</h2>
+  <p>Great for a billing workstation. Open the file in the browser, pin the tab, and your team
+  validates claims all day. Nothing is uploaded, so it's safe on any office machine. To host it on
+  an internal page or intranet, upload <code>lab-compliance.html</code> to any static host
+  (your web server, <a href="https://app.netlify.com/drop" target="_blank">Netlify Drop</a>,
+  SharePoint, etc.) and share the link.</p>
+
+  <div class="warn"><b>Important — this is decision support, not billing advice.</b> Coverage data
+  reflects the LCD/policy versions shown in the app. Payer policies change; always confirm a verdict
+  against your MAC's <b>current</b> published LCD before you rely on it. This tool does not constitute
+  billing, legal, or medical advice.</div>
+
+  <div class="note"><b>Privacy.</b> Everything runs locally in your browser. No claim data, codes,
+  or results ever leave the device — there is no server and no account.</div>
+
+  <div class="foot">Lab Compliance Pro · WorkTrail HQ · support@worktrailhq.com<br>Thanks for supporting an indie tool 💜</div>
+</div>
+</body>
+</html>

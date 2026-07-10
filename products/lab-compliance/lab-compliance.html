@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab Compliance Pro — CPT / ICD-10 Claim Validator</title>
+  <meta name="description" content="HIPAA-ready billing audit dashboard for small laboratories. Validate CPT/ICD-10 claims against your MAC's Local Coverage Determinations. Single file, opens in any browser, no subscription.">
+  <meta name="theme-color" content="#09090F">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    /* ── Theme tokens ────────────────────────────────────── */
+    :root {
+      --bg:            #09090F;
+      --bg-hero:       linear-gradient(180deg,#09090F 0%,#0D0D1A 100%);
+      --bg-nav:        rgba(9,9,15,0.85);
+      --bg-card:       rgba(255,255,255,0.03);
+      --bg-input:      rgba(255,255,255,0.05);
+      --bg-audit:      rgba(255,255,255,0.03);
+      --bg-footer:     #09090F;
+      --bg-hipaa:      rgba(255,255,255,0.02);
+      --border:        rgba(255,255,255,0.07);
+      --border-nav:    rgba(255,255,255,0.06);
+      --border-input:  rgba(255,255,255,0.1);
+      --border-hero:   rgba(255,255,255,0.06);
+      --text:          #FFFFFF;
+      --text-muted:    rgba(255,255,255,0.4);
+      --text-sub:      rgba(255,255,255,0.25);
+      --text-label:    rgba(255,255,255,0.3);
+      --text-mid:      rgba(255,255,255,0.6);
+      --text-strong:   rgba(255,255,255,0.85);
+      --text-footer:   rgba(255,255,255,0.2);
+      --accent:        #818CF8;
+      --accent-bg:     rgba(129,140,248,0.08);
+      --accent-border: rgba(129,140,248,0.2);
+      --select-opt-bg: #1a1a2e;
+      --scroll-thumb:  rgba(255,255,255,0.1);
+      --divider:       rgba(255,255,255,0.07);
+      --meta-chip-bg:  rgba(255,255,255,0.04);
+    }
+    html.light {
+      --bg:            #F4F5FB;
+      --bg-hero:       linear-gradient(180deg,#EEF0FA 0%,#E8EAF6 100%);
+      --bg-nav:        rgba(244,245,251,0.9);
+      --bg-card:       #FFFFFF;
+      --bg-input:      #FFFFFF;
+      --bg-audit:      #FAFAFA;
+      --bg-footer:     #EEF0FA;
+      --bg-hipaa:      #EEF0FA;
+      --border:        rgba(0,0,0,0.08);
+      --border-nav:    rgba(0,0,0,0.07);
+      --border-input:  rgba(0,0,0,0.14);
+      --border-hero:   rgba(0,0,0,0.07);
+      --text:          #111118;
+      --text-muted:    rgba(0,0,0,0.45);
+      --text-sub:      rgba(0,0,0,0.3);
+      --text-label:    rgba(0,0,0,0.4);
+      --text-mid:      rgba(0,0,0,0.6);
+      --text-strong:   rgba(0,0,0,0.85);
+      --text-footer:   rgba(0,0,0,0.35);
+      --accent:        #4F46E5;
+      --accent-bg:     rgba(79,70,229,0.07);
+      --accent-border: rgba(79,70,229,0.2);
+      --select-opt-bg: #fff;
+      --scroll-thumb:  rgba(0,0,0,0.12);
+      --divider:       rgba(0,0,0,0.07);
+      --meta-chip-bg:  rgba(0,0,0,0.03);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      transition: background 0.25s, color 0.25s;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 0 48px; height: 68px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--bg-nav);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-nav);
+    }
+    .nav-left { display: flex; align-items: center; gap: 28px; }
+    .nav-logo { display: flex; flex-direction: column; gap: 1px; text-decoration: none; }
+    .nav-logo-name { font-size: 15px; font-weight: 700; letter-spacing: 0.12em; color: var(--text); text-transform: uppercase; }
+    .nav-logo-tag { font-size: 9px; font-weight: 400; letter-spacing: 0.22em; color: var(--text-muted); text-transform: uppercase; }
+    .nav-divider { width: 1px; height: 20px; background: var(--border-input); }
+    .nav-product { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+    .nav-product-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-ghost {
+      font-size: 13px; font-weight: 500; color: var(--text-mid);
+      background: transparent; border: 1px solid var(--border);
+      padding: 8px 18px; border-radius: 8px; cursor: pointer; text-decoration: none;
+      transition: color 0.18s, border-color 0.18s, background 0.18s; display: inline-block;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border-input); background: var(--bg-input); }
+    .btn-primary {
+      font-size: 13px; font-weight: 600; color: var(--bg); background: var(--text);
+      border: none; padding: 9px 20px; border-radius: 8px; cursor: pointer;
+      text-decoration: none; display: inline-block; transition: background 0.18s, transform 0.12s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    /* ── Theme Toggle ────────────────────────────────────── */
+    .theme-toggle {
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg-card); cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 16px; transition: border-color 0.18s, background 0.18s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { border-color: var(--accent); background: var(--accent-bg); }
+
+    /* ── Page Shell ──────────────────────────────────────── */
+    .page { padding-top: 68px; min-height: 100vh; }
+
+    /* ── Hero Bar ─────────────────────────────────────────── */
+    .hero-bar {
+      background: var(--bg-hero);
+      border-bottom: 1px solid var(--border-hero);
+      padding: 40px 48px 36px;
+      position: relative; overflow: hidden;
+    }
+    .hero-bar::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 100% at 50% -20%, rgba(79,70,229,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-bar-inner { max-width: 1140px; margin: 0 auto; position: relative; }
+    .hero-eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.24em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .hero-eyebrow::before { content: ''; width: 20px; height: 1px; background: var(--accent); }
+    .hero-title {
+      font-size: clamp(24px, 3.5vw, 38px); font-weight: 700;
+      letter-spacing: -0.025em; color: var(--text); margin-bottom: 10px;
+    }
+    .hero-sub { font-size: 14px; color: var(--text-muted); max-width: 580px; line-height: 1.65; }
+    .hero-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+    .badge {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+      padding: 5px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px;
+    }
+    .badge-hipaa { background: rgba(16,185,129,0.12); color: #34D399; border: 1px solid rgba(16,185,129,0.2); }
+    .badge-phi { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
+    .badge-version { background: var(--meta-chip-bg); color: var(--text-muted); border: 1px solid var(--border); font-family: monospace; }
+    .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+    /* ── Main Grid ───────────────────────────────────────── */
+    .main { max-width: 1140px; margin: 0 auto; padding: 32px 48px 60px; display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+    @media (max-width: 900px) { .main { grid-template-columns: 1fr; padding: 24px 20px 48px; } }
+
+    /* ── Sidebar ─────────────────────────────────────────── */
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px;
+    }
+    .card-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--text-label); margin-bottom: 16px;
+    }
+
+    /* MAC Selector */
+    .select-wrap { position: relative; }
+    .select-wrap select {
+      width: 100%; appearance: none; padding: 11px 36px 11px 14px;
+      background: var(--bg-input); border: 1px solid var(--border-input);
+      border-radius: 10px; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 500;
+      cursor: pointer; outline: none; transition: border-color 0.2s;
+    }
+    .select-wrap select:focus { border-color: var(--accent); }
+    .select-wrap select option { background: var(--select-opt-bg); color: var(--text); }
+    .select-arrow {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: var(--text-label);
+    }
+    .mac-info {
+      margin-top: 12px; padding: 14px; border-radius: 10px;
+      background: var(--accent-bg); border: 1px solid var(--accent-border);
+    }
+    .mac-info-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+    .mac-info-contractor { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+    .mac-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mac-info-chip {
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px;
+    }
+    .mic-chip-label { font-size: 10px; color: var(--text-label); margin-bottom: 3px; }
+    .mic-chip-value { font-size: 12px; font-weight: 700; color: var(--text-strong); font-family: monospace; }
+
+    /* Score gauge */
+    .score-wrap { display: flex; flex-direction: column; align-items: center; padding: 12px 0 8px; }
+    .score-svg { overflow: visible; }
+    .score-center { display: flex; flex-direction: column; align-items: center; }
+    .score-number { font-size: 44px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+    .score-label { font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-label); margin-top: 4px; }
+    .score-grade-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+    .score-grade { font-size: 22px; font-weight: 800; }
+    .score-grade-tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+    .score-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; width: 100%; }
+    .score-stat { border-radius: 8px; padding: 10px 8px; text-align: center; border: 1px solid var(--border); }
+    .score-stat-n { font-size: 18px; font-weight: 700; }
+    .score-stat-l { font-size: 10px; color: var(--text-label); margin-top: 2px; font-weight: 500; }
+    .score-empty { font-size: 11px; color: var(--text-sub); text-align: center; margin-top: 10px; line-height: 1.6; }
+
+    /* Policy version card */
+    .policy-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .policy-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .policy-dot.stale { background: #F59E0B; animation: pulse 2s infinite; }
+    .policy-dot.fresh { background: #10B981; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .policy-version-label { font-size: 12px; font-weight: 600; color: var(--text-mid); }
+    .policy-version-sub { font-size: 11px; font-family: monospace; color: var(--text-label); padding-left: 15px; }
+
+    /* Data sources */
+    .source-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .source-row:last-child { border-bottom: none; }
+    .source-check { color: #34D399; font-size: 12px; margin-top: 1px; flex-shrink: 0; }
+    .source-name { font-size: 12px; font-weight: 500; color: var(--text-mid); }
+    .source-date { font-size: 11px; color: var(--text-sub); margin-top: 2px; font-family: monospace; }
+
+    /* ── Main Panel ──────────────────────────────────────── */
+    .main-panel { display: flex; flex-direction: column; gap: 0; }
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--divider); padding: 0 4px; }
+    .tab-btn {
+      padding: 14px 20px; font-size: 12px; font-weight: 600; background: none; border: none;
+      cursor: pointer; color: var(--text-label); border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: color 0.18s, border-color 0.18s; letter-spacing: 0.02em;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .tab-btn:hover { color: var(--text-mid); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-count {
+      font-size: 10px; font-weight: 700; background: var(--accent-bg);
+      color: var(--accent); padding: 2px 7px; border-radius: 10px;
+    }
+    .tab-panel { display: none; padding: 28px; }
+    .tab-panel.active { display: block; }
+
+    /* ── Validator Form ───────────────────────────────────── */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+    .field-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-label); margin-bottom: 8px; display: block;
+    }
+    .input-group { display: flex; gap: 8px; }
+    .code-input {
+      flex: 1; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 14px;
+      font-weight: 600; padding: 11px 14px; background: var(--bg-input);
+      border: 1px solid var(--border-input); border-radius: 10px; color: var(--text);
+      outline: none; transition: border-color 0.2s, background 0.2s; letter-spacing: 0.04em;
+    }
+    .code-input:focus { border-color: var(--accent); background: var(--accent-bg); }
+    .code-input.error { border-color: #EF4444; }
+    .quick-select {
+      font-size: 11px; padding: 0 10px; background: var(--bg-input);
+      border: 1px solid var(--border); border-radius: 10px; color: var(--text-mid);
+      cursor: pointer; white-space: nowrap; font-family: inherit; outline: none;
+    }
+    .quick-select option { background: var(--select-opt-bg); }
+    .field-error { font-size: 11px; color: #EF4444; margin-top: 5px; }
+    .no-state-note { font-size: 12px; color: var(--text-label); margin-bottom: 16px; font-style: italic; }
+
+    .validate-btn {
+      width: 100%; padding: 13px 24px; background: #4F46E5;
+      border: none; border-radius: 11px; color: #FFF; font-family: inherit;
+      font-size: 14px; font-weight: 600; cursor: pointer; letter-spacing: 0.01em;
+      transition: background 0.18s, transform 0.12s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .validate-btn:hover:not(:disabled) { background: #4338CA; }
+    .validate-btn:active:not(:disabled) { transform: scale(0.99); }
+    .validate-btn:disabled { background: var(--meta-chip-bg); color: var(--text-label); cursor: not-allowed; border: 1px solid var(--border); }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #FFF; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result Card ─────────────────────────────────────── */
+    .result-card {
+      margin-top: 20px; border-radius: 14px; padding: 20px; border: 1px solid transparent;
+      animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .result-card.COVERED { background: rgba(16,185,129,0.07); border-color: rgba(16,185,129,0.2); }
+    .result-card.NOT_COVERED { background: rgba(239,68,68,0.07); border-color: rgba(239,68,68,0.2); }
+    .result-card.CONDITIONAL { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.2); }
+    .result-card.UNKNOWN_JURISDICTION { background: var(--meta-chip-bg); border-color: var(--border); }
+    .result-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+    .result-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+    .result-status { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .result-reason { font-size: 12px; line-height: 1.65; opacity: 0.75; }
+    .result-status.COVERED { color: #34D399; }
+    .result-status.NOT_COVERED { color: #F87171; }
+    .result-status.CONDITIONAL { color: #FCD34D; }
+    .result-status.UNKNOWN_JURISDICTION { color: var(--text-mid); }
+    .result-divider { height: 1px; background: var(--divider); margin: 14px 0; }
+    .result-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-label); margin-bottom: 8px; }
+    .result-advice { font-size: 12px; line-height: 1.7; color: var(--text-mid); }
+    .result-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+    .meta-chip { background: var(--meta-chip-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+    .meta-chip-label { font-size: 10px; color: var(--text-label); margin-bottom: 3px; }
+    .meta-chip-value { font-size: 11px; font-weight: 600; color: var(--text-mid); font-family: monospace; }
+    .result-notes { font-size: 11px; color: var(--text-muted); line-height: 1.6; border-left: 2px solid var(--border-input); padding-left: 10px; margin-top: 10px; font-style: italic; }
+
+    /* ── Compliance Report ───────────────────────────────── */
+    .report-wrap { animation: slideUp 0.25s ease-out; }
+    .rpt-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+    .rpt-risk-badge { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 4px 12px; border-radius: 20px; }
+    .rpt-top-meta { font-size: 11px; color: var(--text-label); font-family: monospace; }
+    .rpt-heading { font-size: 18px; font-weight: 700; color: var(--text); margin: 0 0 14px; }
+    .rpt-score-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+    .rpt-score-pill { padding: 8px 14px; border-radius: 10px; font-size: 13px; }
+    .rpt-score-pill strong { font-size: 18px; font-weight: 800; display: block; line-height: 1; margin-bottom: 2px; }
+    .rpt-score-pill.green { background: rgba(52,211,153,0.1); color: #34D399; border: 1px solid rgba(52,211,153,0.25); }
+    .rpt-score-pill.yellow { background: rgba(245,158,11,0.1); color: #F59E0B; border: 1px solid rgba(245,158,11,0.25); }
+    .rpt-score-pill.red { background: rgba(239,68,68,0.1); color: #EF4444; border: 1px solid rgba(239,68,68,0.25); }
+    .rpt-score-pill.gray { background: var(--meta-chip-bg); color: var(--text-mid); border: 1px solid var(--border); }
+    .rpt-divider { height: 1px; background: var(--divider); margin: 18px 0; }
+    .rpt-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-label); margin-bottom: 10px; }
+    .rpt-summary-text { font-size: 13px; line-height: 1.75; color: var(--text-mid); }
+    .rpt-cpt-list { display: flex; flex-direction: column; gap: 10px; }
+    .rpt-cpt-block { background: var(--meta-chip-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .rpt-cpt-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .rpt-cpt-code { font-family: monospace; font-weight: 700; font-size: 14px; color: var(--text); }
+    .rpt-cpt-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.06em; }
+    .rpt-cpt-policy { font-size: 11px; color: var(--text-label); font-family: monospace; margin-left: auto; }
+    .rpt-icd-list { display: flex; flex-direction: column; gap: 6px; }
+    .rpt-icd-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+    .rpt-icd-sym { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .rpt-icd-code { font-family: monospace; font-weight: 600; color: var(--text); }
+    .rpt-icd-status { color: var(--text-label); }
+    .rpt-icd-freq { font-size: 11px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; color: var(--text-label); }
+    .rpt-icd-note { font-size: 11px; color: var(--text-sub); font-style: italic; }
+    .rpt-violations { margin-top: 18px; background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 12px; padding: 16px; }
+    .rpt-violation-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--divider); }
+    .rpt-violation-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .rpt-v-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .rpt-v-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; font-family: monospace; }
+    .rpt-v-body { font-size: 12px; line-height: 1.65; color: var(--text-mid); }
+    .rpt-v-note { font-size: 11px; color: var(--text-sub); font-style: italic; margin-top: 4px; border-left: 2px solid var(--border); padding-left: 8px; }
+    .rpt-actions { padding-left: 16px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .rpt-action-item { font-size: 12px; line-height: 1.65; color: var(--text-mid); }
+
+    /* ── Audit Log ───────────────────────────────────────── */
+    .audit-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .audit-count { font-size: 12px; color: var(--text-label); }
+    .audit-clear { font-size: 12px; color: var(--text-sub); background: none; border: none; cursor: pointer; text-decoration: underline; font-family: inherit; transition: color 0.15s; }
+    .audit-clear:hover { color: #EF4444; }
+    .audit-empty { text-align: center; padding: 48px 0; color: var(--text-sub); }
+    .audit-empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+    .audit-empty-text { font-size: 13px; line-height: 1.6; }
+    .audit-list { display: flex; flex-direction: column; gap: 8px; max-height: 540px; overflow-y: auto; padding-right: 4px; }
+    .audit-list::-webkit-scrollbar { width: 4px; }
+    .audit-list::-webkit-scrollbar-track { background: transparent; }
+    .audit-list::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 2px; }
+    .audit-entry {
+      background: var(--bg-audit); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px; transition: background 0.18s;
+    }
+    .audit-entry:hover { background: var(--bg-input); }
+    .audit-entry-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .audit-status-pill { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 10px; display: flex; align-items: center; gap: 5px; }
+    .audit-status-pill.COVERED { background: rgba(16,185,129,0.12); color: #34D399; }
+    .audit-status-pill.NOT_COVERED { background: rgba(239,68,68,0.12); color: #F87171; }
+    .audit-status-pill.CONDITIONAL { background: rgba(245,158,11,0.12); color: #FCD34D; }
+    .audit-status-pill.UNKNOWN_JURISDICTION { background: var(--meta-chip-bg); color: var(--text-mid); }
+    .audit-pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .audit-entry-id { font-size: 10px; font-family: monospace; color: var(--text-sub); }
+    .audit-entry-time { font-size: 10px; font-family: monospace; color: var(--text-sub); }
+    .audit-codes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .audit-code-cell { }
+    .audit-code-key { font-size: 10px; color: var(--text-sub); margin-bottom: 2px; }
+    .audit-code-val { font-size: 13px; font-weight: 700; font-family: monospace; color: var(--text-strong); }
+    .audit-policy-ref { font-size: 10px; font-family: monospace; color: var(--text-sub); margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+
+    /* ── Score Tab ───────────────────────────────────────── */
+    .score-tab-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; }
+    @media (max-width: 600px) { .score-tab-grid { grid-template-columns: 1fr; } }
+    .grade-card {
+      border-radius: 12px; padding: 16px; border: 1px solid transparent;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .grade-card.A { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.15); }
+    .grade-card.B { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.15); }
+    .grade-card.C { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.15); }
+    .grade-card.D { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.15); }
+    .grade-card.F { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.15); }
+    .grade-letter { font-size: 28px; font-weight: 800; }
+    .grade-card.A .grade-letter { color: #34D399; }
+    .grade-card.B .grade-letter { color: #60A5FA; }
+    .grade-card.C .grade-letter { color: #FCD34D; }
+    .grade-card.D .grade-letter { color: #FB923C; }
+    .grade-card.F .grade-letter { color: #F87171; }
+    .grade-name { font-size: 12px; font-weight: 600; color: var(--text-mid); }
+    .grade-range { font-size: 11px; color: var(--text-label); margin-top: 2px; font-family: monospace; }
+    .mac-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .mac-table th { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-sub); text-align: left; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .mac-table td { font-size: 11px; padding: 9px 0; border-bottom: 1px solid var(--border); color: var(--text-mid); vertical-align: top; }
+    .mac-table td:first-child { font-family: monospace; font-weight: 700; color: var(--accent); width: 44px; }
+    .mac-table td:last-child { font-family: monospace; color: var(--text-label); }
+
+    /* ── HIPAA Footer ─────────────────────────────────────── */
+    .hipaa-bar {
+      background: var(--bg-hipaa); border-top: 1px solid var(--border);
+      padding: 14px 48px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .hipaa-icon { font-size: 14px; opacity: 0.4; }
+    .hipaa-text { font-size: 10px; color: var(--text-footer); line-height: 1.5; max-width: 900px; }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    footer {
+      background: var(--bg-footer); border-top: 1px solid var(--border);
+      padding: 28px 48px; display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .footer-logo { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; color: var(--text-footer); text-transform: uppercase; }
+    .footer-copy { font-size: 11px; color: var(--text-footer); }
+    .footer-link { font-size: 11px; color: var(--text-footer); text-decoration: none; transition: color 0.15s; }
+    .footer-link:hover { color: var(--text-mid); }
+
+    /* ── Chip / Tag input ────────────────────────────────── */
+    .chip-box {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      min-height: 44px; padding: 7px 10px; cursor: text;
+      background: var(--bg-input); border: 1px solid var(--border-input);
+      border-radius: 10px; transition: border-color 0.2s;
+    }
+    .chip-box:focus-within { border-color: var(--accent); }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: monospace; font-size: 12px; font-weight: 700;
+      padding: 4px 8px 4px 10px; border-radius: 6px;
+      background: var(--accent-bg); border: 1px solid var(--accent-border);
+      color: var(--accent); white-space: nowrap; animation: chipIn 0.15s ease-out;
+    }
+    @keyframes chipIn { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+    .chip-remove {
+      width: 14px; height: 14px; border-radius: 50%; border: none;
+      background: var(--accent); color: var(--bg); font-size: 10px; font-weight: 800;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      line-height: 1; padding: 0; transition: opacity 0.15s; flex-shrink: 0;
+    }
+    .chip-remove:hover { opacity: 0.7; }
+    .chip-text-input {
+      border: none; outline: none; background: transparent;
+      font-size: 13px; font-family: monospace; color: var(--text);
+      min-width: 130px; flex: 1; padding: 2px 0;
+    }
+    .chip-text-input::placeholder { color: var(--text-sub); font-family: inherit; }
+    .suggest-box {
+      position: absolute; left: 0; right: 0; z-index: 200;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      max-height: 220px; overflow-y: auto; margin-top: 4px;
+    }
+    .suggest-item {
+      padding: 9px 14px; cursor: pointer; display: flex; align-items: baseline; gap: 10px;
+      font-size: 13px; border-bottom: 1px solid var(--border); transition: background 0.12s;
+    }
+    .suggest-item:last-child { border-bottom: none; }
+    .suggest-item:hover, .suggest-item.active { background: var(--accent-bg); }
+    .suggest-code { font-family: monospace; font-weight: 700; color: var(--accent); font-size: 12px; white-space: nowrap; }
+    .suggest-desc { color: var(--text-muted); font-size: 12px; }
+    .chip-empty-hint {
+      font-size: 11px; color: var(--text-sub); font-style: italic; line-height: 1;
+    }
+
+    /* ── Quick-select dropdown ───────────────────────────── */
+    .row-quick-select {
+      font-size: 11px; padding: 7px 8px; background: var(--bg-input);
+      border: 1px solid var(--border); border-radius: 8px; color: var(--text-mid);
+      cursor: pointer; font-family: inherit; outline: none; width: 100%;
+      appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      padding-right: 24px;
+    }
+    .row-quick-select option, .row-quick-select optgroup { background: var(--select-opt-bg); }
+
+    @media (max-width: 640px) {
+      nav { padding: 0 20px; }
+      .hero-bar { padding: 32px 20px 28px; }
+      .main { padding: 20px 16px 48px; }
+      .tab-panel { padding: 20px 16px; }
+      .hipaa-bar { padding: 12px 16px; }
+      footer { padding: 24px 16px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ─────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-left">
+    <a href="/" class="nav-logo">
+      <span class="nav-logo-name">WorkTrail HQ</span>
+      <span class="nav-logo-tag">Business operations, compliance &amp; staffing</span>
+    </a>
+    <div class="nav-divider"></div>
+    <div class="nav-product">
+      <span class="nav-product-dot"></span>
+      Lab Compliance Pro
+    </div>
+  </div>
+  <div class="nav-actions">
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle theme">🌙</button>
+    <a href="https://worktrailhq.com" target="_blank" rel="noopener" class="btn-ghost">WorkTrail HQ ↗</a>
+    <a href="mailto:support@worktrailhq.com" class="btn-primary">Support</a>
+  </div>
+</nav>
+
+<!-- ── Page ───────────────────────────────────────────────────────────── -->
+<div class="page">
+
+  <!-- Hero Bar -->
+  <div class="hero-bar">
+    <div class="hero-bar-inner">
+      <p class="hero-eyebrow">Compliance-as-a-Service</p>
+      <h1 class="hero-title">Lab Compliance Pro</h1>
+      <p class="hero-sub">Validate CPT/ICD-10 billing claims against your state's Medicare Administrative Contractor (MAC) Local Coverage Determinations — in real time.</p>
+      <div class="hero-badges">
+        <span class="badge badge-hipaa"><span class="badge-dot"></span>HIPAA-Ready Architecture</span>
+        <span class="badge badge-phi"><span class="badge-dot"></span>No PHI Stored</span>
+        <span class="badge badge-version" id="policy-badge">Policy v2.6.0 · Updated 2025-07-01</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+
+      <!-- Jurisdiction -->
+      <div class="card">
+        <p class="card-title">Jurisdiction</p>
+        <div class="select-wrap">
+          <select id="state-select" onchange="onStateChange(this.value)">
+            <option value="">— Select State / Territory —</option>
+          </select>
+          <svg class="select-arrow" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <div id="mac-info" style="display:none" class="mac-info">
+          <p class="mac-info-label">Medicare Administrative Contractor</p>
+          <p class="mac-info-contractor" id="mac-contractor">—</p>
+          <div class="mac-info-grid">
+            <div class="mac-info-chip">
+              <p class="mic-chip-label">MAC Code</p>
+              <p class="mic-chip-value" id="mac-code">—</p>
+            </div>
+            <div class="mac-info-chip">
+              <p class="mic-chip-label">CMS Region</p>
+              <p class="mic-chip-value" id="mac-region">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compliance Score -->
+      <div class="card">
+        <p class="card-title">Compliance Health Score</p>
+        <div class="score-wrap">
+          <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
+            <svg class="score-svg" width="148" height="148" viewBox="0 0 148 148">
+              <circle cx="74" cy="74" r="58" fill="none" stroke-width="10" stroke="var(--border)" transform="rotate(-90 74 74)"/>
+              <circle id="score-arc" cx="74" cy="74" r="58" fill="none" stroke-width="10"
+                stroke="#818CF8" stroke-linecap="round"
+                stroke-dasharray="0 364.42"
+                transform="rotate(-90 74 74)"
+                style="transition: stroke-dasharray 0.9s cubic-bezier(.4,0,.2,1), stroke 0.5s;"/>
+            </svg>
+            <div style="position:absolute;display:flex;flex-direction:column;align-items:center;">
+              <span class="score-number" id="score-number" style="color:#818CF8">0</span>
+              <span class="score-label">Score</span>
+            </div>
+          </div>
+          <div class="score-grade-row">
+            <span class="score-grade" id="score-grade" style="color:#818CF8">F</span>
+            <span class="score-grade-tag" id="score-grade-tag" style="background:rgba(129,140,248,0.12);color:#818CF8">No data yet</span>
+          </div>
+          <div class="score-stats">
+            <div class="score-stat">
+              <div class="score-stat-n" id="stat-covered" style="color:#34D399">0</div>
+              <div class="score-stat-l">Covered</div>
+            </div>
+            <div class="score-stat">
+              <div class="score-stat-n" id="stat-flagged" style="color:#F87171">0</div>
+              <div class="score-stat-l">Flagged</div>
+            </div>
+            <div class="score-stat">
+              <div class="score-stat-n" id="stat-total" style="color:var(--text-mid)">0</div>
+              <div class="score-stat-l">Total</div>
+            </div>
+          </div>
+          <p class="score-empty" id="score-empty">Validate your first claim to generate your Compliance Health Score</p>
+        </div>
+      </div>
+
+      <!-- Policy Version -->
+      <div class="card">
+        <p class="card-title">Policy Version</p>
+        <div class="policy-row">
+          <span class="policy-dot stale" id="policy-dot"></span>
+          <span class="policy-version-label" id="policy-updated">Updated: 2025-07-01</span>
+        </div>
+        <p class="policy-version-sub" id="policy-version-str">System v2.6.0 · Next review: 2026-01-01</p>
+        <div id="mac-policy-row" style="margin-top:10px;display:none">
+          <div class="policy-row" style="margin-top:8px">
+            <span style="font-size:10px;color:var(--text-sub)">Active LCD:</span>
+            <span class="policy-version-sub" id="mac-policy-ref" style="padding-left:6px;color:var(--text-mid)">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Sources -->
+      <div class="card">
+        <p class="card-title">Data Sources</p>
+        <div class="source-row">
+          <span class="source-check">✓</span>
+          <div><p class="source-name">CMS Medicare Coverage Database</p><p class="source-date">Synced: 2025-07-01</p></div>
+        </div>
+        <div class="source-row">
+          <span class="source-check">✓</span>
+          <div><p class="source-name">CMS ICD-10-CM Tabular List</p><p class="source-date">Synced: 2025-10-01</p></div>
+        </div>
+        <div class="source-row">
+          <span class="source-check">✓</span>
+          <div><p class="source-name">AMA CPT Code Set</p><p class="source-date">Synced: 2025-01-01</p></div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ── Main Panel ── -->
+    <div class="main-panel card" style="padding:0;overflow:hidden">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('validate', this)">Claim Validator</button>
+        <button class="tab-btn" onclick="switchTab('score', this)">Compliance Guide</button>
+        <button class="tab-btn" onclick="switchTab('audit', this)">
+          Audit Log
+          <span class="tab-count" id="audit-tab-count" style="display:none">0</span>
+        </button>
+      </div>
+
+      <!-- Validate Tab -->
+      <div id="tab-validate" class="tab-panel active">
+
+        <div id="no-state-warning" class="no-state-note">Select a state on the left to activate claim validation.</div>
+
+        <!-- CPT chip field -->
+        <div class="chip-field" style="margin-bottom:14px;position:relative;">
+          <label class="field-label">CPT Procedure Codes</label>
+          <div class="chip-box" id="cpt-chip-box" onclick="document.getElementById('cpt-text').focus()">
+            <input id="cpt-text" class="chip-text-input" type="text" placeholder="Type code or name + Enter…" maxlength="30"
+              autocomplete="off"
+              oninput="this.value=this.value.toUpperCase();filterSuggestions('cpt',this.value)"
+              onkeydown="handleChipKey(event,'cpt')"
+              onblur="setTimeout(()=>hideSuggestions('cpt'),180)">
+          </div>
+          <div id="cpt-suggest" class="suggest-box" style="display:none;"></div>
+          <div id="cpt-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
+          <select id="cpt-quick-select" class="row-quick-select" style="width:100%;margin-top:8px;"
+            onchange="if(this.value){addChip('cpt',this.value);this.value=''}">
+          </select>
+        </div>
+
+        <!-- ICD-10 chip field -->
+        <div class="chip-field" style="margin-bottom:18px;position:relative;">
+          <label class="field-label">ICD-10 Diagnosis Codes</label>
+          <div class="chip-box" id="icd10-chip-box" onclick="document.getElementById('icd10-text').focus()">
+            <input id="icd10-text" class="chip-text-input" type="text" placeholder="Type code or diagnosis + Enter…" maxlength="30"
+              autocomplete="off"
+              oninput="this.value=this.value.toUpperCase();filterSuggestions('icd10',this.value)"
+              onkeydown="handleChipKey(event,'icd10')"
+              onblur="setTimeout(()=>hideSuggestions('icd10'),180)">
+          </div>
+          <div id="icd10-suggest" class="suggest-box" style="display:none;"></div>
+          <div id="icd10-field-err" style="display:none;font-size:11px;color:#EF4444;margin-top:4px;"></div>
+          <select id="icd10-quick-select" class="row-quick-select" style="width:100%;margin-top:8px;"
+            onchange="if(this.value){addChip('icd10',this.value);this.value=''}">
+          </select>
+        </div>
+
+        <button class="validate-btn" id="validate-btn" onclick="submitValidation()" disabled>
+          Select a state to validate
+        </button>
+
+        <div id="result-container" style="margin-top:16px;display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+
+      <!-- Compliance Guide Tab -->
+      <div id="tab-score" class="tab-panel">
+        <h3 style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">How Your Score is Calculated</h3>
+        <p style="font-size:12px;color:var(--text-muted);line-height:1.7;max-width:560px;">
+          Your Compliance Health Score reflects the percentage of validated claims confirmed as covered under your active MAC Local Coverage Determination. It updates automatically with each validation.
+        </p>
+        <div class="score-tab-grid">
+          <div class="grade-card A"><span class="grade-letter">A</span><div><p class="grade-name">Excellent</p><p class="grade-range">95–100% covered</p></div></div>
+          <div class="grade-card B"><span class="grade-letter">B</span><div><p class="grade-name">Good</p><p class="grade-range">85–94% covered</p></div></div>
+          <div class="grade-card C"><span class="grade-letter">C</span><div><p class="grade-name">Fair</p><p class="grade-range">70–84% covered</p></div></div>
+          <div class="grade-card D"><span class="grade-letter">D</span><div><p class="grade-name">Poor</p><p class="grade-range">50–69% covered</p></div></div>
+          <div class="grade-card F" style="grid-column:span 2"><span class="grade-letter">F</span><div><p class="grade-name">Critical Risk</p><p class="grade-range">0–49% covered — high denial exposure</p></div></div>
+        </div>
+
+        <div style="margin-top:28px">
+          <p class="card-title" style="margin-bottom:12px">Active MAC Policy Versions</p>
+          <table class="mac-table">
+            <thead><tr><th>MAC</th><th>Contractor</th><th>Policy</th></tr></thead>
+            <tbody>
+              <tr><td>JJ / JM</td><td>Palmetto GBA</td><td>L36021-Rev12</td></tr>
+              <tr><td>JF / J1 / J11</td><td>Noridian Healthcare Solutions</td><td>L35062-Rev09</td></tr>
+              <tr><td>J12</td><td>Novitas Solutions</td><td>L35062-Rev11</td></tr>
+              <tr><td>J6 / JK</td><td>National Government Services</td><td>L36898-Rev07</td></tr>
+              <tr><td>J7 / J5 / J8</td><td>WPS Gov't Health Administrators</td><td>L34900-Rev10</td></tr>
+              <tr><td>J9</td><td>First Coast Service Options</td><td>L35500-Rev11</td></tr>
+              <tr><td>J4</td><td>CGS Administrators</td><td>L35200-Rev06</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Audit Log Tab -->
+      <div id="tab-audit" class="tab-panel">
+        <div class="audit-header">
+          <span class="audit-count" id="audit-count-label">0 session entries — cleared on page reload</span>
+          <button class="audit-clear" onclick="clearAudit()">Clear log</button>
+        </div>
+        <div id="audit-empty" class="audit-empty">
+          <div class="audit-empty-icon">📋</div>
+          <p class="audit-empty-text">No audit entries yet.<br>Validated claims appear here. No PHI is stored.</p>
+        </div>
+        <div id="audit-list" class="audit-list"></div>
+      </div>
+
+    </div><!-- /main-panel -->
+  </div><!-- /main -->
+
+  <!-- HIPAA Notice -->
+  <div class="hipaa-bar">
+    <span class="hipaa-icon">🔒</span>
+    <p class="hipaa-text">This system processes billing codes only. No Protected Health Information (PHI) is stored, transmitted, or logged. All validation results are based on publicly available CMS Local Coverage Determinations (LCDs). This tool does not constitute legal or medical advice. Covered entities must maintain their own Business Associate Agreements (BAAs) with all downstream vendors.</p>
+  </div>
+
+</div><!-- /page -->
+
+<!-- Footer -->
+<footer>
+  <div class="footer-logo">WorkTrail HQ</div>
+  <span class="footer-copy">&copy; 2026 WorkTrail HQ. Lab Compliance Pro v2.6.0</span>
+  <a href="https://worktrailhq.com" target="_blank" rel="noopener" class="footer-link">worktrailhq.com ↗</a>
+</footer>
+
+<script>
+// ── Theme ─────────────────────────────────────────────────────────────────────
+(function() {
+  const saved = localStorage.getItem('lcp-theme');
+  if (saved === 'light') document.documentElement.classList.add('light');
+})();
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('lcp-theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-toggle').textContent = isLight ? '☀️' : '🌙';
+}
+
+// Sync icon on load
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.documentElement.classList.contains('light'))
+    document.getElementById('theme-toggle').textContent = '☀️';
+});
+
+// ── State / MAC Data ──────────────────────────────────────────────────────────
+const STATE_MAP = {
+  AL:{mac:"JJ",contractor:"Palmetto GBA",region:"Southeast"},
+  AK:{mac:"JF",contractor:"Noridian Healthcare Solutions",region:"Northwest"},
+  AZ:{mac:"J11",contractor:"Noridian Healthcare Solutions",region:"Southwest"},
+  AR:{mac:"J7",contractor:"WPS Gov't Health Admin",region:"South Central"},
+  CA:{mac:"J1",contractor:"Noridian Healthcare Solutions",region:"West"},
+  CO:{mac:"J4",contractor:"CGS Administrators",region:"Mountain"},
+  CT:{mac:"JK",contractor:"National Government Services",region:"Northeast"},
+  DE:{mac:"J12",contractor:"Novitas Solutions",region:"Mid-Atlantic"},
+  FL:{mac:"J9",contractor:"First Coast Service Options",region:"Southeast"},
+  GA:{mac:"JJ",contractor:"Palmetto GBA",region:"Southeast"},
+  HI:{mac:"J1",contractor:"Noridian Healthcare Solutions",region:"Pacific"},
+  ID:{mac:"JF",contractor:"Noridian Healthcare Solutions",region:"Northwest"},
+  IL:{mac:"J6",contractor:"National Government Services",region:"Midwest"},
+  IN:{mac:"J8",contractor:"WPS Gov't Health Admin",region:"Midwest"},
+  IA:{mac:"J5",contractor:"WPS Gov't Health Admin",region:"Midwest"},
+  KS:{mac:"J7",contractor:"WPS Gov't Health Admin",region:"Central"},
+  KY:{mac:"J8",contractor:"WPS Gov't Health Admin",region:"Southeast"},
+  LA:{mac:"J7",contractor:"WPS Gov't Health Admin",region:"South Central"},
+  ME:{mac:"JK",contractor:"National Government Services",region:"Northeast"},
+  MD:{mac:"J12",contractor:"Novitas Solutions",region:"Mid-Atlantic"},
+  MA:{mac:"JK",contractor:"National Government Services",region:"Northeast"},
+  MI:{mac:"J8",contractor:"WPS Gov't Health Admin",region:"Midwest"},
+  MN:{mac:"J5",contractor:"WPS Gov't Health Admin",region:"Midwest"},
+  MS:{mac:"JJ",contractor:"Palmetto GBA",region:"Southeast"},
+  MO:{mac:"J7",contractor:"WPS Gov't Health Admin",region:"Central"},
+  MT:{mac:"JF",contractor:"Noridian Healthcare Solutions",region:"Northwest"},
+  NE:{mac:"J5",contractor:"WPS Gov't Health Admin",region:"Midwest"},
+  NV:{mac:"J1",contractor:"Noridian Healthcare Solutions",region:"West"},
+  NH:{mac:"JK",contractor:"National Government Services",region:"Northeast"},
+  NJ:{mac:"J12",contractor:"Novitas Solutions",region:"Mid-Atlantic"},
+  NM:{mac:"J11",contractor:"Noridian Healthcare Solutions",region:"Southwest"},
+  NY:{mac:"JK",contractor:"National Government Services",region:"Northeast"},
+  NC:{mac:"JM",contractor:"Palmetto GBA",region:"Southeast"},
+  ND:{mac:"JF",contractor:"Noridian Healthcare Solutions",region:"Northwest"},
+  OH:{mac:"J8",contractor:"WPS Gov't Health Admin",region:"Midwest"},
+  OK:{mac:"J7",contractor:"WPS Gov't Health Admin",region:"South Central"},
+  OR:{mac:"JF",contractor:"Noridian Healthcare Solutions",region:"Northwest"},
+  PA:{mac:"J12",contractor:"Novitas Solutions",region:"Mid-Atlantic"},
+  RI:{mac:"JK",contractor:"National Government Services",region:"Northeast"},
+  SC:{mac:"JM",contractor:"Palmetto GBA",region:"Southeast"},
+  SD:{mac:"JF",contractor:"Noridian Healthcare Solutions",region:"Northwest"},
+  TN:{mac:"JJ",contractor:"Palmetto GBA",region:"Southeast"},
+  TX:{mac:"J7",contractor:"WPS Gov't Health Admin",region:"South Central"},
+  UT:{mac:"J4",contractor:"CGS Administrators",region:"Mountain"},
+  VT:{mac:"JK",contractor:"National Government Services",region:"Northeast"},
+  VA:{mac:"JM",contractor:"Palmetto GBA",region:"Mid-Atlantic"},
+  WA:{mac:"JF",contractor:"Noridian Healthcare Solutions",region:"Northwest"},
+  WV:{mac:"J12",contractor:"Novitas Solutions",region:"Mid-Atlantic"},
+  WI:{mac:"J5",contractor:"WPS Gov't Health Admin",region:"Midwest"},
+  WY:{mac:"J4",contractor:"CGS Administrators",region:"Mountain"},
+  DC:{mac:"J12",contractor:"Novitas Solutions",region:"Mid-Atlantic"},
+  PR:{mac:"J9",contractor:"First Coast Service Options",region:"Caribbean"},
+  VI:{mac:"J9",contractor:"First Coast Service Options",region:"Caribbean"},
+};
+
+const STATE_NAMES = {
+  AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",
+  CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",
+  IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",
+  ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",
+  MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",
+  NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",
+  NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",
+  PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",
+  TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",
+  WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",
+  DC:"District of Columbia",PR:"Puerto Rico",VI:"U.S. Virgin Islands"
+};
+
+const MAC_POLICY = {
+  JJ:"L36021-Rev12",JM:"L36021-Rev12",JF:"L35062-Rev09",J1:"L35062-Rev09",
+  J11:"L35062-Rev09",J12:"L35062-Rev11",J6:"L36898-Rev07",JK:"L36898-Rev07",
+  J7:"L34900-Rev10",J5:"L34900-Rev10",J8:"L34900-Rev10",J9:"L35500-Rev11",J4:"L35200-Rev06"
+};
+
+// ── App State ─────────────────────────────────────────────────────────────────
+let selectedState = '';
+let auditLog = [];
+let stats = { covered: 0, total: 0 };
+
+// ── Init: populate state select ───────────────────────────────────────────────
+(function populateStateSelect() {
+  const sel = document.getElementById('state-select');
+  const byRegion = {};
+  Object.keys(STATE_MAP).sort().forEach(st => {
+    const r = STATE_MAP[st].region;
+    if (!byRegion[r]) byRegion[r] = [];
+    byRegion[r].push(st);
+  });
+  Object.keys(byRegion).sort().forEach(region => {
+    const og = document.createElement('optgroup');
+    og.label = region;
+    byRegion[region].forEach(st => {
+      const opt = document.createElement('option');
+      opt.value = st;
+      opt.textContent = `${st} – ${STATE_NAMES[st] || st}`;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+})();
+
+// ── State change ──────────────────────────────────────────────────────────────
+function onStateChange(val) {
+  selectedState = val;
+  const info = STATE_MAP[val];
+  const infoEl = document.getElementById('mac-info');
+  const btn = document.getElementById('validate-btn');
+  const warning = document.getElementById('no-state-warning');
+
+  if (info) {
+    document.getElementById('mac-contractor').textContent = info.contractor;
+    document.getElementById('mac-code').textContent = info.mac;
+    document.getElementById('mac-region').textContent = info.region;
+    infoEl.style.display = 'block';
+    warning.style.display = 'none';
+    updateValidateBtn();
+
+    const policyRef = MAC_POLICY[info.mac] || '—';
+    document.getElementById('mac-policy-ref').textContent = policyRef;
+    document.getElementById('mac-policy-row').style.display = 'block';
+  } else {
+    infoEl.style.display = 'none';
+    btn.disabled = true;
+    warning.style.display = 'block';
+    document.getElementById('mac-policy-row').style.display = 'none';
+    updateValidateBtn();
+  }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Claim Rows ────────────────────────────────────────────────────────────────
+// CPT options grouped by category for the quick-pick select
+const CPT_GROUPS = [
+  { label: 'Chemistry / Metabolic', options: [
+    ['80048','80048 – Basic Metabolic Panel (BMP)'],
+    ['80053','80053 – Comprehensive Metabolic Panel (CMP)'],
+    ['82962','82962 – Blood Glucose, Monitoring Device'],
+    ['83036','83036 – Hemoglobin A1c'],
+    ['84443','84443 – TSH (Thyroid Stimulating Hormone)'],
+    ['84153','84153 – PSA (Prostate-Specific Antigen), Total'],
+    ['84402','84402 – Testosterone, Free'],
+    ['84403','84403 – Testosterone, Total'],
+    ['82670','82670 – Estradiol (E2), Serum'],
+    ['84480','84480 – T3 (Triiodothyronine), Total'],
+    ['84481','84481 – T3 Free (FT3), Serum'],
+    ['83525','83525 – Insulin, Serum'],
+    ['82728','82728 – Ferritin'],
+    ['82306','82306 – Vitamin D, 25-OH'],
+  ]},
+  { label: 'Hematology', options: [
+    ['85025','85025 – CBC with Differential'],
+    ['85027','85027 – CBC without Differential'],
+    ['85610','85610 – Prothrombin Time (PT/INR)'],
+  ]},
+  { label: 'Urinalysis', options: [
+    ['81001','81001 – UA w/ Microscopy (Dipstick + Micro)'],
+    ['81003','81003 – UA Dipstick Only / Automated (no micro)'],
+    ['81007','81007 – UA Bacteriuria Screen'],
+    ['87086','87086 – Urine Culture, Bacterial; Quantitative'],
+    ['87088','87088 – Urine Culture + Colony Count'],
+  ]},
+  { label: 'Infectious Disease / PCR', options: [
+    ['87491','87491 – Chlamydia trachomatis, NAA/PCR'],
+    ['87591','87591 – Neisseria gonorrhoeae, NAA/PCR'],
+    ['87661','87661 – Trichomonas vaginalis, NAA/PCR'],
+    ['87804','87804 – Influenza A/B Antigen, Rapid'],
+    ['87389','87389 – HIV-1 Antigen & HIV 1+2 Ab'],
+    ['86703','86703 – HIV-1 & HIV-2 Antibody, Single'],
+    ['87340','87340 – Hepatitis B Surface Antigen (HBsAg)'],
+    ['86706','86706 – Hepatitis B Surface Ab (HBsAb)'],
+    ['86803','86803 – Hepatitis C Ab (HCV)'],
+    ['87902','87902 – HCV Genotype, Nucleic Acid'],
+    ['87529','87529 – Herpes Simplex Virus (HSV), NAA'],
+    ['87801','87801 – Ureaplasma/Mycoplasma, NAA'],
+    ['86592','86592 – RPR / Syphilis Screen (Nontreponemal)'],
+    ['86596','86596 – RPR Titer (Syphilis Quantitative)'],
+  ]},
+  { label: 'Immunoassay', options: [
+    ['86235','86235 – Antinuclear Ab (ANA)'],
+    ['86038','86038 – Antinuclear Ab (ANA) Titer'],
+    ['86200','86200 – Anti-CCP (Rheumatoid)'],
+    ['86430','86430 – Rheumatoid Factor (RF), Qualitative'],
+    ['86431','86431 – Rheumatoid Factor (RF), Quantitative'],
+    ['86800','86800 – Thyroglobulin Antibody'],
+    ['86140','86140 – C-Reactive Protein (CRP)'],
+    ['86141','86141 – CRP, High Sensitivity (hsCRP)'],
+    ['83519','83519 – Immunoassay, Analyte NOS'],
+  ]},
+  { label: 'Drug Testing', options: [
+    ['80305','80305 – Drug Screen, Presumptive (Chemistry)'],
+    ['80306','80306 – Drug Screen, Presumptive (Instrument)'],
+    ['80307','80307 – Drug Screen, Presumptive (Chromatography)'],
+  ]},
+  { label: 'Pharmacogenomics (PGx)', options: [
+    ['81225','81225 – CYP2C19 (Full Gene Sequence)'],
+    ['81226','81226 – CYP2D6 (Full Gene Sequence)'],
+    ['81227','81227 – CYP2C9 (Common Variants)'],
+    ['81228','81228 – CYP2C19 (Common Variants)'],
+    ['81229','81229 – CYP2D6 (Common Variants)'],
+    ['81230','81230 – CYP3A4 (Common Variants)'],
+    ['81231','81231 – CYP3A5 (Common Variants)'],
+    ['81346','81346 – TPMT (Thiopurine Methyltransferase)'],
+    ['81400','81400 – Mol Path Level 1 (Single Variant)'],
+    ['81401','81401 – Mol Path Level 2 (2–10 Variants)'],
+    ['81479','81479 – Unlisted Molecular Pathology Procedure'],
+    ['0029U','0029U – CYP2D6/CYP2C19 Multi-gene Panel'],
+    ['0030U','0030U – ABCB1/CYP2C9/CYP2C19/CYP3A4 Panel'],
+  ]},
+];
+
+// Flat array for backward compat (used nowhere directly now)
+const CPT_OPTIONS = CPT_GROUPS.flatMap(g => g.options);
+
+const ICD10_GROUPS = [
+  { label: 'Endocrine / Metabolic', options: [
+    ['E11.9','E11.9 – Type 2 Diabetes, Unspecified'],
+    ['E11.65','E11.65 – Type 2 Diabetes w/ Hyperglycemia'],
+    ['E11.649','E11.649 – T2DM w/ Hypoglycemia, No Coma (FY2026)'],
+    ['E10.9','E10.9 – Type 1 Diabetes, Unspecified'],
+    ['E03.9','E03.9 – Hypothyroidism, Unspecified'],
+    ['E03.8','E03.8 – Other Specified Hypothyroidism (FY2026)'],
+    ['E89.0','E89.0 – Post-procedural Hypothyroidism'],
+    ['E78.5','E78.5 – Hyperlipidemia, Unspecified'],
+    ['E78.2','E78.2 – Mixed Hyperlipidemia'],
+    ['E11.21','E11.21 – T2DM with Diabetic Nephropathy'],
+    ['R73.09','R73.09 – Prediabetes / Impaired Fasting Glucose'],
+    ['E29.1','E29.1 – Testicular Hypofunction (Hypogonadism)'],
+    ['E28.319','E28.319 – Symptomatic Premature Menopause (FY2026)'],
+  ]},
+  { label: 'Cardiovascular / Renal', options: [
+    ['I10','I10 – Essential Hypertension'],
+    ['I12.9','I12.9 – Hypertensive CKD, Stage 1–4'],
+    ['I13.10','I13.10 – Hypertensive Heart & CKD (FY2026)'],
+    ['I48.0','I48.0 – Paroxysmal Atrial Fibrillation'],
+    ['I48.91','I48.91 – Unspecified Atrial Fibrillation'],
+    ['I25.10','I25.10 – Atherosclerotic Heart Disease'],
+    ['I25.110','I25.110 – CAD w/ Unstable Angina (FY2026)'],
+    ['I50.9','I50.9 – Heart Failure, Unspecified'],
+    ['I50.32','I50.32 – Chronic Diastolic Heart Failure (FY2026)'],
+    ['Z96.641','Z96.641 – Presence of Coronary Stent (FY2026)'],
+    ['N18.3','N18.3 – CKD Stage 3'],
+    ['N18.4','N18.4 – CKD Stage 4 (FY2026)'],
+    ['N18.5','N18.5 – CKD Stage 5'],
+    ['N39.0','N39.0 – Urinary Tract Infection (UTI)'],
+    ['N30.00','N30.00 – Acute Cystitis w/o Hematuria'],
+    ['N30.01','N30.01 – Acute Cystitis w/ Hematuria (FY2026)'],
+    ['R31.0','R31.0 – Gross Hematuria (FY2026)'],
+    ['R31.9','R31.9 – Hematuria, Unspecified'],
+    ['R80.9','R80.9 – Proteinuria, Unspecified'],
+    ['R82.71','R82.71 – Bacteriuria (FY2026)'],
+    ['Z87.440','Z87.440 – Personal History of UTI (FY2026)'],
+  ]},
+  { label: 'Infectious Disease', options: [
+    ['Z11.3','Z11.3 – STI Screening Encounter'],
+    ['Z11.4','Z11.4 – HIV Screening Encounter'],
+    ['Z11.51','Z11.51 – Chlamydia / HPV Screening (FY2026)'],
+    ['Z11.59','Z11.59 – Other Viral Disease Screening'],
+    ['Z20.2','Z20.2 – Exposure to Infection (Sexual Contact)'],
+    ['Z20.6','Z20.6 – Exposure to HIV'],
+    ['Z20.828','Z20.828 – Exposure to Influenza (FY2026)'],
+    ['Z22.51','Z22.51 – Carrier of Hepatitis B'],
+    ['A56.00','A56.00 – Chlamydial Urogenital Infection'],
+    ['A56.09','A56.09 – Other Chlamydial Infection (FY2026)'],
+    ['A54.00','A54.00 – Gonococcal Infection, Lower GU'],
+    ['A54.09','A54.09 – Other Gonococcal Infection (FY2026)'],
+    ['B18.2','B18.2 – Chronic Viral Hepatitis C'],
+    ['B18.1','B18.1 – Chronic Viral Hepatitis B'],
+    ['B19.10','B19.10 – Unspecified Viral Hepatitis B'],
+    ['B20','B20 – HIV Disease'],
+    ['A53.9','A53.9 – Syphilis, Unspecified'],
+    ['A51.0','A51.0 – Primary Genital Syphilis'],
+    ['J10.1','J10.1 – Influenza w/ Other Respiratory Manifestations'],
+    ['J11.1','J11.1 – Influenza, Unspecified, w/ Respiratory Manifestations'],
+    ['R05.9','R05.9 – Cough, Unspecified (FY2026)'],
+    ['R87.810','R87.810 – Abnormal Pap — HPV Positive'],
+    ['O98.11','O98.11 – HIV/HBV/Syphilis Complicating Pregnancy'],
+    ['O23.10','O23.10 – UTI in Pregnancy (FY2026)'],
+  ]},
+  { label: 'Immunology / Rheumatology', options: [
+    ['M06.9','M06.9 – Rheumatoid Arthritis, Unspecified'],
+    ['M06.00','M06.00 – RA w/o RF, Unspecified Site'],
+    ['M05.79','M05.79 – RA w/ RF, Multiple Sites'],
+    ['M32.9','M32.9 – Systemic Lupus Erythematosus (SLE)'],
+    ['M34.9','M34.9 – Systemic Sclerosis (Scleroderma)'],
+    ['M35.9','M35.9 – Systemic Involvement of Connective Tissue'],
+    ['L93.0','L93.0 – Discoid Lupus Erythematosus'],
+    ['M79.3','M79.3 – Panniculitis (Nonspecific)'],
+    ['M25.50','M25.50 – Pain in Unspecified Joint'],
+    ['R53.83','R53.83 – Other Fatigue'],
+    ['R70.0','R70.0 – Elevated ESR'],
+    ['R79.82','R79.82 – Elevated CRP'],
+    ['C73','C73 – Malignant Neoplasm of Thyroid'],
+    ['Z85.850','Z85.850 – Personal History of Thyroid Cancer'],
+    ['E06.3','E06.3 – Autoimmune Thyroiditis (Hashimoto\'s)'],
+    ['C61','C61 – Malignant Neoplasm of Prostate'],
+    ['D40.0','D40.0 – Neoplasm of Uncertain Behavior of Prostate'],
+    ['Z80.42','Z80.42 – Family History of Prostate Cancer'],
+    ['Z85.46','Z85.46 – Personal History of Prostate Cancer'],
+  ]},
+  { label: 'Hematology / Anemia', options: [
+    ['D64.9','D64.9 – Anemia, Unspecified'],
+    ['D64.89','D64.89 – Other Specified Anemias (FY2026)'],
+    ['D50.9','D50.9 – Iron Deficiency Anemia'],
+    ['D50.8','D50.8 – Other Iron Deficiency Anemias'],
+    ['D70.9','D70.9 – Neutropenia, Unspecified'],
+    ['D70.1','D70.1 – Agranulocytosis — Chemotherapy (FY2026)'],
+    ['D75.9','D75.9 – Disease of Blood, Unspecified'],
+    ['D68.9','D68.9 – Coagulation Defect, Unspecified'],
+    ['D53.9','D53.9 – Nutritional Anemia, Unspecified'],
+    ['C91.00','C91.00 – Acute Lymphoblastic Leukemia'],
+    ['C91.10','C91.10 – CLL Stage 0 (FY2026)'],
+  ]},
+  { label: 'Respiratory / Pulmonary', options: [
+    ['J44.9','J44.9 – COPD, Unspecified'],
+    ['J44.1','J44.1 – COPD with Acute Exacerbation'],
+    ['J44.0','J44.0 – COPD with Acute Lower Respiratory Infection'],
+    ['J45.901','J45.901 – Unspecified Asthma, Uncomplicated'],
+    ['R07.9','R07.9 – Chest Pain, Unspecified'],
+    ['R07.4','R07.4 – Chest Pain on Breathing (Pleurodynia)'],
+    ['R05.9','R05.9 – Cough, Unspecified'],
+    ['R06.00','R06.00 – Dyspnea, Unspecified'],
+    ['G47.00','G47.00 – Insomnia, Unspecified'],
+    ['G47.09','G47.09 – Other Insomnia'],
+    ['F51.01','F51.01 – Primary Insomnia'],
+  ]},
+  { label: 'Screening / Wellness', options: [
+    ['Z00.00','Z00.00 – Adult Routine General Exam'],
+    ['Z00.01','Z00.01 – Adult Exam w/ Abnormal Findings'],
+    ['Z13.88','Z13.88 – Encounter for Disorder NOS Screening'],
+    ['Z83.3','Z83.3 – Family History of Diabetes'],
+    ['Z72.51','Z72.51 – High-risk Sexual Behavior'],
+  ]},
+  { label: 'Hepatic / GI', options: [
+    ['K74.60','K74.60 – Unspecified Cirrhosis of Liver'],
+    ['K74.69','K74.69 – Other Cirrhosis of Liver (FY2026)'],
+    ['K70.30','K70.30 – Alcoholic Cirrhosis w/o Ascites'],
+    ['K70.31','K70.31 – Alcoholic Cirrhosis w/ Ascites'],
+    ['K76.0','K76.0 – Fatty (Change of) Liver, NEC (NAFLD)'],
+    ['K21.0','K21.0 – GERD w/ Esophagitis'],
+    ['R17','R17 – Unspecified Jaundice'],
+  ]},
+  { label: 'Pharmacogenomics (PGx)', options: [
+    ['Z79.899','Z79.899 – Long-term Use of Other Medication'],
+    ['Z79.01','Z79.01 – Long-term Use of Anticoagulants (Warfarin)'],
+    ['Z79.02','Z79.02 – Long-term Use of Antithrombotics'],
+    ['Z79.3','Z79.3 – Long-term Use of Hormonal Contraceptives'],
+    ['Z79.4','Z79.4 – Long-term Use of Insulin'],
+    ['Z79.82','Z79.82 – Long-term Use of Aspirin'],
+    ['F32.9','F32.9 – Major Depressive Disorder (MDD)'],
+    ['F33.9','F33.9 – Recurrent Depressive Disorder'],
+    ['F41.1','F41.1 – Generalized Anxiety Disorder (GAD)'],
+    ['F31.9','F31.9 – Bipolar Disorder, Unspecified'],
+    ['F20.9','F20.9 – Schizophrenia, Unspecified'],
+    ['F10.20','F10.20 – Alcohol Use Disorder, Moderate/Severe'],
+    ['F11.20','F11.20 – Opioid Use Disorder, Moderate/Severe'],
+    ['G40.909','G40.909 – Epilepsy, Unspecified, Not Intractable'],
+    ['G43.909','G43.909 – Migraine, Unspecified'],
+    ['R51.9','R51.9 – Headache, Unspecified'],
+    ['I26.09','I26.09 – Pulmonary Embolism w/o Cor Pulmonale'],
+    ['C50.919','C50.919 – Malignant Neoplasm of Breast, Unspecified'],
+    ['Z84.81','Z84.81 – Family History of Carrier of Genetic Disease'],
+  ]},
+];
+
+function buildSelectOptions(groups) {
+  return '<option value="">Quick pick…</option>' + groups.map(g =>
+    `<optgroup label="${g.label}">${g.options.map(([v,l]) => `<option value="${v}">${l}</option>`).join('')}</optgroup>`
+  ).join('');
+}
+
+// ── Chip / Tag Input ──────────────────────────────────────────────────────────
+const chipSets = { cpt: new Set(), icd10: new Set() };
+
+function addChip(type, rawCode) {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return;
+  const errEl = document.getElementById(`${type}-field-err`);
+  const isValid = type === 'cpt' ? isValidCPT(code) : isValidICD10(code);
+  if (!isValid) {
+    errEl.textContent = type === 'cpt'
+      ? 'Enter a valid CPT code (e.g. 80048 or 81225)'
+      : 'Enter a valid ICD-10 code (e.g. E11.9 or I10)';
+    errEl.style.display = 'block';
+    setTimeout(() => { errEl.style.display = 'none'; }, 2500);
+    return;
+  }
+  errEl.style.display = 'none';
+  if (chipSets[type].has(code)) return; // no duplicates
+  chipSets[type].add(code);
+  renderChips(type);
+  // clear text input
+  document.getElementById(`${type}-text`).value = '';
+  updateValidateBtn();
+}
+
+function removeChip(type, code) {
+  chipSets[type].delete(code);
+  renderChips(type);
+  updateValidateBtn();
+}
+
+function renderChips(type) {
+  const box = document.getElementById(`${type}-chip-box`);
+  const input = document.getElementById(`${type}-text`);
+  // remove all chips (keep input)
+  Array.from(box.children).forEach(c => { if (c !== input) c.remove(); });
+
+  chipSets[type].forEach(code => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${esc(code)}<button class="chip-remove" onclick="removeChip('${type}','${esc(code)}')" title="Remove">×</button>`;
+    box.insertBefore(chip, input);
+  });
+
+  // placeholder hint when empty
+  let hint = box.querySelector('.chip-empty-hint');
+  if (chipSets[type].size === 0) {
+    if (!hint) {
+      hint = document.createElement('span');
+      hint.className = 'chip-empty-hint';
+      hint.textContent = type === 'cpt' ? 'No codes added yet' : 'No codes added yet';
+      box.insertBefore(hint, input);
+    }
+  } else if (hint) {
+    hint.remove();
+  }
+}
+
+function handleChipKey(e, type) {
+  const box = document.getElementById(`${type}-suggest`);
+  const items = box.querySelectorAll('.suggest-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    suggestIndex[type] = Math.min(suggestIndex[type] + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === suggestIndex[type]));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    suggestIndex[type] = Math.max(suggestIndex[type] - 1, -1);
+    items.forEach((el, i) => el.classList.toggle('active', i === suggestIndex[type]));
+  } else if (e.key === 'Escape') {
+    hideSuggestions(type);
+  } else if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    if (suggestIndex[type] >= 0 && items[suggestIndex[type]]) {
+      items[suggestIndex[type]].dispatchEvent(new MouseEvent('mousedown'));
+    } else {
+      addChip(type, e.target.value);
+    }
+  }
+}
+
+function updateValidateBtn() {
+  const btn = document.getElementById('validate-btn');
+  if (!selectedState) { btn.textContent = 'Select a state to validate'; btn.disabled = true; return; }
+  const hasCpt = chipSets.cpt.size > 0;
+  const hasIcd = chipSets.icd10.size > 0;
+  if (!hasCpt || !hasIcd) {
+    btn.textContent = 'Add at least one CPT and one ICD-10 code';
+    btn.disabled = true;
+  } else {
+    const combos = chipSets.cpt.size * chipSets.icd10.size;
+    btn.textContent = `Validate ${combos} Combination${combos > 1 ? 's' : ''}`;
+    btn.disabled = false;
+  }
+}
+
+// ── Validation ────────────────────────────────────────────────────────────────
+function isValidCPT(c) { return /^\d{5}[A-Z]?$/.test(c.trim().toUpperCase()); }
+function isValidICD10(c) { return /^[A-Z]\d{2}(\.[A-Z0-9]{1,4})?$/.test(c.trim().toUpperCase()); }
+
+async function submitValidation() {
+  if (chipSets.cpt.size === 0 || chipSets.icd10.size === 0) return;
+
+  // Build cross-product of all CPTs × all ICD-10s
+  const pairs = [];
+  chipSets.cpt.forEach(cpt => chipSets.icd10.forEach(icd10 => pairs.push({ cpt, icd10 })));
+
+  const btn = document.getElementById('validate-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Validating ${pairs.length} combination${pairs.length > 1 ? 's' : ''}…`;
+  document.getElementById('result-container').innerHTML = '';
+
+  const results = await Promise.all(pairs.map(async ({ cpt, icd10 }) => {
+    try {
+      const VALIDATE_URL = 'https://lab-compliance-validate.monterolia90.workers.dev';
+      const res = await fetch(VALIDATE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cpt, icd10, jurisdiction: selectedState })
+      });
+      const data = await res.json();
+      return { cpt, icd10, data };
+    } catch {
+      return { cpt, icd10, data: {
+        status: 'NOT_COVERED',
+        reason: 'Network error — could not reach the validation service.',
+        remediationAdvice: 'Check your connection and try again.'
+      }};
+    }
+  }));
+
+  results.forEach(({ cpt, icd10, data }) => {
+    addAuditEntry(cpt, icd10, data);
+    updateScore(data.status === 'COVERED');
+  });
+
+  renderReport(results);
+  updateValidateBtn();
+}
+
+// ── Compliance Report Renderer ────────────────────────────────────────────────
+function renderReport(results) {
+  const container = document.getElementById('result-container');
+  const covered   = results.filter(r => r.data.status === 'COVERED');
+  const conditional = results.filter(r => r.data.status === 'CONDITIONAL');
+  const denied    = results.filter(r => r.data.status === 'NOT_COVERED');
+  const total     = results.length;
+  const pct       = total ? Math.round((covered.length / total) * 100) : 0;
+
+  const first     = results.find(r => r.data.contractor) || { data: {} };
+  const contractor = first.data.contractor || '—';
+  const mac        = first.data.jurisdiction || '—';
+  const policy     = first.data.policyVersion || '—';
+
+  // Risk level
+  const risk = denied.length > 0 ? 'HIGH' : conditional.length > 0 ? 'MODERATE' : 'LOW';
+  const riskColor = risk === 'HIGH' ? '#EF4444' : risk === 'MODERATE' ? '#F59E0B' : '#34D399';
+  const riskIcon  = risk === 'HIGH' ? '⚠' : risk === 'MODERATE' ? '△' : '✓';
+
+  // Group results by CPT
+  const byCpt = {};
+  results.forEach(r => {
+    if (!byCpt[r.cpt]) byCpt[r.cpt] = [];
+    byCpt[r.cpt].push(r);
+  });
+
+  // Collect unique policy violations
+  const abnNeeded   = results.filter(r => r.data.status !== 'COVERED' && r.data.status !== 'UNKNOWN_JURISDICTION');
+  const medNecNeeded = covered.filter(r => r.data.medNecessity);
+  const freqIssues   = [...new Set(results.filter(r => r.data.frequency).map(r => r.data.frequency))];
+
+  // Executive summary narrative
+  let summary = '';
+  if (risk === 'LOW') {
+    summary = `All ${total} claim combination${total > 1 ? 's' : ''} are covered under ${contractor} (MAC ${mac}) per LCD ${policy}. ` +
+      (medNecNeeded.length ? `Medical necessity documentation is required for ${medNecNeeded.length} combination${medNecNeeded.length > 1 ? 's' : ''} — ensure supporting records are in the patient chart before billing.` : 'No documentation flags found.');
+  } else {
+    const flagCount = denied.length + conditional.length;
+    summary = `${flagCount} of ${total} combination${total > 1 ? 's' : ''} ${flagCount > 1 ? 'are' : 'is'} at risk under ${contractor} (MAC ${mac}) LCD ${policy}. `;
+    if (denied.length) {
+      const deniedCpts = [...new Set(denied.map(r => r.cpt))].join(', ');
+      summary += `CPT${denied.length > 1 ? 's' : ''} ${deniedCpts} ${denied.length > 1 ? 'have' : 'has'} diagnosis codes not listed in the covered ICD-10 set for this MAC — these claims will likely be denied on submission. `;
+    }
+    if (conditional.length) {
+      summary += `${conditional.length} combination${conditional.length > 1 ? 's' : ''} ${conditional.length > 1 ? 'are' : 'is'} conditional — the ICD-10 code is not explicitly listed in the LCD covered list, meaning the MAC may request additional clinical documentation or deny outright. `;
+    }
+    if (abnNeeded.length) {
+      summary += `An Advance Beneficiary Notice (ABN) must be issued to the patient before rendering service for all flagged combinations.`;
+    }
+  }
+
+  // Per-CPT breakdown rows
+  let cptRows = '';
+  Object.entries(byCpt).forEach(([cpt, rows]) => {
+    const cCov  = rows.filter(r => r.data.status === 'COVERED');
+    const cCond = rows.filter(r => r.data.status === 'CONDITIONAL');
+    const cDen  = rows.filter(r => r.data.status === 'NOT_COVERED');
+    const cptColor = cDen.length ? '#EF4444' : cCond.length ? '#F59E0B' : '#34D399';
+    const cptLabel = cDen.length ? 'At Risk' : cCond.length ? 'Conditional' : 'Covered';
+
+    let icdLines = '';
+    rows.forEach(r => {
+      const st = r.data.status;
+      const ic = st === 'COVERED' ? '#34D399' : st === 'CONDITIONAL' ? '#F59E0B' : '#EF4444';
+      const sym = st === 'COVERED' ? '✓' : st === 'CONDITIONAL' ? '△' : '✗';
+      const note = st !== 'COVERED' && r.data.notes ? `<span class="rpt-icd-note">${esc(r.data.notes)}</span>` : '';
+      const freq = r.data.frequency ? `<span class="rpt-icd-freq">Freq: ${esc(r.data.frequency)}</span>` : '';
+      icdLines += `<div class="rpt-icd-row">
+        <span class="rpt-icd-sym" style="color:${ic}">${sym}</span>
+        <span class="rpt-icd-code">${esc(r.icd10)}</span>
+        <span class="rpt-icd-status" style="color:${ic}">${st === 'COVERED' ? 'Covered' : st === 'CONDITIONAL' ? 'Conditional' : 'Not Covered'}</span>
+        ${freq}${note}
+      </div>`;
+    });
+
+    const refData = rows.find(r => r.data.policyId) || rows[0];
+    const policyRef = refData.data.policyId ? `${esc(refData.data.policyId)} · ${esc(refData.data.policyVersion || '')}` : esc(refData.data.policyVersion || '');
+
+    cptRows += `<div class="rpt-cpt-block">
+      <div class="rpt-cpt-header">
+        <span class="rpt-cpt-code">CPT ${esc(cpt)}</span>
+        <span class="rpt-cpt-badge" style="background:${cptColor}18;color:${cptColor};border:1px solid ${cptColor}35;">${cptLabel}</span>
+        <span class="rpt-cpt-policy">${policyRef}</span>
+      </div>
+      <div class="rpt-icd-list">${icdLines}</div>
+    </div>`;
+  });
+
+  // Violations & what's being violated
+  let violationsHtml = '';
+  if (abnNeeded.length) {
+    const uniqueViolations = [];
+    const seen = new Set();
+    abnNeeded.forEach(r => {
+      const key = `${r.cpt}|${r.data.status}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueViolations.push(r);
+      }
+    });
+
+    violationsHtml = `<div class="rpt-violations">
+      <p class="rpt-section-title">⚠ Policy Violations &amp; Risk Detail</p>
+      ${uniqueViolations.map(r => {
+        const isConditional = r.data.status === 'CONDITIONAL';
+        const regulation = isConditional
+          ? `CMS LCD ${esc(r.data.policyVersion || policy)} — ICD-10 <strong>${esc(r.icd10)}</strong> is not in the approved diagnosis list for CPT ${esc(r.cpt)} under MAC ${mac}. The MAC may deny or request additional records.`
+          : `CMS LCD ${esc(r.data.policyVersion || policy)} — ICD-10 <strong>${esc(r.icd10)}</strong> is explicitly excluded or unlisted for CPT ${esc(r.cpt)} under ${contractor}. Billing without an ABN violates 42 CFR §411.408.`;
+        return `<div class="rpt-violation-row">
+          <span class="rpt-v-dot" style="background:${isConditional ? '#F59E0B' : '#EF4444'}"></span>
+          <div>
+            <p class="rpt-v-title">CPT ${esc(r.cpt)} × ICD-10 ${esc(r.icd10)} — ${isConditional ? 'Conditional' : 'Denied'}</p>
+            <p class="rpt-v-body">${regulation}</p>
+            ${r.data.notes ? `<p class="rpt-v-note">MAC Note: ${esc(r.data.notes)}</p>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // Remediation checklist
+  const actions = [];
+  if (denied.length || conditional.length) actions.push('Issue an ABN to the patient before rendering any flagged service.');
+  if (medNecNeeded.length) actions.push('Ensure medical necessity is documented in the patient chart for all covered combinations before billing.');
+  if (denied.length) actions.push(`For denied combinations: review covered ICD-10 alternatives in LCD ${policy} or submit with detailed clinical notes for MAC determination.`);
+  if (conditional.length) actions.push('For conditional combinations: query your MAC provider line or submit with supporting clinical documentation.');
+  if (freqIssues.length) actions.push(`Verify billing frequency limits: ${[...new Set(freqIssues)].slice(0,3).join(' / ')}.`);
+  actions.push(`Keep a copy of LCD ${policy} on file. Policy references: CMS Medicare Coverage Database, MAC ${mac} — ${contractor}.`);
+
+  const actionsHtml = actions.map(a => `<li class="rpt-action-item">${esc(a)}</li>`).join('');
+
+  container.innerHTML = `
+    <div class="report-wrap">
+      <div class="rpt-top">
+        <div class="rpt-risk-badge" style="background:${riskColor}18;color:${riskColor};border:1px solid ${riskColor}35;">${riskIcon} ${risk} RISK</div>
+        <div class="rpt-top-meta">${esc(contractor)} · MAC ${esc(mac)} · ${esc(policy)} · ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      </div>
+      <h3 class="rpt-heading">Compliance Report</h3>
+      <div class="rpt-score-row">
+        <div class="rpt-score-pill green"><strong>${covered.length}</strong> Covered</div>
+        <div class="rpt-score-pill yellow"><strong>${conditional.length}</strong> Conditional</div>
+        <div class="rpt-score-pill red"><strong>${denied.length}</strong> Not Covered</div>
+        <div class="rpt-score-pill gray"><strong>${pct}%</strong> Coverage Rate</div>
+      </div>
+      <div class="rpt-divider"></div>
+      <p class="rpt-section-title">Summary</p>
+      <p class="rpt-summary-text">${esc(summary)}</p>
+      <div class="rpt-divider"></div>
+      <p class="rpt-section-title">Breakdown by Procedure Code</p>
+      <div class="rpt-cpt-list">${cptRows}</div>
+      ${violationsHtml}
+      <div class="rpt-divider"></div>
+      <p class="rpt-section-title">Recommended Actions</p>
+      <ul class="rpt-actions">${actionsHtml}</ul>
+    </div>
+  `;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Score ─────────────────────────────────────────────────────────────────────
+const GRADE_CONFIG = {
+  A: { color:'#34D399', bg:'rgba(16,185,129,0.12)', label:'Excellent' },
+  B: { color:'#60A5FA', bg:'rgba(59,130,246,0.12)', label:'Good' },
+  C: { color:'#FCD34D', bg:'rgba(245,158,11,0.12)', label:'Fair' },
+  D: { color:'#FB923C', bg:'rgba(249,115,22,0.12)', label:'Poor' },
+  F: { color:'#F87171', bg:'rgba(239,68,68,0.12)', label:'Critical Risk' },
+};
+
+function updateScore(covered) {
+  stats.total++;
+  if (covered) stats.covered++;
+  const pct = Math.round((stats.covered / stats.total) * 100);
+  const grade = pct >= 95 ? 'A' : pct >= 85 ? 'B' : pct >= 70 ? 'C' : pct >= 50 ? 'D' : 'F';
+  const cfg = GRADE_CONFIG[grade];
+  const circumference = 2 * Math.PI * 58;
+  const progress = (pct / 100) * circumference;
+
+  document.getElementById('score-arc').setAttribute('stroke-dasharray', `${progress} ${circumference}`);
+  document.getElementById('score-arc').style.stroke = cfg.color;
+  document.getElementById('score-number').textContent = pct;
+  document.getElementById('score-number').style.color = cfg.color;
+  document.getElementById('score-grade').textContent = grade;
+  document.getElementById('score-grade').style.color = cfg.color;
+  const tag = document.getElementById('score-grade-tag');
+  tag.textContent = cfg.label;
+  tag.style.background = cfg.bg;
+  tag.style.color = cfg.color;
+  document.getElementById('stat-covered').textContent = stats.covered;
+  document.getElementById('stat-flagged').textContent = stats.total - stats.covered;
+  document.getElementById('stat-total').textContent = stats.total;
+  document.getElementById('score-empty').style.display = 'none';
+}
+
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+function generateId() {
+  return 'AUD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
+}
+
+function addAuditEntry(cpt, icd10, data) {
+  const entry = {
+    id: generateId(),
+    ts: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+    cpt, icd10,
+    state: selectedState,
+    mac: (STATE_MAP[selectedState] || {}).mac || '—',
+    status: data.status || 'NOT_COVERED',
+    policyId: data.policyId || '',
+    policyVersion: data.policyVersion || '',
+  };
+  auditLog.push(entry);
+
+  const count = auditLog.length;
+  document.getElementById('audit-count-label').textContent = `${count} session entr${count===1?'y':'ies'} — cleared on reload`;
+  const countBadge = document.getElementById('audit-tab-count');
+  countBadge.textContent = count;
+  countBadge.style.display = 'inline';
+  document.getElementById('audit-empty').style.display = 'none';
+
+  const list = document.getElementById('audit-list');
+  const pill = `<span class="audit-status-pill ${entry.status}"><span class="audit-pill-dot"></span>${{COVERED:'Covered',NOT_COVERED:'Denied',CONDITIONAL:'Conditional',UNKNOWN_JURISDICTION:'Unknown'}[entry.status]||entry.status}</span>`;
+  const policyRef = entry.policyId ? `<p class="audit-policy-ref">Ref: ${esc(entry.policyId)} · ${esc(entry.policyVersion)}</p>` : '';
+
+  const el = document.createElement('div');
+  el.className = 'audit-entry';
+  el.innerHTML = `
+    <div class="audit-entry-top">
+      <div style="display:flex;align-items:center;gap:8px">${pill}<span class="audit-entry-id">${entry.id}</span></div>
+      <span class="audit-entry-time">${entry.ts}</span>
+    </div>
+    <div class="audit-codes">
+      <div class="audit-code-cell"><p class="audit-code-key">CPT</p><p class="audit-code-val">${esc(entry.cpt)}</p></div>
+      <div class="audit-code-cell"><p class="audit-code-key">ICD-10</p><p class="audit-code-val">${esc(entry.icd10)}</p></div>
+      <div class="audit-code-cell"><p class="audit-code-key">Jurisdiction</p><p class="audit-code-val">${esc(entry.state)} / ${esc(entry.mac)}</p></div>
+    </div>
+    ${policyRef}
+  `;
+  list.prepend(el);
+}
+
+function clearAudit() {
+  auditLog = [];
+  document.getElementById('audit-list').innerHTML = '';
+  document.getElementById('audit-empty').style.display = 'block';
+  document.getElementById('audit-count-label').textContent = '0 session entries — cleared on reload';
+  const badge = document.getElementById('audit-tab-count');
+  badge.style.display = 'none';
+  badge.textContent = '0';
+}
+
+// ── Autosuggest ───────────────────────────────────────────────────────────────
+let suggestIndex = { cpt: -1, icd10: -1 };
+
+function filterSuggestions(type, raw) {
+  const q = raw.trim().toUpperCase();
+  const box = document.getElementById(`${type}-suggest`);
+  if (!q) { box.style.display = 'none'; return; }
+  const all = type === 'cpt' ? CPT_GROUPS : ICD10_GROUPS;
+  const matches = [];
+  all.forEach(g => g.options.forEach(([code, label]) => {
+    if (code.includes(q) || label.toUpperCase().includes(q)) matches.push([code, label]);
+  }));
+  if (!matches.length) { box.style.display = 'none'; return; }
+  suggestIndex[type] = -1;
+  box.innerHTML = matches.slice(0, 10).map(([code, label]) => {
+    const desc = label.replace(/^\S+\s*–\s*/, '');
+    return `<div class="suggest-item" onmousedown="selectSuggestion('${type}','${esc(code)}')">`
+      + `<span class="suggest-code">${esc(code)}</span><span class="suggest-desc">${esc(desc)}</span></div>`;
+  }).join('');
+  box.style.display = 'block';
+}
+
+function hideSuggestions(type) {
+  document.getElementById(`${type}-suggest`).style.display = 'none';
+}
+
+function selectSuggestion(type, code) {
+  addChip(type, code);
+  document.getElementById(`${type}-text`).value = '';
+  hideSuggestions(type);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('cpt-quick-select').innerHTML = buildSelectOptions(CPT_GROUPS);
+document.getElementById('icd10-quick-select').innerHTML = buildSelectOptions(ICD10_GROUPS);
+renderChips('cpt');
+renderChips('icd10');
+updateValidateBtn();
+</script>
+
+</body>
+</html>
