@@ -206,6 +206,11 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
 /* embed mode — hide the co-parent admin chrome */
 body.embed .admin-only{display:none!important;}
 
+/* read-only shared view (opened from a share link) */
+body.readonly .admin-only,body.readonly .rw-hide{display:none!important;}
+.rw-banner{display:none;background:linear-gradient(90deg,var(--brand),var(--brand-dark));color:#fff;border-radius:14px;padding:12px 16px;font-size:13.5px;font-weight:800;margin-bottom:14px;align-items:center;gap:9px;box-shadow:0 10px 24px -10px var(--brand);}
+body.readonly .rw-banner{display:flex;}
+
 @media(max-width:640px){
   .cell{min-height:74px;}
   .today-who{font-size:20px;}
@@ -231,6 +236,9 @@ body.embed .admin-only{display:none!important;}
 </div>
 
 <div class="wrap">
+
+  <!-- READ-ONLY BANNER (share link) -->
+  <div class="rw-banner" id="rwBanner">👀 <span id="rwText">Shared calendar — read-only view</span></div>
 
   <!-- TODAY STRIP -->
   <div class="today" id="todayStrip" onclick="openDay(todayStr())">
@@ -287,7 +295,7 @@ body.embed .admin-only{display:none!important;}
 
     <div class="sec">Events &amp; handoffs</div>
     <div id="dayEvents"></div>
-    <button class="btn btn-clear" style="width:100%;margin-top:6px" onclick="openEvent(null)">＋ Add event</button>
+    <button class="btn btn-clear rw-hide" style="width:100%;margin-top:6px" onclick="openEvent(null)">＋ Add event</button>
   </div>
 </div>
 
@@ -432,6 +440,11 @@ body.embed .admin-only{display:none!important;}
 
     <div class="sec">Sharing &amp; data</div>
     <div class="field">
+      <label class="lbl">Share a read-only view</label>
+      <button class="tool-btn" style="width:100%;height:46px" onclick="shareReadonly()">🔗 Create a read-only link for the other parent</button>
+      <div class="hint">Creates a link that shows the other parent your calendar — they can view it, but can't change it. It's a snapshot: share a fresh link whenever things change. <a href="setup-guide.html" target="_blank" style="color:var(--brand);font-weight:700">Learn more →</a></div>
+    </div>
+    <div class="field">
       <label class="lbl">Photo / logo</label>
       <label class="file-btn">📷 Upload<input type="file" id="setLogoInput" accept="image/*" style="display:none" onchange="onLogo(event)"></label>
       <img id="setLogoPrev" class="logo-prev hidden" alt="">
@@ -455,6 +468,18 @@ body.embed .admin-only{display:none!important;}
   </div>
 </div>
 
+<!-- ── SHARE MODAL ── -->
+<div class="modal" id="shareModal">
+  <div class="sheet">
+    <div class="sheet-top"><div><h2>Read-only link</h2><div class="sub">The other parent can view your calendar — not edit it.</div></div><button class="sheet-close" onclick="close_('shareModal')">×</button></div>
+    <p class="hint" style="margin-bottom:12px">This link contains a snapshot of your current calendar (your uploaded photo isn't included, to keep it short). When your schedule changes, just create and send a new link.</p>
+    <label class="lbl">Link to send</label>
+    <textarea class="inp" id="shareLink" readonly style="min-height:96px;font-size:13px;word-break:break-all" onclick="this.select()"></textarea>
+    <button class="btn btn-primary" style="margin-top:12px" onclick="copyShare()">📋 Copy link</button>
+    <div class="hint" id="shareHint" style="margin-top:12px"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -474,14 +499,14 @@ const DEFAULTS={ family:'Co-Parenting Calendar', logo:'', theme:'light', webhook
 let settings = load(LS_SET, DEFAULTS);
 let events   = load(LS_EVT, []);
 let schedule = load(LS_SCH, {});   // { 'YYYY-MM-DD': 'A'|'B'|'S' }
-let view='month', DEMO=false;
+let view='month', DEMO=false, READONLY=false;
 let cur=new Date(); cur.setDate(1);
 let dayCtx=null;      // 'YYYY-MM-DD' of the day-detail modal
 let editingEvent=null;
 let evKidSel=[], setupKids=[];
 
 function load(k,def){ try{ const v=JSON.parse(localStorage.getItem(k)); if(v==null) return def; return Array.isArray(def)?v:{...def,...v}; }catch(e){ return def; } }
-function saveLS(){ if(DEMO) return true; try{ localStorage.setItem(LS_SET,JSON.stringify(settings)); localStorage.setItem(LS_EVT,JSON.stringify(events)); localStorage.setItem(LS_SCH,JSON.stringify(schedule)); return true; }catch(e){ return false; } }
+function saveLS(){ if(DEMO||READONLY) return true; try{ localStorage.setItem(LS_SET,JSON.stringify(settings)); localStorage.setItem(LS_EVT,JSON.stringify(events)); localStorage.setItem(LS_SCH,JSON.stringify(schedule)); return true; }catch(e){ return false; } }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function pad(n){ return String(n).padStart(2,'0'); }
@@ -517,7 +542,7 @@ function applyTheme(){
   document.getElementById('epA').textContent=pName('A'); document.getElementById('epB').textContent=pName('B');
 }
 function toggleTheme(){ settings.theme=settings.theme==='dark'?'light':'dark'; applyTheme(); saveLS(); }
-function brandLogoClick(){ if(document.body.classList.contains('embed')) return; openSetup(); setTimeout(()=>document.getElementById('setLogoInput').click(),150); }
+function brandLogoClick(){ if(READONLY||document.body.classList.contains('embed')) return; openSetup(); setTimeout(()=>document.getElementById('setLogoInput').click(),150); }
 
 /* ── TODAY STRIP ── */
 function renderToday(){
@@ -618,7 +643,7 @@ function openDay(ds){
   open_('dayModal');
 }
 document.querySelectorAll('#custPick .cust-opt').forEach(o=>{
-  o.onclick=()=>{ const v=o.dataset.v;
+  o.onclick=()=>{ if(READONLY) return; const v=o.dataset.v;
     if(v) schedule[dayCtx]=v; else delete schedule[dayCtx];
     document.querySelectorAll('#custPick .cust-opt').forEach(x=>x.classList.toggle('on',x===o));
     saveLS(); render(); };
@@ -637,13 +662,14 @@ function renderDayEvents(){
         <div class="dev-meta">${kids}${meta?'<span>'+meta+'</span>':''}</div>
         ${e.notes?`<div class="dev-meta" style="color:var(--g600)">${esc(e.notes)}</div>`:''}
       </div>
-      <button class="dev-edit" onclick="openEvent(${e.id})">Edit</button>
+      ${READONLY?'':`<button class="dev-edit" onclick="openEvent(${e.id})">Edit</button>`}
     </div>`;
   }).join('');
 }
 
 /* ── EVENT EDITOR ── */
 function openEvent(id){
+  if(READONLY) return;
   editingEvent = id!=null ? events.find(e=>e.id===id) : null;
   document.getElementById('evHead').textContent=editingEvent?'Edit event':'Add event';
   document.getElementById('evDelBtn').classList.toggle('hidden',!editingEvent);
@@ -818,6 +844,40 @@ function exportCSV(){
 function clearAllData(){ if(!confirm('Delete ALL data — schedule, events, and setup? This cannot be undone.')) return;
   settings=JSON.parse(JSON.stringify(DEFAULTS)); events=[]; schedule={}; saveLS(); applyTheme(); render(); close_('setupModal'); toast('Everything reset'); }
 
+/* ── READ-ONLY SHARE LINK (self-contained, no server) ── */
+/* Serialize state → gzip (native) → base64url, carried in the URL hash. */
+function b64urlFromBytes(bytes){ let bin=''; const CH=0x8000; for(let i=0;i<bytes.length;i+=CH){ bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH)); } return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function bytesFromB64url(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; const bin=atob(s); const b=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b; }
+async function gzip(bytes){ const cs=new CompressionStream('gzip'); const w=cs.writable.getWriter(); w.write(bytes); w.close(); return new Uint8Array(await new Response(cs.readable).arrayBuffer()); }
+async function gunzip(bytes){ const ds=new DecompressionStream('gzip'); const w=ds.writable.getWriter(); w.write(bytes); w.close(); return new Uint8Array(await new Response(ds.readable).arrayBuffer()); }
+async function encodeState(obj){ const bytes=new TextEncoder().encode(JSON.stringify(obj)); if(self.CompressionStream){ try{ return 'g'+b64urlFromBytes(await gzip(bytes)); }catch(e){} } return 'r'+b64urlFromBytes(bytes); }
+async function decodeState(str){ const tag=str[0]; let bytes=bytesFromB64url(str.slice(1)); if(tag==='g'){ bytes=await gunzip(bytes); } return JSON.parse(new TextDecoder().decode(bytes)); }
+
+async function shareReadonly(){
+  const payload={ v:1, s:{ family:settings.family, theme:settings.theme, pA:settings.pA, pB:settings.pB, kids:settings.kids }, sch:schedule, ev:events };
+  let enc; try{ enc=await encodeState(payload); }catch(e){ toast('Couldn’t build the link'); return; }
+  const full=location.href.split('#')[0]+'#v='+enc;
+  document.getElementById('shareLink').value=full;
+  const fileUrl=(location.protocol==='file:'||location.origin==='null');
+  document.getElementById('shareHint').innerHTML = fileUrl
+    ? '⚠ You’re opening this file directly, so this link only works on this computer. Host the file for free first (see the setup guide), then create the link.'
+    : ('Anyone with this link can <b>view</b> (not edit) your calendar. Link size: '+Math.round(full.length/1024*10)/10+' KB.');
+  open_('shareModal');
+  try{ await navigator.clipboard.writeText(full); toast('Link copied ✓'); }catch(e){}
+}
+function copyShare(){ const t=document.getElementById('shareLink'); t.select(); try{ navigator.clipboard.writeText(t.value); }catch(e){ try{ document.execCommand('copy'); }catch(_){} } toast('Link copied ✓'); }
+
+async function enterReadonly(enc){
+  try{
+    const p=await decodeState(enc);
+    READONLY=true; document.body.classList.add('readonly');
+    settings={ ...JSON.parse(JSON.stringify(DEFAULTS)), ...(p.s||{}) }; settings.logo='';
+    schedule=p.sch||{}; events=p.ev||[];
+    document.getElementById('rwText').textContent=(settings.family||'Shared')+' · read-only view';
+    applyTheme(); render();
+  }catch(e){ toast('Couldn’t open this shared link'); applyTheme(); render(); }
+}
+
 /* ── MODAL HELPERS ── */
 function open_(id){ document.getElementById(id).classList.add('open'); }
 function close_(id){ document.getElementById(id).classList.remove('open'); }
@@ -845,13 +905,17 @@ function seedDemo(theme){
 }
 
 /* ── INIT ── */
-(function boot(){
-  const p=new URLSearchParams(location.search);
-  if(p.get('embed')==='1'||p.get('embed')==='true') document.body.classList.add('embed');
-  const t=p.get('theme'); if(t==='dark'||t==='light') settings.theme=t;
-  if(p.get('demo')==='1'){ DEMO=true; seedDemo((t==='dark'||t==='light')?t:'light'); }
-})();
-applyTheme(); render();
+if(location.hash.slice(0,3)==='#v='){                 // opened from a read-only share link
+  enterReadonly(location.hash.slice(3));
+} else {
+  (function boot(){
+    const p=new URLSearchParams(location.search);
+    if(p.get('embed')==='1'||p.get('embed')==='true') document.body.classList.add('embed');
+    const t=p.get('theme'); if(t==='dark'||t==='light') settings.theme=t;
+    if(p.get('demo')==='1'){ DEMO=true; seedDemo((t==='dark'||t==='light')?t:'light'); }
+  })();
+  applyTheme(); render();
+}
 </script>
 </body>
 </html>

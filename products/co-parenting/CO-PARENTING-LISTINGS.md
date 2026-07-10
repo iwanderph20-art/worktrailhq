@@ -46,7 +46,7 @@ date and who starts, and the whole calendar fills in. Adjust any single day with
 
 **Three ways to use it:**
 - **On your device** — everything saves privately on your phone or laptop; nothing is uploaded. Add it to your home screen for a one-tap calendar.
-- **As a link you share** — host the file free, then send a link. Add `?embed=1` for a clean, read-only view for a grandparent, sitter, or older child.
+- **Share a read-only view** — tap "Share a read-only view" and send the link. The other parent sees your whole calendar on their own phone — view-only, no account, nothing uploaded (the snapshot rides inside the link itself). Share a fresh link whenever things change.
 - **Keep the co-parent in sync** — paste a free delivery URL and every new event is emailed or logged to a shared sheet automatically — no account for them to create.
 
 **Who it's for:** separated, divorced, or never-married parents sharing custody who want a clear, private
@@ -58,6 +58,7 @@ schedule without a monthly co-parenting-app subscription or handing their family
 - **Whose-day-is-it** banner + fully color-coded month calendar
 - **Events & handoffs** with time, location, responsible parent, child tag, and notes
 - **Shared-expense notes** with cost + how it splits
+- **Read-only share link** — send the other parent a view-only copy; no account, nothing uploaded
 - **Agenda view** of everything coming up
 - **CSV export** (great for records or a mediator) and **print**
 - **Day / Night** (light & dark) mode
