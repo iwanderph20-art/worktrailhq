@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+html,body{width:1080px;height:1080px;overflow:hidden;}
+.stage{width:1080px;height:1080px;position:relative;overflow:hidden;
+  background:linear-gradient(155deg,#a488b3 0%,#6f5980 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px;color:#fff;text-align:center;}
+.stage::before{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
+  background-size:60px 60px;}
+.badge{position:relative;z-index:2;font-size:25px;font-weight:800;letter-spacing:2.5px;color:#e6d4ea;text-transform:uppercase;margin-bottom:22px;}
+.icon{position:relative;z-index:2;font-size:112px;line-height:1;margin-bottom:16px;}
+.title{position:relative;z-index:2;font-size:104px;font-weight:900;line-height:.98;letter-spacing:-3px;}
+.title span{color:#F3C9D5;}
+.sub{position:relative;z-index:2;font-size:36px;font-weight:600;color:#efe6f0;margin-top:22px;line-height:1.3;}
+.chips{position:relative;z-index:2;display:flex;gap:15px;flex-wrap:wrap;justify-content:center;margin-top:40px;max-width:840px;}
+.chip{border:2px solid rgba(255,255,255,.36);border-radius:999px;padding:13px 25px;font-size:25px;font-weight:700;color:#f7f0f8;}
+.pill{position:relative;z-index:2;margin-top:42px;background:#fffdfc;color:#6f5980;font-weight:900;font-size:31px;padding:16px 38px;border-radius:999px;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="badge">👨‍👩‍👧 Co-Parenting Calendar</div>
+  <div class="icon">📅</div>
+  <div class="title">Co-Parenting<br><span>Calendar</span></div>
+  <div class="sub">A shared custody calendar for two homes</div>
+  <div class="chips"><span class="chip">Week on / off</span><span class="chip">2-2-3</span><span class="chip">Handoffs</span><span class="chip">Read-only share</span></div>
+  <div class="pill">Pay once · no fees</div>
+</div>
+</body>
+</html>

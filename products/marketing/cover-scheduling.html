@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+html,body{width:1280px;height:720px;overflow:hidden;}
+.stage{width:1280px;height:720px;background:linear-gradient(125deg,#6d5ae0 0%,#3d3aa0 100%);display:flex;align-items:center;padding:0 68px;gap:52px;position:relative;overflow:hidden;}
+.stage::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 82% 20%,rgba(255,255,255,.13),transparent 42%);}
+.left{flex:1;color:#fff;position:relative;z-index:2;}
+.brand{font-size:30px;font-weight:900;letter-spacing:-.4px;margin-bottom:20px;}
+.headline{font-size:50px;font-weight:900;line-height:1.05;letter-spacing:-1.2px;margin-bottom:14px;}
+.headline span{color:#f4c96b;}
+.sub{font-size:20px;color:#dcd8f7;margin-bottom:24px;line-height:1.4;}
+.bul{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:600;margin:11px 0;color:#eceafb;}
+.tick{width:26px;height:26px;border-radius:50%;background:#f4c96b;color:#5a4310;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.pricepill{display:inline-block;margin-top:22px;background:#f4c96b;color:#5a4310;font-weight:900;font-size:19px;padding:10px 22px;border-radius:999px;}
+.url{margin-top:20px;font-size:17px;color:#bdb6ee;font-weight:700;}
+
+.device{width:412px;flex-shrink:0;background:#fff;border-radius:28px;padding:24px 22px 26px;box-shadow:0 44px 90px rgba(30,25,70,.44);position:relative;z-index:2;}
+.topbar{height:4px;background:linear-gradient(90deg,#5b5bd6,#4646b8);border-radius:4px;margin:-24px -22px 18px;}
+.d-top{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+.d-logo{width:38px;height:38px;border-radius:11px;background:#e8e8fb;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.d-name{font-size:16px;font-weight:800;color:#1f2733;}
+.steps{display:flex;align-items:center;gap:6px;margin-bottom:16px;}
+.stp{width:23px;height:23px;border-radius:50%;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;background:#eef1f4;color:#98a2b3;}
+.stp.on{background:#5b5bd6;color:#fff;}
+.stbar{flex:1;height:2px;background:#eef1f4;border-radius:2px;}
+.stbar.on{background:#5b5bd6;}
+.d-h{font-size:16px;font-weight:900;color:#1f2733;margin-bottom:10px;}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+.slot{border:1.5px solid #e0e4ea;border-radius:10px;padding:11px 4px;text-align:center;font-size:13px;font-weight:800;color:#1f2733;}
+.slot.pick{border-color:#5b5bd6;background:#e8e8fb;color:#4646b8;}
+.svc{border:1.5px solid #e8e8fb;background:#f7f7fd;border-radius:11px;padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.svc .ic{width:30px;height:30px;border-radius:8px;background:#e8e8fb;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.svc .nm{font-size:13px;font-weight:800;color:#1f2733;}
+.svc .mt{font-size:11px;font-weight:700;color:#6b7280;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="left">
+    <div class="brand">📅 Appointment Booking</div>
+    <div class="headline">Let clients book you —<br><span>without the monthly fee</span></div>
+    <div class="sub">Set your services, hours &amp; rules once. Clients<br>see your real openings and book in a minute.</div>
+    <div class="bul"><span class="tick">✓</span> Live availability — no double-booking</div>
+    <div class="bul"><span class="tick">✓</span> Your services, hours, buffers &amp; blocked dates</div>
+    <div class="bul"><span class="tick">✓</span> Post as a link or embed on your site</div>
+    <div class="bul"><span class="tick">✓</span> Bookings delivered to you — pay once, no fees</div>
+    <div class="pricepill">One-time · you own your data</div>
+    <div class="url">worktrailhq.com</div>
+  </div>
+  <div class="device">
+    <div class="topbar"></div>
+    <div class="d-top"><div class="d-logo">📅</div><div class="d-name">Bright Smiles Studio</div></div>
+    <div class="steps"><div class="stp on">✓</div><div class="stbar on"></div><div class="stp on">✓</div><div class="stbar on"></div><div class="stp on">3</div><div class="stbar"></div><div class="stp">4</div></div>
+    <div class="svc"><div class="ic">🦷</div><div><div class="nm">Cleaning &amp; checkup</div><div class="mt">⏱ 60 min · $120</div></div></div>
+    <div class="d-h">Pick a time — Tue, Jul 14</div>
+    <div class="slots">
+      <div class="slot">9:00</div><div class="slot">9:30</div><div class="slot">10:00</div>
+      <div class="slot pick">10:30</div><div class="slot">12:00</div><div class="slot">1:30</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

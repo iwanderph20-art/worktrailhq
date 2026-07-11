@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+html,body{width:1280px;height:720px;overflow:hidden;}
+.stage{width:1280px;height:720px;background:linear-gradient(125deg,#a488b3 0%,#6f5980 100%);display:flex;align-items:center;padding:0 68px;gap:52px;position:relative;overflow:hidden;}
+.stage::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at 82% 22%,rgba(255,255,255,.12),transparent 42%);}
+.left{flex:1;color:#fff;position:relative;z-index:2;}
+.brand{font-size:30px;font-weight:900;letter-spacing:-.4px;margin-bottom:20px;}
+.headline{font-size:50px;font-weight:900;line-height:1.05;letter-spacing:-1.2px;margin-bottom:14px;}
+.headline span{color:#F3C9D5;}
+.sub{font-size:20px;color:#efe6f0;margin-bottom:24px;line-height:1.4;}
+.bul{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:600;margin:11px 0;color:#f7f0f8;}
+.tick{width:26px;height:26px;border-radius:50%;background:#E8B4C4;color:#6d3a4a;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.pricepill{display:inline-block;margin-top:22px;background:#fffdfc;color:#6f5980;font-weight:900;font-size:19px;padding:10px 22px;border-radius:999px;}
+.url{margin-top:20px;font-size:17px;color:#e2d4e6;font-weight:700;}
+
+.device{width:412px;flex-shrink:0;background:#fffdfc;border-radius:28px;padding:24px 22px 26px;box-shadow:0 44px 90px rgba(60,40,60,.42);position:relative;z-index:2;}
+.topbar{height:4px;background:linear-gradient(90deg,#E8B4C4,#A6C4DB);border-radius:4px;margin:-24px -22px 18px;}
+.d-top{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+.d-logo{width:38px;height:38px;border-radius:11px;background:#F1EBF4;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.d-name{font-size:16px;font-weight:800;color:#2e2724;}
+.whose{background:#faf5f7;border-radius:12px;padding:11px 14px;margin-bottom:14px;border-left:5px solid #E8B4C4;}
+.whose .k{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#a99e98;}
+.whose .v{font-size:18px;font-weight:900;color:#2e2724;display:flex;align-items:center;gap:8px;margin-top:2px;}
+.whose .dot{width:12px;height:12px;border-radius:50%;background:#E8B4C4;}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px;}
+.dow div{text-align:center;font-size:9px;font-weight:800;color:#a99e98;}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.t{border-radius:8px;height:44px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;letter-spacing:.03em;position:relative;}
+.t .num{position:absolute;top:3px;left:5px;font-size:8px;font-weight:800;opacity:.65;}
+.t .stk{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:3px;}
+.mum{background:#F5DAE1;color:#9c5f70;}.mum .stk{background:#e6b3c1;}
+.dad{background:#DBE7F1;color:#4a7396;}.dad .stk{background:#b6cee1;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="left">
+    <div class="brand">👨‍👩‍👧 Co-Parenting Calendar</div>
+    <div class="headline">A shared custody<br>calendar <span>you both<br>can rely on</span></div>
+    <div class="sub">Set up your kids &amp; both parents, auto-fill your<br>rotation, and always know whose day it is.</div>
+    <div class="bul"><span class="tick">✓</span> Auto rotations — week on/off, 2-2-3 &amp; more</div>
+    <div class="bul"><span class="tick">✓</span> Handoffs, activities &amp; shared-expense notes</div>
+    <div class="bul"><span class="tick">✓</span> Send the other parent a read-only view</div>
+    <div class="bul"><span class="tick">✓</span> Private on your device — pay once, no fees</div>
+    <div class="pricepill">One-time · you own your data</div>
+    <div class="url">worktrailhq.com</div>
+  </div>
+  <div class="device">
+    <div class="topbar"></div>
+    <div class="d-top"><div class="d-logo">👨‍👩‍👧</div><div class="d-name">Isla's Homes</div></div>
+    <div class="whose"><div class="k">Today · whose day</div><div class="v"><span class="dot"></span>Mum's day</div></div>
+    <div class="dow"><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div></div>
+    <div class="grid">
+      <div class="t mum"><span class="num">6</span><span class="stk"></span>MUM</div>
+      <div class="t mum"><span class="num">7</span><span class="stk"></span>MUM</div>
+      <div class="t dad"><span class="num">8</span><span class="stk"></span>DAD</div>
+      <div class="t dad"><span class="num">9</span><span class="stk"></span>DAD</div>
+      <div class="t mum"><span class="num">10</span><span class="stk"></span>MUM</div>
+      <div class="t mum"><span class="num">11</span><span class="stk"></span>MUM</div>
+      <div class="t dad"><span class="num">12</span><span class="stk"></span>DAD</div>
+      <div class="t dad"><span class="num">13</span><span class="stk"></span>DAD</div>
+      <div class="t mum"><span class="num">14</span><span class="stk"></span>MUM</div>
+      <div class="t mum"><span class="num">15</span><span class="stk"></span>MUM</div>
+      <div class="t dad"><span class="num">16</span><span class="stk"></span>DAD</div>
+      <div class="t dad"><span class="num">17</span><span class="stk"></span>DAD</div>
+      <div class="t mum"><span class="num">18</span><span class="stk"></span>MUM</div>
+      <div class="t mum"><span class="num">19</span><span class="stk"></span>MUM</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
