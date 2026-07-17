@@ -165,10 +165,24 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
 .confirm-check{width:70px;height:70px;border-radius:50%;background:var(--ok-light);color:var(--ok);font-size:38px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
 .confirm-h{font-family:var(--font-head);font-size:27px;font-weight:700;letter-spacing:-.2px;}
 .confirm-p{font-size:15px;color:var(--g500);margin-top:8px;line-height:1.5;}
-.confirm-ref{background:linear-gradient(180deg,var(--brand),var(--brand-dark));color:#fff;border-radius:16px;padding:18px;margin:20px 0 10px;box-shadow:0 10px 24px -8px var(--brand);}
-.confirm-ref .nl{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.85;}
-.confirm-ref .nv{font-size:26px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;margin-top:2px;}
-.confirm-when{font-size:15px;font-weight:800;margin-top:2px;}
+/* confirmation hero — date, time & office are the largest elements */
+.confirm-hero{background:linear-gradient(180deg,var(--brand),var(--brand-dark));color:#fff;border-radius:18px;padding:24px 20px;margin:20px 0 10px;box-shadow:0 14px 30px -10px var(--brand);text-align:center;}
+.ch-date{font-family:var(--font-head);font-size:25px;font-weight:700;letter-spacing:-.2px;line-height:1.1;}
+.ch-time{font-size:44px;font-weight:900;letter-spacing:-.5px;line-height:1.02;margin-top:2px;font-variant-numeric:tabular-nums;}
+.ch-office{font-size:15.5px;font-weight:700;line-height:1.45;margin-top:12px;opacity:.97;}
+.ch-office .onm{display:block;font-weight:900;font-size:17px;margin-bottom:2px;}
+.ch-ref{font-size:11.5px;font-weight:700;opacity:.8;letter-spacing:.06em;text-transform:uppercase;margin-top:16px;font-variant-numeric:tabular-nums;}
+
+/* patient "manage my appointment" bar on the home step */
+.manage-card{border:1.5px solid var(--brand);background:var(--brand-light);border-radius:16px;padding:16px 18px;margin-bottom:24px;text-align:left;}
+.manage-h{font-family:var(--font-head);font-size:17px;font-weight:700;color:var(--brand-dark);margin-bottom:10px;}
+.manage-appt{padding-top:10px;border-top:1px solid rgba(15,107,102,.18);}
+.manage-appt:first-of-type{padding-top:0;border-top:none;}
+.ma-when{font-weight:900;font-size:15.5px;color:var(--g800);}
+.ma-office{font-size:13px;color:var(--g600);font-weight:600;margin-top:3px;line-height:1.4;}
+.ma-actions{display:flex;gap:9px;margin-top:10px;}
+.ma-btn{font-size:13px;font-weight:800;padding:9px 14px;border-radius:10px;background:#fff;color:var(--brand-dark);border:1.5px solid var(--brand);}
+.ma-btn.danger{color:var(--danger);border-color:var(--danger);}
 
 /* ── MODAL ── */
 .modal{position:fixed;inset:0;background:rgba(20,25,35,.5);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:24px 16px;overflow-y:auto;}
@@ -253,6 +267,7 @@ body.embed .admin-only{display:none!important;}
   <input type="text" name="appointment">
   <input type="text" name="office">
   <input type="text" name="service">
+  <input type="text" name="patientEmail">
   <input type="text" name="newPatient">
   <input type="text" name="addressInsuranceChange">
   <input type="text" name="reference">
@@ -288,6 +303,7 @@ body.embed .admin-only{display:none!important;}
 
     <!-- STEP 1: LOCATION + SERVICE -->
     <div id="step1">
+      <div id="manageBar"></div>
       <div class="step-h">Which office?</div>
       <div class="step-p">Dr. Hossain sees patients at two locations. Pick one.</div>
       <div id="locList"></div>
@@ -330,6 +346,11 @@ body.embed .admin-only{display:none!important;}
         <input class="inp" id="cName" placeholder="Full name" autocomplete="name">
       </div>
       <div class="field">
+        <label class="lbl">Email <span style="font-weight:600;color:var(--g400);text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input class="inp" id="cEmail" type="email" placeholder="you@email.com" autocomplete="email">
+        <div class="hint">Add your email to get a copy of your confirmation, or skip it and save a screenshot on the next screen.</div>
+      </div>
+      <div class="field">
         <label class="lbl">Any change of address or insurance?</label>
         <div class="seg" id="segAddrIns">
           <button type="button" class="seg-op on" data-v="0" onclick="setAddrIns(0)">No change</button>
@@ -347,17 +368,20 @@ body.embed .admin-only{display:none!important;}
         <div class="confirm-check">✓</div>
         <div class="confirm-h" id="doneH">You're booked!</div>
         <div class="confirm-p" id="doneP">We've saved your appointment. See you then!</div>
-        <div class="confirm-ref">
-          <div class="nl">Confirmation</div>
-          <div class="nv" id="doneRef">—</div>
-          <div class="confirm-when" id="doneWhen">—</div>
+        <div class="confirm-hero" id="doneHero">
+          <div class="ch-date" id="doneDate">—</div>
+          <div class="ch-time" id="doneTime">—</div>
+          <div class="ch-office" id="doneOffice">—</div>
+          <div class="ch-ref">Confirmation #<span id="doneRef">—</span></div>
         </div>
+        <button class="btn btn-primary" id="addCalBtn" style="margin-top:16px" onclick="addToCalendar()">📅 Add to calendar</button>
+        <button class="btn btn-ghost hidden" id="emailBtn" style="margin-top:10px;width:100%" onclick="emailMe()">✉️ Email me the details</button>
+        <div class="done-note" id="doneNote">📸 Take a screenshot to keep your confirmation handy.</div>
         <div class="done-actions">
           <button class="btn btn-ghost" onclick="rescheduleLast()">Reschedule</button>
           <button class="btn btn-ghost danger" onclick="cancelLast()">Cancel appointment</button>
         </div>
-        <button class="btn btn-primary" style="margin-top:12px" onclick="restart()">Book another</button>
-        <div class="done-note" id="doneNote">Need to change this later? Call the office and we'll take care of it.</div>
+        <button class="btn btn-clear" style="margin-top:10px;width:100%" onclick="restart()">Book another</button>
       </div>
     </div>
   </div>
@@ -667,8 +691,10 @@ function renderSummary(){
     <div class="summary-row"><span class="k">When</span><span class="v">${fmtLong(bkDate)}<br>${fmt12(bkTime)}</span></div>
     ${priceRow}`;
 }
+let lastRec=null;
 function confirmBooking(){
   const name=document.getElementById('cName').value.trim();
+  const email=document.getElementById('cEmail').value.trim();
   if(!name){ toast('Please enter the patient name'); return; }
   // guard against the slot being taken since it was shown
   if(!availableSlots(bkDate,bkService).includes(bkTime)){ toast('Sorry, that time was just taken. Please pick another.'); goStep(3); return; }
@@ -677,7 +703,7 @@ function confirmBooking(){
   const rec={ id:Date.now(), ref, created:now.toISOString(),
     locationId:bkLocation?bkLocation.id:'', location:bkLocation?bkLocation.name:'', locationAddress:bkLocation?(bkLocation.address||''):'',
     serviceId:bkService.id, service:bkService.name, mins:+bkService.mins, price:bkService.price||'',
-    date:bkDate, time:bkTime, name,
+    date:bkDate, time:bkTime, name, email,
     newPt:/new\s*patient/i.test(bkService.name), changeAddrIns:!!bkAddrIns,
     arrivalTime:'', roomTime:'',
     status: rescheduleId?'Rescheduled':'New booking' };
@@ -685,27 +711,50 @@ function confirmBooking(){
   if(rescheduleId){ bookings=bookings.filter(b=>b.id!==rescheduleId); rescheduleId=null; }
   bookings.push(rec);
   const ok=saveLS(); if(!ok) bookings.pop();
-  lastBookingId=rec.id;
+  lastBookingId=rec.id; lastRec=rec;
   sendWebhook(rec);      // optional extra delivery URL, if one is set
-  emailBooking(rec);     // Netlify Forms → email notification (no PHI: name + appointment only)
+  emailBooking(rec);     // Netlify Forms → emails the office
   const wasResched=rec.status==='Rescheduled';
   document.getElementById('doneH').textContent=(wasResched?'Rescheduled, ':'You\'re booked, ')+name.split(' ')[0]+'!';
   document.getElementById('doneP').textContent = settings.biz ? 'Your appointment with '+settings.biz+' is confirmed.' : 'Your appointment is confirmed.';
   document.getElementById('doneRef').textContent=ref;
-  document.getElementById('doneWhen').innerHTML=fmtLong(bkDate)+' · '+fmt12(bkTime)+(bkLocation?'<br><span style="font-weight:700;opacity:.9;font-size:13px">'+esc(bkLocation.name)+' office · '+esc(bkLocation.address||'')+'</span>':'');
+  document.getElementById('doneDate').textContent=fmtLong(bkDate);
+  document.getElementById('doneTime').textContent=fmt12(bkTime);
+  document.getElementById('doneOffice').innerHTML=bkLocation?('<span class="onm">'+esc(bkLocation.name)+' office</span>'+esc(bkLocation.address||'')):'';
   // restore confirmation UI (may have been altered by a prior cancellation view)
   document.querySelector('#stepDone .confirm-check').textContent='✓';
-  document.querySelector('#stepDone .confirm-ref').style.display='';
+  document.getElementById('doneHero').style.display='';
+  document.getElementById('addCalBtn').style.display='';
   document.querySelector('#stepDone .done-actions').style.display='';
-  document.getElementById('doneNote').textContent = bkLocation&&bkLocation.phone
-    ? 'Need to change this later? Call the '+bkLocation.name+' office at '+bkLocation.phone+'.'
-    : "Need to change this later? Call the office and we'll take care of it.";
+  document.getElementById('emailBtn').classList.toggle('hidden', !email);
+  document.getElementById('doneNote').textContent='📸 Take a screenshot to keep your confirmation, or add it to your calendar.';
   [1,2,3,4].forEach(i=>document.getElementById('step'+i).classList.add('hidden'));
   document.getElementById('stepsBar').classList.add('hidden');
   document.getElementById('stepDone').classList.remove('hidden');
-  document.getElementById('cName').value='';
+  document.getElementById('cName').value=''; document.getElementById('cEmail').value='';
   setAddrIns(0);
   window.scrollTo({top:0,behavior:'smooth'});
+}
+/* Download an .ics so the patient can add the visit to their own calendar. */
+function icsEsc(s){ return (s||'').replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n'); }
+function addToCalendar(){
+  const b=lastRec; if(!b) return;
+  const start=b.date.replace(/-/g,'')+'T'+b.time.replace(':','')+'00';
+  const em=toMin(b.time)+(+b.mins||30);
+  const end=b.date.replace(/-/g,'')+'T'+pad(Math.floor(em/60))+pad(em%60)+'00';
+  const n=new Date();
+  const stamp=n.getUTCFullYear()+pad(n.getUTCMonth()+1)+pad(n.getUTCDate())+'T'+pad(n.getUTCHours())+pad(n.getUTCMinutes())+pad(n.getUTCSeconds())+'Z';
+  const loc=(b.location?b.location+' office, ':'')+(b.locationAddress||'');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Syed Hossain MD//Booking//EN','CALSCALE:GREGORIAN','BEGIN:VEVENT','UID:'+b.ref+'@hossainmd','DTSTAMP:'+stamp,'DTSTART:'+start,'DTEND:'+end,'SUMMARY:'+icsEsc('Appointment — Dr. Syed Hossain'),'LOCATION:'+icsEsc(loc),'DESCRIPTION:'+icsEsc('Visit: '+b.service+'\nPatient: '+b.name+'\nConfirmation: '+b.ref),'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));
+  a.download='appointment-'+b.ref+'.ics'; a.click(); toast('Calendar file downloaded');
+}
+/* Opens the patient's own mail app pre-filled with their confirmation. */
+function emailMe(){
+  const b=lastRec; if(!b) return;
+  const subj='Appointment confirmation — Dr. Syed Hossain';
+  const body='Your appointment is confirmed.\n\n'+fmtLong(b.date)+' at '+fmt12(b.time)+'\n'+(b.location?b.location+' office\n':'')+(b.locationAddress||'')+'\n\nConfirmation #'+b.ref+'\nPatient: '+b.name;
+  location.href='mailto:'+(b.email?encodeURIComponent(b.email):'')+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
 }
 /* Netlify Forms delivery — the site is on Netlify, so a booking POST to the
    detected "booking" form emails whatever address is set in Netlify → Forms →
@@ -715,13 +764,14 @@ function emailBooking(rec){
     patient:rec.name,
     appointment:fmtLong(rec.date)+' · '+fmt12(rec.time),
     office:rec.location||'', service:rec.service,
+    patientEmail:rec.email||'',
     newPatient:rec.newPt?'Yes':'No',
     addressInsuranceChange:rec.changeAddrIns?'Yes':'No',
     reference:rec.ref, status:rec.status||'New booking' };
   const body=Object.keys(data).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(data[k])).join('&');
   try{ fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body,keepalive:true}).catch(()=>{}); }catch(e){}
 }
-function restart(){ rescheduleId=null; bkService=null; bkDate=null; bkTime=null; bkAddrIns=0; document.getElementById('stepDone').classList.add('hidden'); renderLocations(); renderServices(); goStep(1); }
+function restart(){ rescheduleId=null; bkService=null; bkDate=null; bkTime=null; bkAddrIns=0; document.getElementById('stepDone').classList.add('hidden'); renderManage(); renderLocations(); renderServices(); goStep(1); }
 
 /* ── CANCEL / RESCHEDULE ── */
 function startReschedule(id){
@@ -732,26 +782,55 @@ function startReschedule(id){
   bkDate=null; bkTime=null; bkAddrIns=b.changeAddrIns?1:0;
   miniMonth=new Date(); miniMonth.setDate(1);
   document.getElementById('cName').value=b.name||'';
+  document.getElementById('cEmail').value=b.email||'';
   setAddrIns(bkAddrIns);
   goStep(2);
   toast('Pick a new date & time');
 }
 function rescheduleBooking(id){ close_('apptsModal'); startReschedule(id); }
 function rescheduleLast(){ if(lastBookingId==null){ restart(); return; } startReschedule(lastBookingId); }
-function cancelLast(){
-  if(lastBookingId==null) return;
-  if(!confirm('Cancel this appointment?')) return;
-  const b=bookings.find(x=>x.id===lastBookingId);
-  bookings=bookings.filter(x=>x.id!==lastBookingId); saveLS();
-  if(b){ b.status='Cancelled'; emailBooking(b); }
-  lastBookingId=null;
+function showCancelled(){
   document.querySelector('#stepDone .confirm-check').textContent='✕';
   document.getElementById('doneH').textContent='Appointment cancelled';
   document.getElementById('doneP').textContent='Your appointment has been cancelled. You can book a new time below.';
-  document.querySelector('#stepDone .confirm-ref').style.display='none';
+  document.getElementById('doneHero').style.display='none';
+  document.getElementById('addCalBtn').style.display='none';
+  document.getElementById('emailBtn').classList.add('hidden');
   document.querySelector('#stepDone .done-actions').style.display='none';
   document.getElementById('doneNote').textContent='';
-  toast('Appointment cancelled');
+  [1,2,3,4].forEach(i=>document.getElementById('step'+i).classList.add('hidden'));
+  document.getElementById('stepsBar').classList.add('hidden');
+  document.getElementById('stepDone').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function doCancel(id){
+  const b=bookings.find(x=>x.id===id); if(!b) return false;
+  bookings=bookings.filter(x=>x.id!==id); saveLS();
+  b.status='Cancelled'; emailBooking(b);
+  if(lastBookingId===id) lastBookingId=null;
+  return true;
+}
+function cancelLast(){ if(lastBookingId==null) return; if(!confirm('Cancel this appointment?')) return; if(doCancel(lastBookingId)){ showCancelled(); toast('Appointment cancelled'); } }
+function cancelById(id){ if(!confirm('Cancel this appointment?')) return; if(doCancel(id)){ renderManage(); toast('Appointment cancelled'); } }
+
+/* ── PATIENT: MANAGE MY APPOINTMENT (this device) ── */
+function renderManage(){
+  const el=document.getElementById('manageBar'); if(!el) return;
+  const now=new Date();
+  const up=bookings.filter(b=>slotDateTime(b.date,b.time)>=now)
+    .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,3);
+  if(!up.length){ el.innerHTML=''; return; }
+  el.innerHTML=`<div class="manage-card">
+    <div class="manage-h">Your upcoming appointment${up.length>1?'s':''}</div>
+    ${up.map(b=>`<div class="manage-appt">
+      <div class="ma-when">${fmtLong(b.date)} · ${fmt12(b.time)}</div>
+      <div class="ma-office">${esc(b.location||'')}${b.locationAddress?' · '+esc(b.locationAddress):''}</div>
+      <div class="ma-actions">
+        <button class="ma-btn" onclick="startReschedule(${b.id})">Reschedule</button>
+        <button class="ma-btn danger" onclick="cancelById(${b.id})">Cancel</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
 }
 
 /* ── WEBHOOK ── */
@@ -917,9 +996,9 @@ function stampNow(id,field){ const b=bookings.find(x=>x.id===id); if(!b) return;
 function cancelBooking(id){ if(!confirm('Cancel this appointment? The time slot will reopen.')) return; const b=bookings.find(x=>x.id===id); bookings=bookings.filter(x=>x.id!==id); saveLS(); if(b){ b.status='Cancelled'; emailBooking(b); } renderAppts(); toast('Appointment cancelled'); }
 function clearPast(){ const now=new Date(); if(!confirm('Remove all past appointments?')) return; bookings=bookings.filter(b=>slotDateTime(b.date,b.time)>=now); saveLS(); renderAppts(); toast('Past appointments cleared'); }
 function exportCSV(){
-  const head=['Reference','Patient','Office','Date','Appt Time','Service','New Pt','Change of Address/Insurance','Arrival Time','Time Placed in Room','Booked at'];
+  const head=['Reference','Patient','Email','Office','Date','Appt Time','Service','New Pt','Change of Address/Insurance','Arrival Time','Time Placed in Room','Booked at'];
   const rows=bookings.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(b=>
-    [b.ref,b.name||[b.first,b.last].filter(Boolean).join(' '),b.location||'',b.date,fmt12(b.time),b.service,b.newPt?'Yes':'No',b.changeAddrIns?'Yes':'No',b.arrivalTime?fmt12(b.arrivalTime):'',b.roomTime?fmt12(b.roomTime):'',b.created]
+    [b.ref,b.name||[b.first,b.last].filter(Boolean).join(' '),b.email||'',b.location||'',b.date,fmt12(b.time),b.service,b.newPt?'Yes':'No',b.changeAddrIns?'Yes':'No',b.arrivalTime?fmt12(b.arrivalTime):'',b.roomTime?fmt12(b.roomTime):'',b.created]
     .map(v=>`"${(v==null?'':v).toString().replace(/"/g,'""')}"`).join(','));
   const csv=[head.join(','),...rows].join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -956,7 +1035,7 @@ function seedDemo(theme){
   settings.theme='light';
   if(p.get('demo')==='1'){ DEMO=true; seedDemo('light'); }
 })();
-applyTheme(); renderLocations(); renderServices(); goStep(1);
+applyTheme(); renderManage(); renderLocations(); renderServices(); goStep(1);
 </script>
 </body>
 </html>

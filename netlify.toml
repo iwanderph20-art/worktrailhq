@@ -2,6 +2,13 @@
   publish = "."
   functions = "netlify/functions"
 
+# Clean, shareable URL for Dr. Hossain's booking page.
+# worktrailhq.com/book  ->  serves the booking page (URL stays /book).
+[[redirects]]
+  from = "/book"
+  to = "/products/scheduling/hossain-booking.html"
+  status = 200
+
 [[headers]]
   for = "/lab-compliance/*"
   [headers.values]
