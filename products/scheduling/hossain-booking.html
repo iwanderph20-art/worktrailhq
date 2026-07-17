@@ -149,6 +149,8 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
 .seg-op{border:1.5px solid var(--g200);border-radius:12px;padding:13px 10px;font-size:14px;font-weight:800;color:var(--g600);background:var(--inp-bg);transition:all .14s;}
 .seg-op:hover{border-color:var(--brand);}
 .seg-op.on{border-color:var(--brand);background:var(--brand-light);color:var(--brand-dark);box-shadow:0 0 0 3px var(--brand-light);}
+.reveal{animation:revealIn .18s ease;}
+@keyframes revealIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
 
 /* admin check-in row */
 .checkin{margin-top:10px;padding-top:11px;border-top:1px solid var(--g100);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;}
@@ -270,6 +272,7 @@ body.embed .admin-only{display:none!important;}
   <input type="text" name="patientEmail">
   <input type="text" name="newPatient">
   <input type="text" name="addressInsuranceChange">
+  <input type="text" name="addressInsuranceDetails">
   <input type="text" name="reference">
   <input type="text" name="status">
 </form>
@@ -356,7 +359,11 @@ body.embed .admin-only{display:none!important;}
           <button type="button" class="seg-op on" data-v="0" onclick="setAddrIns(0)">No change</button>
           <button type="button" class="seg-op" data-v="1" onclick="setAddrIns(1)">Yes, it changed</button>
         </div>
-        <div class="hint">If yes, please bring your updated insurance card or ID to your visit so we can update your file.</div>
+        <div class="reveal hidden" id="addrInsDetailWrap">
+          <label class="lbl" style="margin-top:14px">What changed?</label>
+          <textarea class="inp" id="cAddrInsDetails" placeholder="New address, or new insurance carrier & member ID…"></textarea>
+          <div class="hint">Please also bring your updated insurance card or ID to your visit so we can update your file.</div>
+        </div>
       </div>
       <button class="btn btn-primary" onclick="confirmBooking()">Confirm booking</button>
       <div class="privacy-note" id="privacyNote"></div>
@@ -679,7 +686,7 @@ function renderTimes(){
   el.innerHTML=slots.map(t=>`<button class="slot" onclick="selectTime('${t}')">${fmt12(t)}</button>`).join('');
 }
 function selectTime(t){ bkTime=t; goStep(4); }
-function setAddrIns(v){ bkAddrIns=v; document.querySelectorAll('#segAddrIns .seg-op').forEach(b=>b.classList.toggle('on',+b.dataset.v===v)); }
+function setAddrIns(v){ bkAddrIns=v; document.querySelectorAll('#segAddrIns .seg-op').forEach(b=>b.classList.toggle('on',+b.dataset.v===v)); const w=document.getElementById('addrInsDetailWrap'); if(w){ w.classList.toggle('hidden',v!==1); if(v===1) setTimeout(()=>document.getElementById('cAddrInsDetails').focus(),60); } }
 
 /* ── STEP 4 · DETAILS ── */
 function renderSummary(){
@@ -695,7 +702,9 @@ let lastRec=null;
 function confirmBooking(){
   const name=document.getElementById('cName').value.trim();
   const email=document.getElementById('cEmail').value.trim();
+  const changeDetails=bkAddrIns?document.getElementById('cAddrInsDetails').value.trim():'';
   if(!name){ toast('Please enter the patient name'); return; }
+  if(bkAddrIns && !changeDetails){ toast('Please tell us what changed, or select “No change”'); document.getElementById('cAddrInsDetails').focus(); return; }
   // guard against the slot being taken since it was shown
   if(!availableSlots(bkDate,bkService).includes(bkTime)){ toast('Sorry, that time was just taken. Please pick another.'); goStep(3); return; }
   const now=new Date();
@@ -704,7 +713,7 @@ function confirmBooking(){
     locationId:bkLocation?bkLocation.id:'', location:bkLocation?bkLocation.name:'', locationAddress:bkLocation?(bkLocation.address||''):'',
     serviceId:bkService.id, service:bkService.name, mins:+bkService.mins, price:bkService.price||'',
     date:bkDate, time:bkTime, name, email,
-    newPt:/new\s*patient/i.test(bkService.name), changeAddrIns:!!bkAddrIns,
+    newPt:/new\s*patient/i.test(bkService.name), changeAddrIns:!!bkAddrIns, changeDetails,
     arrivalTime:'', roomTime:'',
     status: rescheduleId?'Rescheduled':'New booking' };
   // reschedule: drop the old record so its slot reopens
@@ -732,6 +741,7 @@ function confirmBooking(){
   document.getElementById('stepsBar').classList.add('hidden');
   document.getElementById('stepDone').classList.remove('hidden');
   document.getElementById('cName').value=''; document.getElementById('cEmail').value='';
+  document.getElementById('cAddrInsDetails').value='';
   setAddrIns(0);
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -767,6 +777,7 @@ function emailBooking(rec){
     patientEmail:rec.email||'',
     newPatient:rec.newPt?'Yes':'No',
     addressInsuranceChange:rec.changeAddrIns?'Yes':'No',
+    addressInsuranceDetails:rec.changeDetails||'',
     reference:rec.ref, status:rec.status||'New booking' };
   const body=Object.keys(data).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(data[k])).join('&');
   try{ fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body,keepalive:true}).catch(()=>{}); }catch(e){}
@@ -784,6 +795,7 @@ function startReschedule(id){
   document.getElementById('cName').value=b.name||'';
   document.getElementById('cEmail').value=b.email||'';
   setAddrIns(bkAddrIns);
+  document.getElementById('cAddrInsDetails').value=b.changeDetails||'';
   goStep(2);
   toast('Pick a new date & time');
 }
@@ -981,6 +993,7 @@ function renderAppts(){
       <div class="appt-top"><div class="appt-when">${fmtLong(b.date)} · ${fmt12(b.time)}</div><span class="appt-svc">${esc(b.service)}</span></div>
       <div class="appt-who">${esc(b.name||[b.first,b.last].filter(Boolean).join(' '))}</div>
       <div class="appt-meta">${b.location?`<span>📍 <b>${esc(b.location)}</b></span>`:''}${flags}</div>
+      ${b.changeAddrIns&&b.changeDetails?`<div class="appt-notes"><b>Change:</b> ${esc(b.changeDetails)}</div>`:''}
       <div class="checkin">
         <div class="ci"><span class="ci-lbl">Arrival</span><input type="time" value="${esc(b.arrivalTime||'')}" onchange="setStamp(${b.id},'arrivalTime',this.value)"><button class="ci-now" onclick="stampNow(${b.id},'arrivalTime')">Now</button></div>
         <div class="ci"><span class="ci-lbl">In room</span><input type="time" value="${esc(b.roomTime||'')}" onchange="setStamp(${b.id},'roomTime',this.value)"><button class="ci-now" onclick="stampNow(${b.id},'roomTime')">Now</button></div>
@@ -996,9 +1009,9 @@ function stampNow(id,field){ const b=bookings.find(x=>x.id===id); if(!b) return;
 function cancelBooking(id){ if(!confirm('Cancel this appointment? The time slot will reopen.')) return; const b=bookings.find(x=>x.id===id); bookings=bookings.filter(x=>x.id!==id); saveLS(); if(b){ b.status='Cancelled'; emailBooking(b); } renderAppts(); toast('Appointment cancelled'); }
 function clearPast(){ const now=new Date(); if(!confirm('Remove all past appointments?')) return; bookings=bookings.filter(b=>slotDateTime(b.date,b.time)>=now); saveLS(); renderAppts(); toast('Past appointments cleared'); }
 function exportCSV(){
-  const head=['Reference','Patient','Email','Office','Date','Appt Time','Service','New Pt','Change of Address/Insurance','Arrival Time','Time Placed in Room','Booked at'];
+  const head=['Reference','Patient','Email','Office','Date','Appt Time','Service','New Pt','Change of Address/Insurance','Change Details','Arrival Time','Time Placed in Room','Booked at'];
   const rows=bookings.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(b=>
-    [b.ref,b.name||[b.first,b.last].filter(Boolean).join(' '),b.email||'',b.location||'',b.date,fmt12(b.time),b.service,b.newPt?'Yes':'No',b.changeAddrIns?'Yes':'No',b.arrivalTime?fmt12(b.arrivalTime):'',b.roomTime?fmt12(b.roomTime):'',b.created]
+    [b.ref,b.name||[b.first,b.last].filter(Boolean).join(' '),b.email||'',b.location||'',b.date,fmt12(b.time),b.service,b.newPt?'Yes':'No',b.changeAddrIns?'Yes':'No',b.changeDetails||'',b.arrivalTime?fmt12(b.arrivalTime):'',b.roomTime?fmt12(b.roomTime):'',b.created]
     .map(v=>`"${(v==null?'':v).toString().replace(/"/g,'""')}"`).join(','));
   const csv=[head.join(','),...rows].join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
