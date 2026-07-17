@@ -234,6 +234,17 @@ body.embed .admin-only{display:none!important;}
 </head>
 <body>
 
+<!-- Netlify Forms: static form so the build detects it. Bookings are POSTed here
+     via JS; Netlify emails them to the address set in Forms → notifications.
+     Only patient name + appointment details (no PHI). -->
+<form name="booking" netlify netlify-honeypot="bot-field" hidden>
+  <input type="text" name="patient">
+  <input type="text" name="appointment">
+  <input type="text" name="office">
+  <input type="text" name="service">
+  <input type="text" name="reference">
+</form>
+
 <!-- ── HEADER ── -->
 <div class="hdr">
   <div class="hdr-brand">
@@ -301,17 +312,9 @@ body.embed .admin-only{display:none!important;}
       <div class="step-h">Your details</div>
       <div class="step-p">So we can confirm your appointment.</div>
       <div class="summary" id="summary"></div>
-      <div class="row2 field">
-        <div><label class="lbl">First name <span class="req">*</span></label><input class="inp" id="cFirst" placeholder="First name" autocomplete="given-name"></div>
-        <div><label class="lbl">Last name <span class="req">*</span></label><input class="inp" id="cLast" placeholder="Last name" autocomplete="family-name"></div>
-      </div>
-      <div class="row2 field">
-        <div><label class="lbl">Phone <span class="req">*</span></label><input class="inp" id="cPhone" type="tel" placeholder="(555) 123-4567" autocomplete="tel"></div>
-        <div><label class="lbl">Email</label><input class="inp" id="cEmail" type="email" placeholder="you@email.com" autocomplete="email"></div>
-      </div>
       <div class="field">
-        <label class="lbl" id="notesLbl">Anything we should know?</label>
-        <textarea class="inp" id="cNotes" placeholder="Reason for visit, questions, etc. (optional)"></textarea>
+        <label class="lbl">Patient name <span class="req">*</span></label>
+        <input class="inp" id="cName" placeholder="Full name" autocomplete="name">
       </div>
       <button class="btn btn-primary" onclick="confirmBooking()">Confirm booking</button>
       <div class="privacy-note" id="privacyNote"></div>
@@ -614,11 +617,8 @@ function renderSummary(){
     <div class="summary-row"><span class="k">Length</span><span class="v">${bkService.mins} min${price}</span></div>`;
 }
 function confirmBooking(){
-  const first=document.getElementById('cFirst').value.trim();
-  const last=document.getElementById('cLast').value.trim();
-  const phone=document.getElementById('cPhone').value.trim();
-  if(!first||!last){ toast('Please enter your first and last name'); return; }
-  if(!phone){ toast('Please enter a phone number'); return; }
+  const name=document.getElementById('cName').value.trim();
+  if(!name){ toast('Please enter the patient name'); return; }
   // guard against the slot being taken since it was shown
   if(!availableSlots(bkDate,bkService).includes(bkTime)){ toast('Sorry, that time was just taken. Please pick another.'); goStep(3); return; }
   const now=new Date();
@@ -626,23 +626,31 @@ function confirmBooking(){
   const rec={ id:Date.now(), ref, created:now.toISOString(),
     locationId:bkLocation?bkLocation.id:'', location:bkLocation?bkLocation.name:'', locationAddress:bkLocation?(bkLocation.address||''):'',
     serviceId:bkService.id, service:bkService.name, mins:+bkService.mins, price:bkService.price||'',
-    date:bkDate, time:bkTime,
-    first, last, phone,
-    email:document.getElementById('cEmail').value.trim(),
-    notes:document.getElementById('cNotes').value.trim() };
+    date:bkDate, time:bkTime, name };
   bookings.push(rec);
   const ok=saveLS(); if(!ok) bookings.pop();
-  if(!ok && !settings.webhook){ toast('⚠ Couldn’t save — storage full.'); return; }
-  sendWebhook(rec);
-  document.getElementById('doneH').textContent='You\'re booked, '+first+'!';
+  sendWebhook(rec);      // optional extra delivery URL, if one is set
+  emailBooking(rec);     // Netlify Forms → email notification (no PHI: name + time only)
+  document.getElementById('doneH').textContent='You\'re booked, '+name.split(' ')[0]+'!';
   document.getElementById('doneP').textContent = settings.biz && settings.biz!==DEFAULTS.biz ? 'Your appointment with '+settings.biz+' is confirmed.' : 'Your appointment is confirmed.';
   document.getElementById('doneRef').textContent=ref;
   document.getElementById('doneWhen').innerHTML=fmtLong(bkDate)+' · '+fmt12(bkTime)+(bkLocation?'<br><span style="font-weight:700;opacity:.9;font-size:13px">'+esc(bkLocation.name)+' office · '+esc(bkLocation.address||'')+'</span>':'');
   [1,2,3,4].forEach(i=>document.getElementById('step'+i).classList.add('hidden'));
   document.getElementById('stepsBar').classList.add('hidden');
   document.getElementById('stepDone').classList.remove('hidden');
-  document.querySelectorAll('#cFirst,#cLast,#cPhone,#cEmail,#cNotes').forEach(el=>el.value='');
+  document.getElementById('cName').value='';
   window.scrollTo({top:0,behavior:'smooth'});
+}
+/* Netlify Forms delivery — the site is on Netlify, so a booking POST to the
+   detected "booking" form emails whatever address is set in Netlify → Forms →
+   notifications. Only the patient name + appointment details are sent (no PHI). */
+function emailBooking(rec){
+  const data={ 'form-name':'booking',
+    patient:rec.name,
+    appointment:fmtLong(rec.date)+' · '+fmt12(rec.time),
+    office:rec.location||'', service:rec.service, reference:rec.ref };
+  const body=Object.keys(data).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(data[k])).join('&');
+  try{ fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body,keepalive:true}).catch(()=>{}); }catch(e){}
 }
 function restart(){ bkService=null; bkDate=null; bkTime=null; document.getElementById('stepDone').classList.add('hidden'); renderLocations(); renderServices(); goStep(1); }
 
@@ -650,14 +658,14 @@ function restart(){ bkService=null; bkDate=null; bkTime=null; document.getElemen
 function sendWebhook(rec){
   if(!settings.webhook) return;
   const payload={ source:'appointment-booking', business:settings.biz||'', bookedAt:new Date().toISOString(),
-    reference:rec.ref, location:rec.location||'', locationAddress:rec.locationAddress||'',
-    service:rec.service, date:rec.date, time:fmt12(rec.time), length:rec.mins+' min', price:rec.price,
-    name:rec.first+' '+rec.last, phone:rec.phone, email:rec.email, notes:rec.notes };
+    reference:rec.ref, location:rec.location||'',
+    service:rec.service, date:rec.date, time:fmt12(rec.time),
+    name:rec.name };
   try{ fetch(settings.webhook,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}).catch(()=>{}); }catch(e){}
 }
 function testWebhook(){ const url=document.getElementById('setWebhook').value.trim(); if(!url){ toast('Enter a delivery URL first'); return; }
   const prev=settings.webhook; settings.webhook=url;
-  sendWebhook({ref:'TEST-000',service:'Connection test',date:ymd(new Date()),time:'15:00',mins:30,price:'',first:'Test',last:'Booking',phone:'(000) 000-0000',email:'test@example.com',notes:'Test booking from your scheduler.'});
+  sendWebhook({ref:'TEST-000',location:'Los Angeles',service:'Connection test',date:ymd(new Date()),time:'15:00',mins:30,price:'',name:'Test Booking'});
   settings.webhook=prev; toast('Test sent — check your email / sheet'); }
 
 /* ── SETTINGS ── */
@@ -779,7 +787,7 @@ function openAppts(){ renderAppts(); open_('apptsModal'); }
 function renderAppts(){
   const q=(document.getElementById('apptSearch').value||'').toLowerCase();
   const now=new Date();
-  const list=bookings.filter(b=>((b.first+' '+b.last+' '+b.service+' '+(b.location||'')+' '+b.notes).toLowerCase().includes(q)))
+  const list=bookings.filter(b=>(((b.name||'')+' '+b.service+' '+(b.location||'')).toLowerCase().includes(q)))
     .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   document.getElementById('apptCount').textContent=bookings.length+' total';
   const el=document.getElementById('apptList');
@@ -788,10 +796,8 @@ function renderAppts(){
     const past=slotDateTime(b.date,b.time)<now;
     return `<div class="appt ${past?'past':''}">
       <div class="appt-top"><div class="appt-when">${fmtLong(b.date)} · ${fmt12(b.time)}</div><span class="appt-svc">${esc(b.service)}</span></div>
-      <div class="appt-who">${esc(b.first)} ${esc(b.last)}</div>
-      ${b.location?`<div class="appt-meta" style="margin-top:6px"><span>📍 <b>${esc(b.location)}</b>${b.locationAddress?' · '+esc(b.locationAddress):''}</span></div>`:''}
-      <div class="appt-meta"><span>📞 <b>${esc(b.phone)}</b></span>${b.email?`<span>✉️ <b>${esc(b.email)}</b></span>`:''}<span>⏱ <b>${b.mins} min</b></span>${b.price?`<span>💵 <b>$${esc(String(b.price))}</b></span>`:''}</div>
-      ${b.notes?`<div class="appt-notes">${esc(b.notes)}</div>`:''}
+      <div class="appt-who">${esc(b.name||[b.first,b.last].filter(Boolean).join(' '))}</div>
+      <div class="appt-meta">${b.location?`<span>📍 <b>${esc(b.location)}</b></span>`:''}<span>⏱ <b>${b.mins} min</b></span></div>
       <div class="appt-ref">${esc(b.ref)}${past?' · past':''}</div>
       <span class="appt-cancel" onclick="cancelBooking(${b.id})">Cancel</span>
     </div>`;
@@ -800,9 +806,9 @@ function renderAppts(){
 function cancelBooking(id){ if(!confirm('Cancel this appointment? The time slot will reopen.')) return; bookings=bookings.filter(b=>b.id!==id); saveLS(); renderAppts(); toast('Appointment cancelled'); }
 function clearPast(){ const now=new Date(); if(!confirm('Remove all past appointments?')) return; bookings=bookings.filter(b=>slotDateTime(b.date,b.time)>=now); saveLS(); renderAppts(); toast('Past appointments cleared'); }
 function exportCSV(){
-  const head=['Reference','Office','Office address','Date','Time','Service','Length (min)','Price','First','Last','Phone','Email','Notes','Booked at'];
+  const head=['Reference','Patient','Office','Date','Time','Service','Length (min)','Booked at'];
   const rows=bookings.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).map(b=>
-    [b.ref,b.location||'',b.locationAddress||'',b.date,fmt12(b.time),b.service,b.mins,b.price,b.first,b.last,b.phone,b.email,b.notes,b.created]
+    [b.ref,b.name||[b.first,b.last].filter(Boolean).join(' '),b.location||'',b.date,fmt12(b.time),b.service,b.mins,b.created]
     .map(v=>`"${(v==null?'':v).toString().replace(/"/g,'""')}"`).join(','));
   const csv=[head.join(','),...rows].join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -826,9 +832,9 @@ function seedDemo(theme){
   // a few bookings over the next couple days so some slots are taken
   const t=ymd(new Date()), t1=ymd(addDays(new Date(),1)), t2=ymd(addDays(new Date(),2));
   bookings=[
-    {id:1,ref:'APT-001',created:new Date().toISOString(),serviceId:'s2',service:'Cleaning & checkup',mins:60,price:'120',date:t1,time:'10:00',first:'Dana',last:'Reyes',phone:'(555) 200-1180',email:'dana@example.com',notes:'Sensitive teeth.'},
-    {id:2,ref:'APT-002',created:new Date().toISOString(),serviceId:'s1',service:'New patient consult',mins:30,price:'',date:t1,time:'13:30',first:'Omar',last:'Haddad',phone:'(555) 663-9042',email:'',notes:''},
-    {id:3,ref:'APT-003',created:new Date().toISOString(),serviceId:'s3',service:'Whitening session',mins:45,price:'200',date:t2,time:'11:00',first:'Priya',last:'Nair',phone:'(555) 810-7725',email:'priya@example.com',notes:'Before a wedding — thanks!'}
+    {id:1,ref:'APT-001',created:new Date().toISOString(),location:'Los Angeles',serviceId:'s2',service:'Cleaning & checkup',mins:60,price:'120',date:t1,time:'10:00',name:'Dana Reyes'},
+    {id:2,ref:'APT-002',created:new Date().toISOString(),location:'Los Angeles',serviceId:'s1',service:'New patient consult',mins:30,price:'',date:t1,time:'13:30',name:'Omar Haddad'},
+    {id:3,ref:'APT-003',created:new Date().toISOString(),location:'Los Angeles',serviceId:'s3',service:'Whitening session',mins:45,price:'200',date:t2,time:'11:00',name:'Priya Nair'}
   ];
 }
 
