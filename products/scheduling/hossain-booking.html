@@ -24,21 +24,7 @@
   --inp-radius:12px;
   --inp-bg:#fffdf8;
 }
-body[data-theme="dark"]{
-  color-scheme:dark;
-  --brand:#5cc2b9;--brand-dark:#49a89f;--brand-light:#123330;
-  --g50:#12140f;--g100:#1b1e16;--g200:#2b2f25;--g300:#3e4336;
-  --g400:#8b8677;--g500:#a69f8f;--g600:#cbc5b5;--g800:#f1ede2;
-  --danger:#e8806f;--ok:#4cc79a;--ok-light:#123026;
-  --surface:#1a1d15;
-  --toast-bg:#f1ede2;--toast-fg:#12140f;
-  --page-bg:linear-gradient(180deg,#12140f 0%,#181b12 100%);
-  --card-bg:#1a1d15;
-  --card-border:1px solid #2b2f25;
-  --card-shadow:0 1px 2px rgba(0,0,0,.5),0 24px 60px -20px rgba(0,0,0,.7);
-  --inp-bg:#141710;
-}
-body{font-family:var(--font-body);background:var(--page-bg);background-attachment:fixed;color:var(--g800);min-height:100vh;-webkit-tap-highlight-color:transparent;transition:background .25s,color .25s;}
+body{font-family:var(--font-body);background:var(--page-bg);background-attachment:fixed;color:var(--g800);min-height:100vh;-webkit-tap-highlight-color:transparent;}
 button{cursor:pointer;font-family:inherit;border:none;background:none;}
 input,textarea,select{font-family:inherit;font-size:16px;}
 .hidden{display:none!important;}
@@ -172,7 +158,6 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:im
 .flag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:4px 9px;border-radius:999px;white-space:nowrap;}
 .flag.on{background:#fbecea;color:var(--danger);}
 .flag.newpt{background:var(--brand-light);color:var(--brand-dark);}
-body[data-theme="dark"] .flag.on{background:#3a201c;}
 
 /* confirmation */
 .confirm-body{text-align:center;padding:10px 4px 4px;}
@@ -280,7 +265,6 @@ body.embed .admin-only{display:none!important;}
     <img id="hdrLogo" class="hidden" onclick="brandLogoClick()" title="Change your logo" alt="">
     <div class="hdr-name" id="hdrName">Book an Appointment</div>
   </div>
-  <button class="hdr-btn icon" id="themeBtn" onclick="toggleTheme()" title="Toggle day / night">🌙</button>
   <button class="hdr-btn accent admin-only" onclick="openAppts()">Appointments</button>
   <button class="hdr-btn admin-only" onclick="openSettings()">⚙</button>
 </div>
@@ -459,7 +443,10 @@ body.embed .admin-only{display:none!important;}
 
 <script>
 /* ── STATE ── */
-const LS_SET='sch_settings', LS_BK='sch_bookings';
+/* Page-specific, versioned storage keys — isolates this practice page from the
+   generic template and from older saved copies. Bump the version to force every
+   device to pick up updated branding/services/logo. */
+const LS_SET='hossain_v2_settings', LS_BK='hossain_v2_bookings';
 const SVC_ICONS=['🩺','🔁','📋','🤒','📹','💊','🧪','🩹','❤️','🦴','👁️','🧾'];
 const WEEKDAY_HRS={0:{on:false,start:'09:00',end:'17:00'},1:{on:true,start:'09:00',end:'17:00'},2:{on:true,start:'09:00',end:'17:00'},3:{on:true,start:'09:00',end:'17:00'},4:{on:true,start:'09:00',end:'17:00'},5:{on:true,start:'09:00',end:'17:00'},6:{on:false,start:'10:00',end:'14:00'}};
 const DEFAULTS={
@@ -533,11 +520,9 @@ function availableSlots(ds, svc){
 function dayHasSlots(ds, svc){ return availableSlots(ds,svc).length>0; }
 function windowBounds(){ const today=new Date(); today.setHours(0,0,0,0); return { min:today, max:addDays(today,+settings.maxDaysAhead) }; }
 
-/* ── THEME / BRAND ── */
+/* ── BRAND ── (light theme only) */
 function applyTheme(){
-  const dark=settings.theme==='dark';
-  document.body.dataset.theme=dark?'dark':'light';
-  const tb=document.getElementById('themeBtn'); if(tb) tb.textContent=dark?'☀️':'🌙';
+  document.body.dataset.theme='light';
   const ph=document.getElementById('hdrLogoPh'), lg=document.getElementById('hdrLogo');
   if(settings.logo){ lg.src=settings.logo; lg.classList.remove('hidden'); ph.classList.add('hidden'); }
   else { lg.classList.add('hidden'); ph.classList.remove('hidden'); }
@@ -549,7 +534,6 @@ function applyTheme(){
     ? '🔒 Your booking is sent securely to <b>'+esc(settings.biz||'us')+'</b>.'
     : '🔒 <b>Your booking is saved on this device.</b> No account needed.';
 }
-function toggleTheme(){ settings.theme=settings.theme==='dark'?'light':'dark'; applyTheme(); saveLS(); }
 function brandLogoClick(){ if(document.body.classList.contains('embed')) return; openSettings(); setTimeout(()=>document.getElementById('setLogoInput').click(),150); }
 
 /* ── STEP NAV ── */
@@ -945,8 +929,8 @@ function seedDemo(theme){
 (function boot(){
   const p=new URLSearchParams(location.search);
   if(p.get('embed')==='1'||p.get('embed')==='true') document.body.classList.add('embed');
-  const th=p.get('theme'); if(th==='dark'||th==='light') settings.theme=th;
-  if(p.get('demo')==='1'){ DEMO=true; seedDemo((th==='dark'||th==='light')?th:'light'); }
+  settings.theme='light';
+  if(p.get('demo')==='1'){ DEMO=true; seedDemo('light'); }
 })();
 applyTheme(); renderLocations(); renderServices(); goStep(1);
 </script>
