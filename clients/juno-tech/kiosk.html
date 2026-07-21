@@ -1132,21 +1132,15 @@ video{object-fit:cover;transform:scaleX(-1);}
         <!-- Travel / Draw split — shown in Full Shift mode -->
         <div id="manualSplitRow" style="display:none;margin-top:10px;">
           <p class="text-xs font-semibold" style="color:#6b7280;margin-bottom:4px;">Hours Split <span style="font-weight:400;color:#9ca3af;">(optional)</span></p>
-          <p class="text-xs" style="color:#6b7280;margin-bottom:8px;">Enter the time range for each type. Leave blank to count all hours as draw time.</p>
-          <div style="margin-bottom:8px;">
-            <label class="text-xs font-semibold" style="color:#6b7280;">Travel Time</label>
-            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;margin-top:4px;">
-              <input id="manualTravelFrom" type="time" class="inp w-full" style="color:#111827;">
-              <span style="color:#9ca3af;font-size:12px;">to</span>
-              <input id="manualTravelTo" type="time" class="inp w-full" style="color:#111827;">
+          <p class="text-xs" style="color:#6b7280;margin-bottom:8px;">Enter how many hours were travel vs. draw — no need for exact times. Leave blank to count all hours as draw time.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label class="text-xs font-semibold" style="color:#6b7280;">Travel Hours</label>
+              <input id="manualTravelHours" type="number" step="0.25" min="0" placeholder="e.g. 1.0" class="inp w-full mt-1" style="color:#111827;">
             </div>
-          </div>
-          <div>
-            <label class="text-xs font-semibold" style="color:#6b7280;">Draw Time</label>
-            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;margin-top:4px;">
-              <input id="manualDrawFrom" type="time" class="inp w-full" style="color:#111827;">
-              <span style="color:#9ca3af;font-size:12px;">to</span>
-              <input id="manualDrawTo" type="time" class="inp w-full" style="color:#111827;">
+            <div>
+              <label class="text-xs font-semibold" style="color:#6b7280;">Draw Hours</label>
+              <input id="manualDrawHours" type="number" step="0.25" min="0" placeholder="e.g. 6.0" class="inp w-full mt-1" style="color:#111827;">
             </div>
           </div>
         </div>
@@ -3654,10 +3648,8 @@ function openManualEntry() {
   document.getElementById('manualOutDatetime').value = localOut;
   document.getElementById('manualNote').value = '';
   document.getElementById('manualType').value = 'in';
-  document.getElementById('manualDrawFrom').value = '';
-  document.getElementById('manualDrawTo').value = '';
-  document.getElementById('manualTravelFrom').value = '';
-  document.getElementById('manualTravelTo').value = '';
+  document.getElementById('manualDrawHours').value = '';
+  document.getElementById('manualTravelHours').value = '';
   setManualMode('single');
   document.getElementById('manualEntryWrap').style.display = 'flex';
 }
@@ -3795,18 +3787,14 @@ function saveManualEntry() {
       facilities: facList, hasPhoto: !!manualPhotoUrl
     };
     if (manualPhotoUrl) inEntry.photo = manualPhotoUrl;
-    var drawFrom   = document.getElementById('manualDrawFrom').value;
-    var drawTo     = document.getElementById('manualDrawTo').value;
-    var travelFrom = document.getElementById('manualTravelFrom').value;
-    var travelTo   = document.getElementById('manualTravelTo').value;
-    function timeRangeHours(from, to) {
-      if (!from || !to) return null;
-      var f = from.split(':'), t = to.split(':');
-      var mins = (parseInt(t[0])*60+parseInt(t[1])) - (parseInt(f[0])*60+parseInt(f[1]));
-      return mins > 0 ? Math.round(mins/60*100)/100 : null;
+    function parseHrs(v) {
+      var raw = String(v || '').trim();
+      if (!raw) return null;
+      var n = parseFloat(raw);
+      return (isFinite(n) && n > 0) ? Math.round(n*100)/100 : null;
     }
-    var drawHrsCalc   = timeRangeHours(drawFrom, drawTo);
-    var travelHrsCalc = timeRangeHours(travelFrom, travelTo);
+    var drawHrsCalc   = parseHrs(document.getElementById('manualDrawHours').value);
+    var travelHrsCalc = parseHrs(document.getElementById('manualTravelHours').value);
     var outEntry = {
       ts: makeUniqueTs(outTs, arr), name: empName, type: 'out', note: note,
       manualEntry: true, addedBy: 'admin', addedAt: addedAt,
