@@ -2087,28 +2087,37 @@ function captureAndClock() {
 }
 
 /* ── breaks ─────────────────────────────── */
-function startBreak(mins, btype) {
+function startBreak(mins, btype, auto) {
   var breakType = btype || (mins >= 30 ? 'meal' : 'rest');
   breakMins=mins; breakStart=new Date(); clockState='break';
   var lbl = breakType==='meal'
     ? '30-min unpaid meal break — back in 30 minutes'
     : mins+'-min paid rest break started';
+  if (auto) lbl = 'Auto-started at deadline — ' + lbl;
   document.getElementById('breakLabel').textContent=lbl;
   var bsTs=breakStart.toISOString();
   var empCode = currentEmp.code || currentEmp.name;
-  var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min',breakType:breakType,empId:empCode};
+  var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min'+(auto?' (auto)':''),breakType:breakType,empId:empCode};
+  if (auto) bsEntry.auto = true;
   var arr=store.getJ(K.timesheet,[]);
   arr.push(bsEntry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',bsTs,bsEntry);
   fbPutState(currentEmp.name,'break',bsTs);
   // Audit log — visible to admin
-  logAdminAction('BREAK_START', currentEmp.name + ' (ID: ' + empCode + ') — '
+  logAdminAction(auto ? 'BREAK_AUTO_START' : 'BREAK_START', currentEmp.name + ' (ID: ' + empCode + ') — '
     + (breakType==='meal' ? '30-min unpaid meal break' : mins+'-min paid rest break')
-    + ' started at ' + new Date(bsTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
+    + (auto ? ' AUTO-STARTED at mandatory deadline ' : ' started at ')
+    + new Date(bsTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
   var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
   renderEmpState(); startBreakTimer(mins);
-  toast(breakType==='meal'?'Meal break started (30 min unpaid)':'Rest break started ('+mins+' min paid)');
+  if (auto) {
+    toast(breakType==='meal'
+      ? '🔔 Mandatory meal break auto-started — 30-min unpaid break is now being logged. Step away from work.'
+      : '🔔 Mandatory rest break auto-started — '+mins+'-min paid break is now being logged. Step away from work.', 10000);
+  } else {
+    toast(breakType==='meal'?'Meal break started (30 min unpaid)':'Rest break started ('+mins+' min paid)');
+  }
 }
 function startBreakTimer(mins) {
   stopBreakTimer();
@@ -5496,11 +5505,13 @@ function copyEmailTemplate() {
 // 10.1–12 hrs: 3 rest, 2 meal (1 waivable)
 /* ── CA Break Compliance ─────────────────────────────────────────────────
  * Juno Tech Laboratory break schedule:
- *   2h      → 1st paid rest break (10 min) — phone ring; delay once, mandatory at 2h15m
- *   4h      → Meal break (30 min unpaid)   — phone ring; delay once, mandatory at 4h15m
- *   6h      → 2nd paid rest break (10 min) — phone ring; delay once, mandatory at 6h15m
+ *   2h      → 1st paid rest break (10 min) — phone ring; delay once, AUTO-STARTS at 2h15m
+ *   4h      → Meal break (30 min unpaid)   — urgent alarm; delay once, AUTO-STARTS at 4h15m
+ *   6h      → 2nd paid rest break (10 min) — phone ring; delay once, AUTO-STARTS at 6h15m
  *   7h30m   → wrap-up alarm — 30 min to clock out
  *   8h      → hard shift limit — must clock out now
+ * At the mandatory deadline the break is logged automatically (audit-logged as
+ * auto-started); whether the employee physically steps away is on them.
  * ─────────────────────────────────────────────────────────────────────── */
 var REST1_HRS      = 2.0;         // 1st rest break at 2 hours
 var REST1_WARN_HRS = 2 - 10/60;   // pre-warning at 1h 50m
@@ -5641,14 +5652,13 @@ function scheduleBreakAlerts(clockInTs) {
     checkBreakCompliance();
   });
 
-  // ── 1st rest break MANDATORY (2h 15m) — no delay, phone ring
+  // ── 1st rest break MANDATORY (2h 15m) — break auto-starts
   _at(REST1_HARD_HRS, function() {
     if (clockState !== 'in') return;
     if (_restCountForSession(clockInTs) >= 1) return;
     _restDelayPhase = 1; // hard cutoff reached — no more delay
     _restDelayed    = false;
-    playPhoneRing();
-    checkBreakCompliance();
+    checkBreakCompliance(); // auto-starts the break + plays ring
   });
 
   // ── Meal break pre-warning (3h 50m)
@@ -5666,14 +5676,13 @@ function scheduleBreakAlerts(clockInTs) {
     checkBreakCompliance();
   });
 
-  // ── Meal break MANDATORY (4h 15m) — no delay, louder urgent alarm
+  // ── Meal break MANDATORY (4h 15m) — break auto-starts
   _at(MEAL_HARD_HRS, function() {
     if (clockState !== 'in' && clockState !== 'pending') return;
     if (_mealHandledForSession(clockInTs)) return;
     _mealSnoozePhase = 1; // hard cutoff reached — no more delay
     _mealSnoozed     = false;
-    playUrgentAlarm(true);
-    checkBreakCompliance();
+    checkBreakCompliance(); // auto-starts the break + plays loud alarm
   });
 
   // ── 2nd rest break pre-warning (5h 50m)
@@ -5693,14 +5702,13 @@ function scheduleBreakAlerts(clockInTs) {
     checkBreakCompliance();
   });
 
-  // ── 2nd rest break MANDATORY (6h 15m) — no delay, phone ring
+  // ── 2nd rest break MANDATORY (6h 15m) — break auto-starts
   _at(REST2_HARD_HRS, function() {
     if (clockState !== 'in') return;
     if (_restCountForSession(clockInTs) >= 2) return;
     _restDelayPhase = 1; // hard cutoff reached — no more delay
     _restDelayed    = false;
-    playPhoneRing();
-    checkBreakCompliance();
+    checkBreakCompliance(); // auto-starts the break + plays ring
   });
 
   // ── Shift wrap-up alarm (7h 30m) — urgent alarm, 30 min to clock out
@@ -5813,45 +5821,45 @@ function checkBreakCompliance() {
       + 'Staying beyond 8 hours requires prior manager approval.';
     alrtBtns.innerHTML = '<button onclick="handleClock()" class="tap w-full py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">⏹️ Clock Out Now</button>';
   } else if (mealDue && !_mealSnoozed) {
-    // ── Meal break — phase 0: delay available  |  phase 1: mandatory, no delay
-    alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
-    alrt.style.display = '';
+    // ── Meal break — phase 0: delay available  |  mandatory deadline: AUTO-START break
     var mealHardTime    = new Date(lastIn.getTime() + MEAL_HARD_HRS * 3600000);
     var mealHardTimeStr = mealHardTime.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
-    var mbtns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start Meal Break Now</button>';
-    if (_mealSnoozePhase === 0) {
-      alrtTitle.textContent = '🔔 30-Min Unpaid Meal Break Required';
-      alrtMsg.textContent = 'You have been working for ' + elapsedHrs.toFixed(1) + ' hours. '
-        + 'A 30-minute unpaid meal break is required. '
-        + 'You may delay once for a clinical emergency only. '
-        + 'Must take break by ' + mealHardTimeStr + ' — Mandatory: cannot delay after that time.';
-      mbtns += ' <button onclick="snoozeMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
-    } else {
-      alrtTitle.textContent = '🔔 Mandatory: Meal Break Now';
-      alrtMsg.textContent = 'Mandatory: cannot delay. Your 30-minute unpaid meal break must start now. '
-        + 'The ' + mealHardTimeStr + ' deadline has been reached. Compliance with labor laws is required.';
+    if (_mealSnoozePhase === 1 || elapsedHrs >= MEAL_HARD_HRS) {
+      // Deadline reached — break starts automatically; taking it is on the employee
+      playUrgentAlarm(true);
+      startBreak(30, 'meal', true);
+      return;
     }
+    alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
+    alrt.style.display = '';
+    var mbtns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start Meal Break Now</button>';
+    alrtTitle.textContent = '🔔 30-Min Unpaid Meal Break Required';
+    alrtMsg.textContent = 'You have been working for ' + elapsedHrs.toFixed(1) + ' hours. '
+      + 'A 30-minute unpaid meal break is required. '
+      + 'You may delay once for a clinical emergency only. '
+      + 'At ' + mealHardTimeStr + ' your break will start automatically.';
+    mbtns += ' <button onclick="snoozeMealBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
     alrtBtns.innerHTML = mbtns;
   } else if (restDue && !_restDelayed) {
-    // ── Rest break — phase 0: delay available  |  phase 1: mandatory, no delay
-    alrt.className = 'glass rounded-3xl px-5 py-4 break-notice';
-    alrt.style.display = '';
+    // ── Rest break — phase 0: delay available  |  mandatory deadline: AUTO-START break
     var restHardHrs     = restDue1 ? REST1_HARD_HRS : REST2_HARD_HRS;
     var restHardTime    = new Date(lastIn.getTime() + restHardHrs * 3600000);
     var restHardTimeStr = restHardTime.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
-    var rbtns = '<button onclick="startBreak(10,\'rest\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">☕ Start 10-min Rest Break</button>';
-    if (_restDelayPhase === 0) {
-      alrtTitle.textContent = '🔔 ' + restNum + ' 10-Min Paid Rest Break Due';
-      alrtMsg.textContent = 'You have earned your ' + restNum + ' 10-minute paid rest break. '
-        + 'This is a duty-free, paid period — step away completely. Your break will be automatically logged. '
-        + 'You may delay once for a clinical emergency only. '
-        + 'Must take break by ' + restHardTimeStr + ' — Mandatory: cannot delay after that time.';
-      rbtns += ' <button onclick="delayRestBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
-    } else {
-      alrtTitle.textContent = '🔔 Mandatory: ' + restNum + ' Rest Break Now';
-      alrtMsg.textContent = 'Mandatory: cannot delay. Your ' + restNum + ' 10-minute paid rest break must start now. '
-        + 'The ' + restHardTimeStr + ' deadline has been reached.';
+    if (_restDelayPhase === 1 || elapsedHrs >= restHardHrs) {
+      // Deadline reached — break starts automatically; taking it is on the employee
+      playPhoneRing();
+      startBreak(10, 'rest', true);
+      return;
     }
+    alrt.className = 'glass rounded-3xl px-5 py-4 break-notice';
+    alrt.style.display = '';
+    var rbtns = '<button onclick="startBreak(10,\'rest\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">☕ Start 10-min Rest Break</button>';
+    alrtTitle.textContent = '🔔 ' + restNum + ' 10-Min Paid Rest Break Due';
+    alrtMsg.textContent = 'You have earned your ' + restNum + ' 10-minute paid rest break. '
+      + 'This is a duty-free, paid period — step away completely. Your break will be automatically logged. '
+      + 'You may delay once for a clinical emergency only. '
+      + 'At ' + restHardTimeStr + ' your break will start automatically.';
+    rbtns += ' <button onclick="delayRestBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
     alrtBtns.innerHTML = rbtns;
   } else if (!_mealSnoozed && !_restDelayed) {
     alrt.style.display = 'none';
@@ -5887,10 +5895,9 @@ function snoozeMealBreak() {
   _mealSnoozeTimer = setTimeout(function() {
     _mealSnoozed = false;
     _mealSnoozeTimer = null;
-    _mealSnoozePhase = 1; // post-delay: mandatory, louder alarm
+    _mealSnoozePhase = 1; // post-delay: mandatory — break auto-starts
     if (clockState !== 'in' && clockState !== 'pending') return;
-    playUrgentAlarm(true);
-    checkBreakCompliance();
+    checkBreakCompliance(); // auto-starts the break + plays loud alarm
   }, 15 * 60 * 1000);
 }
 
@@ -5919,10 +5926,9 @@ function delayRestBreak() {
   _restDelayTimer = setTimeout(function() {
     _restDelayed = false;
     _restDelayTimer = null;
-    _restDelayPhase = 1; // post-delay: mandatory, no further delay
+    _restDelayPhase = 1; // post-delay: mandatory — break auto-starts
     if (clockState !== 'in') return;
-    playPhoneRing();
-    checkBreakCompliance();
+    checkBreakCompliance(); // auto-starts the break + plays ring
   }, 15 * 60 * 1000);
 }
 
