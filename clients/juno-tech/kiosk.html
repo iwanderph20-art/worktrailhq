@@ -1071,6 +1071,21 @@ video{object-fit:cover;transform:scaleX(-1);}
   </div>
 </div>
 
+<!-- Edit Day Log Modal — lists every entry for one employee-day; tap one to edit it fully -->
+<div id="editDayLogWrap" style="display:none;position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:20px;padding:22px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-1">
+      <p class="font-bold text-base" id="editDayLogTitle" style="color:#111827;">Edit Log</p>
+      <button onclick="closeEditDayLog()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
+    </div>
+    <p id="editDayLogSub" class="text-xs" style="color:#9ca3af;margin-bottom:14px;"></p>
+    <div id="editDayLogList"></div>
+    <div id="editDayLogExtra"></div>
+    <button onclick="closeEditDayLog()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-3"
+      style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">Done</button>
+  </div>
+</div>
+
 <!-- Manual Log Entry Modal -->
 <div id="manualEntryWrap" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
@@ -3087,39 +3102,18 @@ function _renderTablesImpl() {
           ?'<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;cursor:pointer;font-weight:700;">&#128205; Live</button>'
           :'';
 
-        // Edit/delete (tiny, secondary)
-        var editBtns='';
-        if (isMissingClockIn) {
-          var safeName4ci = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-          var ciDate = clockOutE._d;
-          var ciDateStr = ciDate.getFullYear()+'-'+String(ciDate.getMonth()+1).padStart(2,'0')+'-'+String(ciDate.getDate()).padStart(2,'0');
-          editBtns += '<button onclick="openQuickClockIn(\''+safeName4ci+'\',\''+ciDateStr+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#43; Add Clock In</button> ';
-        }
-        if (isStillIn && clockInE) {
-          var safeName4co = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-          var coDate = clockInE._d;
-          var coDateStr = coDate.getFullYear()+'-'+String(coDate.getMonth()+1).padStart(2,'0')+'-'+String(coDate.getDate()).padStart(2,'0');
-          editBtns += '<button onclick="openQuickClockOut(\''+safeName4co+'\',\''+coDateStr+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#43; Add Clock Out</button> ';
-        }
+        // Edit — one button opens the entire day log (all entries, add/edit/delete, miles)
+        var manualInfo='';
         raw.forEach(function(e){
-          var safeTs=String(e.ts).replace(/'/g,'');
-          var tl=TYPE_LABEL[e.type]||e.type;
-          var manualBadge=e.manualEntry?'<span title="Manually added by admin" style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span>'+(e.note?' <span style="font-size:9px;color:#92400e;font-style:italic;">'+e.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</span>':'')+' ':'';
-          editBtns+=manualBadge;
-          editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:500;">Edit '+tl+'</button> ';
-          editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
+          if(!e.manualEntry) return;
+          manualInfo+='<span title="Manually added by admin" style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span>'
+            +(e.note?' <span style="font-size:9px;color:#92400e;font-style:italic;">'+e.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</span> ':' ');
         });
-        // Edit Miles button — only for sessions that have a clock-in
-        if (clockInE) {
-          var safeMilesInTs = String(clockInE.ts).replace(/'/g,'');
-          var safeMilesName = name.replace(/'/g,"\\'");
-          var currentMi = milesVal != null ? Number(milesVal).toFixed(1) : '';
-          editBtns += '<button onclick="openEditMiles(\''+safeMilesInTs+'\',\''+safeMilesName+'\','+(currentMi||'null')+')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:700;">&#9999; Miles'+(currentMi?' ('+currentMi+')':'')+'</button> ';
-        }
-        // Delete-all-day button — deletes every entry for this employee on this day
-        var allTsJson=JSON.stringify(raw.map(function(e){return String(e.ts);})).replace(/"/g,'&quot;');
-        var deleteDayBtn='<button onclick="deleteAllDayEntries(JSON.parse(this.dataset.ts))" data-ts="'+allTsJson+'"'
-          +' style="font-size:9px;padding:2px 10px;border-radius:4px;background:#7f1d1d;color:#fef2f2;border:none;cursor:pointer;font-weight:700;letter-spacing:.02em;">&#128465; Delete Day Log</button>';
+        var logDay=(clockInE||clockOutE||emp[0])._d;
+        var logDayStr=logDay.getFullYear()+'-'+String(logDay.getMonth()+1).padStart(2,'0')+'-'+String(logDay.getDate()).padStart(2,'0');
+        var safeName4log=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        var editBtns=manualInfo+'<button onclick="openEditDayLog(\''+safeName4log+'\',\''+logDayStr+'\')" style="font-size:10px;padding:3px 12px;border-radius:5px;background:#eef2ff;color:#1a2b8c;border:1px solid #c7d2fe;cursor:pointer;font-weight:700;">&#9999; Edit Log</button>';
+        var deleteDayBtn='';
 
         // Break summary text
         var breakSummaryText = breakCount
@@ -3394,6 +3388,88 @@ function renderEditFacilityPills() {
   var other = document.getElementById('editFacOther');
   if (other) other.style.display = editSelectedFacilities.indexOf('Others') >= 0 ? '' : 'none';
 }
+/* ── Edit Day Log — one modal listing every entry for an employee-day ── */
+function _localDayStr(ts){ var d=new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function openEditDayLog(name, dayStr){
+  window._dayLogCtx = { name: name, dayStr: dayStr };
+  renderEditDayLog();
+  stopRecordsAutoRefresh(); // pause sync while the log editor is open
+  document.getElementById('editDayLogWrap').style.display = 'flex';
+}
+function closeEditDayLog(){
+  window._dayLogCtx = null;
+  document.getElementById('editDayLogWrap').style.display = 'none';
+  if (fbCfg && fbCfg.url) startRecordsAutoRefresh();
+}
+function refreshEditDayLog(){
+  var ctx = window._dayLogCtx;
+  if (!ctx) return;
+  if (document.getElementById('editDayLogWrap').style.display === 'none') return;
+  var records = store.getJ(K.timesheet, []);
+  var stillHas = records.some(function(r){ return r.name===ctx.name && _localDayStr(r.ts)===ctx.dayStr; });
+  if (!stillHas) { closeEditDayLog(); return; } // whole day was deleted
+  renderEditDayLog();
+}
+function renderEditDayLog(){
+  var ctx = window._dayLogCtx;
+  if (!ctx) return;
+  var records = store.getJ(K.timesheet, []);
+  var entries = records.filter(function(r){ return r.name===ctx.name && _localDayStr(r.ts)===ctx.dayStr; })
+    .map(function(e){ return Object.assign({}, e, { _d:new Date(e.ts) }); })
+    .sort(function(a,b){ return a._d - b._d; });
+  var allIns = entries.filter(function(e){ return e.type==='in'; });
+  var clockInE = allIns.length ? allIns[allIns.length-1] : null;
+  var clockOutE = null;
+  entries.forEach(function(e){ if(e.type==='out' && clockInE && e._d>clockInE._d) clockOutE=e; });
+  if (!clockInE && !clockOutE) entries.forEach(function(e){ if(e.type==='out') clockOutE=e; });
+  var isManualOnly = !!(clockInE && clockInE.manualEntry && !clockOutE);
+  var isStillIn = !!(clockInE && !clockOutE && !isManualOnly);
+  var isMissingClockIn = !clockInE && !!clockOutE;
+  var sessions = buildSessions(entries);
+  var sess = sessions.length ? sessions[sessions.length-1] : null;
+  var milesVal = sess ? sess.mileage : (clockInE && clockInE.mileage!=null ? clockInE.mileage : null);
+  if (!milesVal && clockOutE && clockOutE.mileage!=null) milesVal = clockOutE.mileage;
+
+  var dateLabel = new Date(ctx.dayStr+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('editDayLogTitle').textContent = 'Edit Log — ' + ctx.name;
+  document.getElementById('editDayLogSub').textContent = dateLabel + ' · tap an entry to edit its time, type, note, photo or location';
+
+  var timeFmt = { hour:'numeric', minute:'2-digit', hour12:true };
+  var listHtml = '';
+  if (!entries.length) {
+    listHtml = '<p style="font-size:13px;color:#9ca3af;padding:10px 0;">No entries for this day.</p>';
+  }
+  entries.forEach(function(e){
+    var tl = TYPE_LABEL[e.type] || e.type;
+    var t = e._d.toLocaleTimeString('en-US', timeFmt);
+    var safeTs = String(e.ts).replace(/'/g,'');
+    var dot = e.type==='in' ? '#15803d' : e.type==='out' ? '#dc2626' : (e.type&&e.type.indexOf('break')===0 ? '#d97706' : '#6b7280');
+    var manualTag = e.manualEntry ? ' <span title="Manually added by admin" style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221;</span>' : '';
+    listHtml += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+      + '<button onclick="openEditEntry(\''+safeTs+'\')" style="flex:1;text-align:left;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:#f9fafb;border:1px solid #e5e7eb;cursor:pointer;">'
+        + '<span style="width:9px;height:9px;border-radius:99px;background:'+dot+';flex-shrink:0;"></span>'
+        + '<span style="font-size:13px;font-weight:700;color:#111827;">'+tl+'</span>'
+        + manualTag
+        + '<span style="font-size:13px;color:#6b7280;font-variant-numeric:tabular-nums;margin-left:auto;">'+t+'</span>'
+      + '</button>'
+      + '<button onclick="deleteEntry(\''+safeTs+'\')" title="Delete this entry" style="flex-shrink:0;font-size:12px;padding:9px 11px;border-radius:8px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:700;">&#128465;</button>'
+    + '</div>';
+  });
+  document.getElementById('editDayLogList').innerHTML = listHtml;
+
+  var sn = ctx.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var snQ = ctx.name.replace(/'/g,"\\'");
+  var extra = '';
+  if (isMissingClockIn) extra += '<button onclick="openQuickClockIn(\''+sn+'\',\''+ctx.dayStr+'\')" style="font-size:10px;padding:4px 11px;border-radius:6px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#43; Add Clock In</button>';
+  if (isStillIn && clockInE) extra += '<button onclick="openQuickClockOut(\''+sn+'\',\''+ctx.dayStr+'\')" style="font-size:10px;padding:4px 11px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#43; Add Clock Out</button>';
+  if (clockInE) {
+    var mi = milesVal!=null ? Number(milesVal).toFixed(1) : '';
+    extra += '<button onclick="openEditMiles(\''+String(clockInE.ts).replace(/'/g,'')+'\',\''+snQ+'\','+(mi||'null')+')" style="font-size:10px;padding:4px 11px;border-radius:6px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:700;">&#9999; Miles'+(mi?' ('+mi+')':'')+'</button>';
+  }
+  var allTsJson = JSON.stringify(entries.map(function(e){ return String(e.ts); })).replace(/"/g,'&quot;');
+  extra += '<button onclick="deleteAllDayEntries(JSON.parse(this.dataset.ts))" data-ts="'+allTsJson+'" style="font-size:10px;padding:4px 11px;border-radius:6px;background:#7f1d1d;color:#fef2f2;border:none;cursor:pointer;font-weight:700;">&#128465; Delete Day Log</button>';
+  document.getElementById('editDayLogExtra').innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;margin-top:4px;border-top:1px solid #f3f4f6;">'+extra+'</div>';
+}
 function openEditEntry(ts) {
   var records = store.getJ(K.timesheet, []);
   var entry = null;
@@ -3470,6 +3546,7 @@ function closeEditEntry() {
   if (empPhotoNone) empPhotoNone.style.display = '';
   // Resume auto-sync now that edit modal is closed
   if (fbCfg && fbCfg.url) startRecordsAutoRefresh();
+  refreshEditDayLog(); // keep the day-log list fresh if it's open underneath
 }
 function saveEditEntry() {
   var origTs = document.getElementById('editOrigTs').value;
@@ -4115,35 +4192,13 @@ function showCalDay(dateStr, empFilter){
     var liveLocBtn=(isApproved&&isStillIn&&!isManualOnly)
       ?'<button onclick="seeEmpOnMap(\''+safeName4map+'\')" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;cursor:pointer;font-weight:700;">&#128205; Live</button>'
       :'';
-    var editBtns='';
-    if(isMissingClockIn){
-      var sn4ci=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      var ciD=clockOutE._d;
-      var ciDs=ciD.getFullYear()+'-'+String(ciD.getMonth()+1).padStart(2,'0')+'-'+String(ciD.getDate()).padStart(2,'0');
-      editBtns+='<button onclick="openQuickClockIn(\''+sn4ci+'\',\''+ciDs+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#43; Add Clock In</button> ';
-    }
-    if(isStillIn && clockInE){
-      var sn4co=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      var coD=clockInE._d;
-      var coDs=coD.getFullYear()+'-'+String(coD.getMonth()+1).padStart(2,'0')+'-'+String(coD.getDate()).padStart(2,'0');
-      editBtns+='<button onclick="openQuickClockOut(\''+sn4co+'\',\''+coDs+'\')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#43; Add Clock Out</button> ';
-    }
-    raw.forEach(function(e){
-      var safeTs=String(e.ts).replace(/'/g,'');
-      var tl=TYPE_LABEL[e.type]||e.type;
-      var manualBadge=e.manualEntry?'<span style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span> ':'';
-      editBtns+=manualBadge;
-      editBtns+='<button onclick="openEditEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;font-weight:500;">Edit '+tl+'</button> ';
-      editBtns+='<button onclick="deleteEntry(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button> ';
-    });
-    if(clockInE){
-      var safeMilesInTs2=String(clockInE.ts).replace(/'/g,'');
-      var safeMilesName2=name.replace(/'/g,"\\'");
-      var currentMi2=milesVal!=null?Number(milesVal).toFixed(1):'';
-      editBtns+='<button onclick="openEditMiles(\''+safeMilesInTs2+'\',\''+safeMilesName2+'\','+(currentMi2||'null')+')" style="font-size:9px;padding:2px 9px;border-radius:4px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer;font-weight:700;">&#9999; Miles'+(currentMi2?' ('+currentMi2+')':'')+'</button> ';
-    }
-    var allTsJson=JSON.stringify(raw.map(function(e){return String(e.ts);})).replace(/"/g,'&quot;');
-    var deleteDayBtn='<button onclick="deleteAllDayEntries(JSON.parse(this.dataset.ts))" data-ts="'+allTsJson+'" style="font-size:9px;padding:2px 10px;border-radius:4px;background:#7f1d1d;color:#fef2f2;border:none;cursor:pointer;font-weight:700;">&#128465; Delete Day Log</button>';
+    var manualInfo='';
+    raw.forEach(function(e){ if(e.manualEntry) manualInfo+='<span style="font-size:9px;background:#fef9c3;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 5px;font-weight:700;">&#128221; Manual</span> '; });
+    var logDay2=(clockInE||clockOutE||emp[0])._d;
+    var logDayStr2=logDay2.getFullYear()+'-'+String(logDay2.getMonth()+1).padStart(2,'0')+'-'+String(logDay2.getDate()).padStart(2,'0');
+    var safeName4log2=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var editBtns=manualInfo+'<button onclick="openEditDayLog(\''+safeName4log2+'\',\''+logDayStr2+'\')" style="font-size:10px;padding:3px 12px;border-radius:5px;background:#eef2ff;color:#1a2b8c;border:1px solid #c7d2fe;cursor:pointer;font-weight:700;">&#9999; Edit Log</button>';
+    var deleteDayBtn='';
     var breakSummaryText=breakCount?breakCount+' break'+(breakCount!==1?'s':'')+(mealCount?' ('+mealCount+' meal)':''):'None';
 
     cardsHtml+='<div style="background:'+cardBg+';border-radius:14px;border:1px solid rgba(0,0,0,.08);border-left:4px solid '+accentColor+';margin-bottom:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06);">'
@@ -4941,7 +4996,7 @@ function toggleFacility(el,name){
 function resetFacilityPills(){ selectedFacilities=[]; renderFacilityPills(); var o=document.getElementById('facOther'); if(o){o.value='';o.style.display='none';} }
 
 /* ── renderTables ────────────────────────── */
-function renderTables() { _renderTablesImpl(); }
+function renderTables() { _renderTablesImpl(); refreshEditDayLog(); }
 
 /* ── Photo lazy-load from IndexedDB ─────── */
 function showThumbPhoto(ts, caption) {
@@ -5460,8 +5515,8 @@ var SHIFT_WARN_HRS = 7.5;         // wrap-up alarm at 7h 30m
 var SHIFT_MAX_HRS  = 8.0;         // hard shift limit — must clock out
 
 // ── Master break enforcement switch ──────────────────────────────
-// Set to true to re-enable all break alerts, compliance checks, and clock-out gate.
-var BREAKS_ENABLED = false;
+// Set to false to disable all break alerts, compliance checks, and clock-out gate.
+var BREAKS_ENABLED = true;
 
 // Employees exempt from break notifications (names must match exactly as entered)
 var BREAK_EXEMPT = ['Mylyn', 'Jose', 'Julissa', 'Cristina'];
@@ -5508,18 +5563,20 @@ function playBreakChime() {
   } catch(e) {}
 }
 
-function playUrgentAlarm() {
+function playUrgentAlarm(loud) {
   try {
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Repeating two-tone alarm: 880 Hz → 660 Hz, 3 cycles
-    for (var cycle = 0; cycle < 3; cycle++) {
+    // Repeating two-tone alarm: 880 Hz → 660 Hz, 3 cycles (5 louder cycles when mandatory)
+    var cycles = loud ? 5 : 3;
+    var vol    = loud ? 0.5 : 0.25;
+    for (var cycle = 0; cycle < cycles; cycle++) {
       [880, 660].forEach(function(freq, j) {
         var osc = ctx.createOscillator(), gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'square';
         osc.frequency.value = freq;
         var t = ctx.currentTime + cycle * 0.6 + j * 0.3;
-        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.setValueAtTime(vol, t);
         gain.gain.setValueAtTime(0, t + 0.28);
         osc.start(t); osc.stop(t + 0.29);
       });
@@ -5609,13 +5666,13 @@ function scheduleBreakAlerts(clockInTs) {
     checkBreakCompliance();
   });
 
-  // ── Meal break MANDATORY (4h 15m) — no delay, urgent alarm
+  // ── Meal break MANDATORY (4h 15m) — no delay, louder urgent alarm
   _at(MEAL_HARD_HRS, function() {
     if (clockState !== 'in' && clockState !== 'pending') return;
     if (_mealHandledForSession(clockInTs)) return;
     _mealSnoozePhase = 1; // hard cutoff reached — no more delay
     _mealSnoozed     = false;
-    playUrgentAlarm();
+    playUrgentAlarm(true);
     checkBreakCompliance();
   });
 
@@ -5786,7 +5843,7 @@ function checkBreakCompliance() {
     if (_restDelayPhase === 0) {
       alrtTitle.textContent = '🔔 ' + restNum + ' 10-Min Paid Rest Break Due';
       alrtMsg.textContent = 'You have earned your ' + restNum + ' 10-minute paid rest break. '
-        + 'This is a duty-free, paid period. '
+        + 'This is a duty-free, paid period — step away completely. Your break will be automatically logged. '
         + 'You may delay once for a clinical emergency only. '
         + 'Must take break by ' + restHardTimeStr + ' — Mandatory: cannot delay after that time.';
       rbtns += ' <button onclick="delayRestBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
@@ -5830,9 +5887,9 @@ function snoozeMealBreak() {
   _mealSnoozeTimer = setTimeout(function() {
     _mealSnoozed = false;
     _mealSnoozeTimer = null;
-    _mealSnoozePhase = 1; // post-delay: show final delay option with deadline time
+    _mealSnoozePhase = 1; // post-delay: mandatory, louder alarm
     if (clockState !== 'in' && clockState !== 'pending') return;
-    playUrgentAlarm();
+    playUrgentAlarm(true);
     checkBreakCompliance();
   }, 15 * 60 * 1000);
 }
