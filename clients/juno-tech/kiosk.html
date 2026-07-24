@@ -7072,7 +7072,9 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   // ── Guaranteed weekly minimum (Enrique Blanco contract) ──────────────
   // Per contract, Enrique is paid at least $360/week — whichever is higher
   // between his hours-based wages and the weekly guarantee. Applies even
-  // when he logs no hours for the period.
+  // when he logs no hours for the period. The entire guarantee is taxable
+  // gross wages; when he earns above the guarantee, the full earned amount
+  // is taxed instead. Either way, the whole gross wage is taxed.
   var guaranteeApplied = false, guaranteeMin = 0, guaranteeTopUp = 0, guaranteeNonTax = 0;
   if (emp.name === 'Enrique Blanco') {
     var gWeeks   = Math.max(1, Math.round((periodDays || 7) / 7));
@@ -7080,15 +7082,9 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
     if (grossWages < guaranteeMin) {
       guaranteeTopUp   = r2(guaranteeMin - grossWages);
       guaranteeApplied = true;
-      if (earnedWages === 0) {
-        // No hours worked this week: only $289/wk of the $360 guarantee is
-        // taxable; the $71/wk difference is paid as a non-taxable amount.
-        grossWages      = r2(289 * gWeeks);
-        guaranteeNonTax = r2((360 - 289) * gWeeks);
-      } else {
-        // Some hours worked but below the guarantee — full top-up is taxable.
-        grossWages = guaranteeMin;
-      }
+      // Guarantee is fully taxable — the entire $360/wk minimum counts as
+      // gross wages, regardless of hours logged (including zero-hour weeks).
+      grossWages = guaranteeMin;
     }
   }
 
