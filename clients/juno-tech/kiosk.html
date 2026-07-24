@@ -1384,6 +1384,7 @@ var clockState = 'out';
 var breakTimerID = null;
 var breakStart = null;
 var breakMins = 0;
+var _currentBreakAuto = false; // true when the in-progress break was auto-started at the deadline
 var pendingAction = null;
 var pendingEntryTs = null;
 var camStream = null;
@@ -2089,7 +2090,7 @@ function captureAndClock() {
 /* ── breaks ─────────────────────────────── */
 function startBreak(mins, btype, auto) {
   var breakType = btype || (mins >= 30 ? 'meal' : 'rest');
-  breakMins=mins; breakStart=new Date(); clockState='break';
+  breakMins=mins; breakStart=new Date(); clockState='break'; _currentBreakAuto=!!auto;
   var lbl = breakType==='meal'
     ? '30-min unpaid meal break — back in 30 minutes'
     : mins+'-min paid rest break started';
@@ -2143,8 +2144,16 @@ function endBreak() {
     return;
   }
   stopBreakTimer(); clockState='in';
-  var beTs=new Date().toISOString();
-  var actualMins = breakStart ? ((new Date() - breakStart) / 60000) : breakMins;
+  // Auto-started breaks represent the legally required period. If the device was
+  // asleep/backgrounded and the break ran long, cap the recorded end at
+  // breakStart + breakMins so payroll deducts exactly the required time (never more).
+  var endD = new Date();
+  if (_currentBreakAuto && breakStart) {
+    var scheduledEnd = new Date(breakStart.getTime() + breakMins*60000);
+    if (endD > scheduledEnd) endD = scheduledEnd;
+  }
+  var beTs=endD.toISOString();
+  var actualMins = breakStart ? ((endD - breakStart) / 60000) : breakMins;
   var empCode = currentEmp.code || currentEmp.name;
   var beEntry={name:currentEmp.name,type:'break_end',ts:beTs,note:breakMins+' min',empId:empCode};
   var arr=store.getJ(K.timesheet,[]);
@@ -2156,7 +2165,7 @@ function endBreak() {
   logAdminAction('BREAK_END', currentEmp.name + ' (ID: ' + empCode + ') — break ended at '
     + new Date(beTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
     + '. Duration: ' + actualMins.toFixed(1) + ' min.');
-  breakStart=null; breakMins=0;
+  breakStart=null; breakMins=0; _currentBreakAuto=false;
   if (!isMeal) { _restDelayPhase = 0; _restDelayed = false; }
   renderEmpState(); updateTodaySummary();
   checkBreakCompliance(); // re-evaluate remaining break obligations
@@ -5775,6 +5784,38 @@ function stopBreakCheck() {
   if (_restDelayTimer)  { clearTimeout(_restDelayTimer);  _restDelayTimer  = null; }
   _restDelayed = false; _restDelayPhase  = 0;
 }
+
+/* ── Resume handler — mobile browsers throttle/suspend setTimeout & setInterval
+ * when the screen locks or the app is backgrounded (exactly what happens when an
+ * employee ignores a break and pockets the phone). On resume we immediately
+ * re-evaluate so an overdue break auto-starts and a finished auto-break auto-ends,
+ * instead of waiting up to a minute for the throttled fallback interval. ── */
+function _resumeBreakEnforcement() {
+  if (!BREAKS_ENABLED) return;
+  if (!currentEmp || _isBreakExempt()) return;
+  if (clockState === 'break') {
+    // A break that ran past its intended duration while backgrounded: end it now
+    // (endBreak caps the recorded end so payroll isn't over-deducted).
+    if (breakStart && breakMins) {
+      var elapsed = (new Date() - breakStart) / 60000;
+      if (elapsed >= breakMins) { endBreak(); return; }
+    }
+    startBreakTimer(breakMins); // re-arm the visible countdown
+  } else if (clockState === 'in' || clockState === 'pending') {
+    // Reschedule dropped alert timers, then auto-start any break that came due while away.
+    var entries = store.getJ(K.timesheet, []).filter(function(e){
+      return currentEmp && e.name === currentEmp.name && e.type === 'in';
+    }).sort(function(a,b){ return new Date(b.ts) - new Date(a.ts); });
+    if (entries.length) scheduleBreakAlerts(entries[0].ts);
+    checkBreakCompliance();
+  }
+}
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'visible') _resumeBreakEnforcement();
+});
+window.addEventListener('focus', _resumeBreakEnforcement);
+window.addEventListener('pageshow', _resumeBreakEnforcement);
+
 function checkBreakCompliance() {
   if (!BREAKS_ENABLED) { var a=document.getElementById('breakAlert'); if(a) a.style.display='none'; return; }
   if(!currentEmp || (clockState !== 'in' && clockState !== 'pending')) return;
