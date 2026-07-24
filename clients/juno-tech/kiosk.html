@@ -1012,7 +1012,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Date &amp; Time</label>
-        <input id="editDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+        <input id="editDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;" oninput="updateEditDrawPreview()">
       </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Note</label>
@@ -1029,18 +1029,18 @@ video{object-fit:cover;transform:scaleX(-1);}
       <!-- Travel / Draw time split — only shown on clock-in entries for phlebotomists -->
       <div id="editTimeSplitRow" style="display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px;">
         <p class="text-xs font-bold mb-1" style="color:#1a2b8c;">&#9201; Time Split (Admin)</p>
-        <p class="text-xs mb-3" style="color:#6b7280;">Enter how much of this shift was travel vs. draw time. Leave blank to count all hours at draw rate.</p>
+        <p class="text-xs mb-3" style="color:#6b7280;">Enter travel hours only. Draw time is calculated automatically as the remaining hours (total − travel). Leave blank to count all hours at draw rate.</p>
         <div style="display:flex;gap:8px;">
           <div style="flex:1;">
             <label class="text-xs font-semibold" style="color:#6b7280;">Travel Hours</label>
-            <input id="editTravelHours" type="number" step="0.25" min="0" placeholder="e.g. 1.0" class="inp mt-1" style="color:#111827;width:100%;">
+            <input id="editTravelHours" type="number" step="0.25" min="0" placeholder="e.g. 1.0" class="inp mt-1" style="color:#111827;width:100%;" oninput="updateEditDrawPreview()">
           </div>
           <div style="flex:1;">
-            <label class="text-xs font-semibold" style="color:#6b7280;">Draw Hours</label>
-            <input id="editDrawHours" type="number" step="0.25" min="0" placeholder="e.g. 6.0" class="inp mt-1" style="color:#111827;width:100%;">
+            <label class="text-xs font-semibold" style="color:#6b7280;">Draw Hours <span style="font-weight:400;color:#9ca3af;">(auto)</span></label>
+            <input id="editDrawHours" type="text" readonly placeholder="total − travel" class="inp mt-1" style="color:#6b7280;width:100%;background:#eef2ff;cursor:not-allowed;">
           </div>
         </div>
-        <p id="editTimeSplitNote" class="text-xs mt-2" style="color:#9ca3af;">Total must equal shift duration once clocked out.</p>
+        <p id="editTimeSplitNote" class="text-xs mt-2" style="color:#9ca3af;">Draw = shift duration − travel, calculated automatically.</p>
       </div>
       <div>
         <label class="text-xs font-semibold" style="color:#6b7280;">Employee Photo</label>
@@ -1131,11 +1131,11 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div>
             <label class="text-xs font-semibold" style="color:#6b7280;">Clock In</label>
-            <input id="manualInDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+            <input id="manualInDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;" oninput="updateManualDrawPreview()">
           </div>
           <div>
             <label class="text-xs font-semibold" style="color:#6b7280;">Clock Out</label>
-            <input id="manualOutDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+            <input id="manualOutDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;" oninput="updateManualDrawPreview()">
           </div>
         </div>
         <div style="margin-top:10px;">
@@ -1147,15 +1147,15 @@ video{object-fit:cover;transform:scaleX(-1);}
         <!-- Travel / Draw split — shown in Full Shift mode -->
         <div id="manualSplitRow" style="display:none;margin-top:10px;">
           <p class="text-xs font-semibold" style="color:#6b7280;margin-bottom:4px;">Hours Split <span style="font-weight:400;color:#9ca3af;">(optional)</span></p>
-          <p class="text-xs" style="color:#6b7280;margin-bottom:8px;">Enter how many hours were travel vs. draw — no need for exact times. Leave blank to count all hours as draw time.</p>
+          <p class="text-xs" style="color:#6b7280;margin-bottom:8px;">Enter travel hours only — no need for exact times. Draw time is calculated automatically as the remaining hours (total − travel). Leave blank to count all hours as draw time.</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div>
               <label class="text-xs font-semibold" style="color:#6b7280;">Travel Hours</label>
-              <input id="manualTravelHours" type="number" step="0.25" min="0" placeholder="e.g. 1.0" class="inp w-full mt-1" style="color:#111827;">
+              <input id="manualTravelHours" type="number" step="0.25" min="0" placeholder="e.g. 1.0" class="inp w-full mt-1" style="color:#111827;" oninput="updateManualDrawPreview()">
             </div>
             <div>
-              <label class="text-xs font-semibold" style="color:#6b7280;">Draw Hours</label>
-              <input id="manualDrawHours" type="number" step="0.25" min="0" placeholder="e.g. 6.0" class="inp w-full mt-1" style="color:#111827;">
+              <label class="text-xs font-semibold" style="color:#6b7280;">Draw Hours <span style="font-weight:400;color:#9ca3af;">(auto)</span></label>
+              <input id="manualDrawHours" type="text" readonly placeholder="total − travel" class="inp w-full mt-1" style="color:#6b7280;background:#f3f4f6;cursor:not-allowed;">
             </div>
           </div>
         </div>
@@ -3488,6 +3488,43 @@ function renderEditDayLog(){
   extra += '<button onclick="deleteAllDayEntries(JSON.parse(this.dataset.ts))" data-ts="'+allTsJson+'" style="font-size:10px;padding:4px 11px;border-radius:6px;background:#7f1d1d;color:#fef2f2;border:none;cursor:pointer;font-weight:700;">&#128465; Delete Day Log</button>';
   document.getElementById('editDayLogExtra').innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;margin-top:4px;border-top:1px solid #f3f4f6;">'+extra+'</div>';
 }
+/* ── Draw-time preview: draw = shift total − travel (payroll derives the same) ── */
+function _pairedOutTsForIn(name, inTsIso) {
+  var recs = store.getJ(K.timesheet, []).filter(function(e){ return e.name === name; })
+    .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+  var inMs = new Date(inTsIso).getTime();
+  for (var i = 0; i < recs.length; i++) {
+    if (recs[i].type === 'out' && new Date(recs[i].ts).getTime() > inMs) return recs[i].ts;
+  }
+  return null;
+}
+function updateManualDrawPreview() {
+  var el = document.getElementById('manualDrawHours');
+  if (!el) return;
+  var inDt  = document.getElementById('manualInDatetime').value;
+  var outDt = document.getElementById('manualOutDatetime').value;
+  var travel = parseFloat(document.getElementById('manualTravelHours').value) || 0;
+  if (!inDt || !outDt) { el.value = ''; return; }
+  var totalH = (new Date(outDt).getTime() - new Date(inDt).getTime()) / 3600000;
+  if (!(totalH > 0)) { el.value = ''; return; }
+  el.value = (Math.round(Math.max(0, totalH - travel) * 100) / 100) + ' hr';
+}
+function updateEditDrawPreview() {
+  var el = document.getElementById('editDrawHours');
+  if (!el) return;
+  var origTs = document.getElementById('editOrigTs').value;
+  var rec = null;
+  store.getJ(K.timesheet, []).forEach(function(r){ if (String(r.ts) === String(origTs)) rec = r; });
+  if (!rec) { el.value = ''; return; }
+  var outTs = _pairedOutTsForIn(rec.name, origTs);
+  if (!outTs) { el.value = 'clock out first'; return; }
+  var dtVal = document.getElementById('editDatetime').value;
+  var inMs  = dtVal ? new Date(dtVal).getTime() : new Date(origTs).getTime();
+  var travel = parseFloat(document.getElementById('editTravelHours').value) || 0;
+  var totalH = (new Date(outTs).getTime() - inMs) / 3600000;
+  if (!(totalH > 0)) { el.value = ''; return; }
+  el.value = (Math.round(Math.max(0, totalH - travel) * 100) / 100) + ' hr';
+}
 function openEditEntry(ts) {
   var records = store.getJ(K.timesheet, []);
   var entry = null;
@@ -3510,7 +3547,7 @@ function openEditEntry(ts) {
   var showSplit = isClockIn && SPLIT_EMPS.indexOf(entry.name) >= 0;
   document.getElementById('editTimeSplitRow').style.display = showSplit ? '' : 'none';
   document.getElementById('editTravelHours').value = (showSplit && entry.travelHours != null) ? entry.travelHours : '';
-  document.getElementById('editDrawHours').value   = (showSplit && entry.drawHours   != null) ? entry.drawHours   : '';
+  if (showSplit) updateEditDrawPreview();
   // Load facilities
   var storedFacs = entry.facilities || [];
   var knownFacs = storedFacs.filter(function(f){ return FACILITIES.indexOf(f) >= 0; });
@@ -3612,9 +3649,8 @@ function saveEditEntry() {
       }
       if (r.type === 'in') {
         var tRaw = document.getElementById('editTravelHours').value.trim();
-        var dRaw = document.getElementById('editDrawHours').value.trim();
         r.travelHours = tRaw !== '' ? (parseFloat(tRaw) || 0) : null;
-        r.drawHours   = dRaw !== '' ? (parseFloat(dRaw) || 0) : null;
+        r.drawHours   = null; // draw is derived at payroll as (total − travel)
       }
       if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately under admin_{ts}; never overwrites employee photo
       // Save updated facilities
@@ -3888,16 +3924,17 @@ function saveManualEntry() {
       var n = parseFloat(raw);
       return (isFinite(n) && n > 0) ? Math.round(n*100)/100 : null;
     }
-    var drawHrsCalc   = parseHrs(document.getElementById('manualDrawHours').value);
     var travelHrsCalc = parseHrs(document.getElementById('manualTravelHours').value);
     var outEntry = {
       ts: makeUniqueTs(outTs, arr), name: empName, type: 'out', note: note,
       manualEntry: true, addedBy: 'admin', addedAt: addedAt,
       facilities: facList, hasPhoto: false
     };
-    if (drawHrsCalc !== null || travelHrsCalc !== null) {
-      outEntry.drawHours   = drawHrsCalc;
-      outEntry.travelHours = travelHrsCalc;
+    // Split lives on the clock-IN entry (where payroll reads it). Draw is derived
+    // at payroll time as (shift total − travel), so we only store travel.
+    if (travelHrsCalc !== null) {
+      inEntry.travelHours = travelHrsCalc;
+      inEntry.drawHours   = null;
     }
     arr.push(inEntry);
     arr.push(outEntry);
@@ -5538,10 +5575,14 @@ var SHIFT_MAX_HRS  = 8.0;         // hard shift limit — must clock out
 // Set to false to disable all break alerts, compliance checks, and clock-out gate.
 var BREAKS_ENABLED = true;
 
-// Employees exempt from break notifications (names must match exactly as entered)
+// Break coverage now includes ALL employees. The staff below were previously
+// exempt; they are phased into the break structure starting BREAK_ALL_EFFECTIVE.
+// Until that date they stay exempt so the current week's schedule is unchanged.
 var BREAK_EXEMPT = ['Mylyn', 'Jose', 'Julissa', 'Cristina'];
+var BREAK_ALL_EFFECTIVE = new Date(2026, 6, 27); // Mon Jul 27 2026 00:00 local — all employees covered
 function _isBreakExempt() {
   if (!currentEmp) return false;
+  if (Date.now() >= BREAK_ALL_EFFECTIVE.getTime()) return false; // everyone covered from this date on
   return BREAK_EXEMPT.indexOf(currentEmp.name) !== -1;
 }
 
@@ -7017,9 +7058,11 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
 
   hoursWorked = r2(hoursWorked);
 
-  // Use admin-entered split if available; otherwise all hours are draw time
-  var drawHrs   = r2(hasSplit ? (totalDrawHours   || 0) : hoursWorked);
-  var travelHrs = r2(hasSplit ? (totalTravelHours || 0) : 0);
+  // Travel is admin-entered; draw is always the REMAINING hours (total − travel),
+  // so travel + draw always equals the paid shift total. If no split entered,
+  // travel is 0 and all hours count as draw time.
+  var travelHrs = r2(hasSplit ? Math.min(totalTravelHours || 0, hoursWorked) : 0);
+  var drawHrs   = r2(Math.max(0, hoursWorked - travelHrs));
 
   var drawWages   = r2(drawHrs   * rate);
   var travelWages = r2(travelHrs * travelRate);
