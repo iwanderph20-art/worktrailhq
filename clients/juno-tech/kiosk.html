@@ -6213,6 +6213,8 @@ function clearOldRecords() {
     var tsClean=store.getJ(K.timesheet,[]).filter(function(e){return e.name!=='Hans Duran';});
     store.setJ(K.timesheet,tsClean);
   })();
+  // One-time cleanup: remove the retired supply-log data from local storage
+  store.del('jtl_supplies');
   store.set(K.adminHash,DEFAULT_HASH);
   injectLogos(); fbInit(); renderFacilityPills();
   // Auto-sync employee codes from Firebase on every page load so regenerated PINs
@@ -6254,6 +6256,14 @@ function clearOldRecords() {
       });
     // Remove Hans from Firebase employees node
     fetch(fbCfg.url+'/jtl/employees/hans-duran.json',{method:'DELETE'}).catch(function(){});
+  })();
+  // One-time Firebase purge: permanently delete the retired supplies node.
+  // Must run AFTER fbInit() so fbCfg.url is populated.
+  (function suppliesFbPurge(){
+    if (!fbCfg.url) return;
+    if (store.getJ('jtl_supplies_fb_purged', false)) return;
+    store.setJ('jtl_supplies_fb_purged', true); // set flag immediately so concurrent calls don't double-fire
+    fetch(fbCfg.url+'/jtl/supplies.json',{method:'DELETE'}).catch(function(){});
   })();
   initPhotoDB(); // warm up IndexedDB for photos
   updateStorageUsage();
