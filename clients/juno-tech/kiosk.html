@@ -399,73 +399,6 @@ video{object-fit:cover;transform:scaleX(-1);}
   </div>
 </div>
 
-<!-- ── SUPPLY MODAL ───────────────────────────────────── -->
-<div id="supplyWrap" class="m-sheet">
-  <div class="m-bg" onclick="closeSupply()"></div>
-  <div class="relative w-full z-10 glass rounded-t-3xl p-6" style="max-width:520px;max-height:90vh;overflow-y:auto;">
-    <div class="flex items-center justify-between mb-4">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;">RECEIVED</span>
-        <h3 class="text-lg font-bold" style="color:#111827;">Supply Log</h3>
-      </div>
-      <button onclick="closeSupply()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
-    </div>
-    <p style="font-size:12px;color:#1d4ed8;background:#eff6ff;border-radius:10px;padding:10px 12px;margin:0 0 12px;">Log supplies you have <strong>received</strong>. Add as many items as needed.</p>
-    <!-- Received From -->
-    <div style="margin-bottom:12px;">
-      <p style="font-size:12px;font-weight:600;color:#374151;margin:0 0 5px;">Received From</p>
-      <select id="supplyFrom" class="inp" style="font-size:13px;border-color:#93c5fd;">
-        <option value="">Select source…</option>
-        <option value="SDI Lab">SDI Lab</option>
-        <option value="Juno Tech Lab">Juno Tech Lab</option>
-        <option value="Other">Other</option>
-      </select>
-    </div>
-    <div id="supplyRows" style="margin-bottom:8px;"></div>
-    <button onclick="addSupplyRow('supplyRows','#93c5fd')" class="tap w-full py-2 rounded-xl text-sm font-semibold mb-3"
-      style="background:#eff6ff;color:#1d4ed8;border:1px dashed #93c5fd;cursor:pointer;">＋ Add Another Item</button>
-    <input id="supplyNote" type="text" placeholder="Notes (optional)…" class="inp mb-3">
-    <!-- Photo attachment -->
-    <div style="margin-bottom:12px;">
-      <p style="font-size:12px;font-weight:600;color:#374151;margin:0 0 5px;">&#128247; Attach Photo <span style="font-weight:400;color:#9ca3af;">(optional)</span></p>
-      <input type="file" id="supplyPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="previewSupplyPhoto(this)">
-      <div id="supplyPhotoPreview" style="display:none;position:relative;width:100%;border-radius:12px;overflow:hidden;margin-bottom:8px;max-height:180px;">
-        <img id="supplyPhotoImg" src="" style="width:100%;object-fit:cover;display:block;border-radius:12px;">
-        <button onclick="clearSupplyPhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);border:none;border-radius:99px;width:28px;height:28px;cursor:pointer;color:#fff;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;">&#10005;</button>
-      </div>
-      <button onclick="document.getElementById('supplyPhotoInput').click()" class="tap w-full py-3 rounded-xl text-sm font-semibold"
-        style="background:#f0fdf4;color:#15803d;border:1.5px dashed #86efac;cursor:pointer;">&#128247; Take / Upload Photo</button>
-    </div>
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
-      <p style="font-size:12px;color:#92400e;line-height:1.6;margin:0;">
-        By clicking <strong>Confirm &amp; Submit</strong>, you certify that the items listed above have been received in the quantities described and that this information is accurate to the best of your knowledge.
-      </p>
-    </div>
-    <button onclick="submitSupply()" class="tap w-full py-4 rounded-2xl font-semibold text-white"
-      style="background:#1a2b8c;border:none;cursor:pointer;">Confirm &amp; Submit</button>
-  </div>
-</div>
-
-<!-- ── SUPPLY REQUEST MODAL (employee requests — orange) ── -->
-<div id="supplyRequestWrap" class="m-sheet">
-  <div class="m-bg" onclick="closeSupplyRequest()"></div>
-  <div class="relative w-full z-10 rounded-t-3xl p-6" style="background:#fff7ed;max-width:520px;max-height:90vh;overflow-y:auto;">
-    <div class="flex items-center justify-between mb-4">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="background:#fed7aa;color:#c2410c;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;">REQUEST</span>
-        <h3 class="text-lg font-bold" style="color:#111827;">Supply Request</h3>
-      </div>
-      <button onclick="closeSupplyRequest()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
-    </div>
-    <p style="font-size:12px;color:#9a3412;background:#ffedd5;border-radius:10px;padding:10px 12px;margin:0 0 12px;">Select items you need restocked. Add as many as needed — this will be sent to admin.</p>
-    <div id="supplyReqRows" style="margin-bottom:8px;"></div>
-    <button onclick="addSupplyRow('supplyReqRows','#fdba74')" class="tap w-full py-2 rounded-xl text-sm font-semibold mb-3"
-      style="background:#fff7ed;color:#c2410c;border:1px dashed #fdba74;cursor:pointer;">＋ Add Another Item</button>
-    <input id="supplyReqNote" type="text" placeholder="Notes (optional)…" class="inp mb-3" style="border-color:#fdba74;">
-    <button onclick="submitSupplyRequest()" class="tap w-full py-4 rounded-2xl font-semibold text-white"
-      style="background:#f97316;border:none;cursor:pointer;">&#128230; Submit Request</button>
-  </div>
-</div>
 
 <!-- ── ADMIN LOGIN MODAL ──────────────────────────────── -->
 <div id="adminLoginWrap" class="m-wrap">
@@ -591,13 +524,6 @@ video{object-fit:cover;transform:scaleX(-1);}
         </div>
         <div id="tsCalendar"></div>
         <div id="tsAccordion" style="display:none;"></div>
-      </div>
-      <div class="rcard">
-        <div class="flex items-center justify-between mb-3">
-          <p class="text-sm font-semibold" style="color:#374151;">Supply Log</p>
-          <button onclick="expandAllSupply()" class="text-xs" style="color:#1d4ed8;background:none;border:none;cursor:pointer;">Expand all</button>
-        </div>
-        <div id="supplyList"></div>
       </div>
       <div class="rcard">
         <div class="acc-header" onclick="toggleAcc('adminLogBody','adminLogArrow')">
@@ -860,43 +786,6 @@ video{object-fit:cover;transform:scaleX(-1);}
 
     </div>
 
-  </div>
-</div>
-
-<!-- Edit Supply Modal -->
-<div id="editSupplyModal" onclick="if(event.target===this)closeEditSupply()" style="position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);">
-  <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:400px;margin:16px;box-shadow:0 24px 64px rgba(0,0,0,.22);">
-    <div class="flex items-center justify-between mb-4">
-      <p class="font-bold text-base" style="color:#111827;">Edit Supply Entry</p>
-      <button onclick="closeEditSupply()" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;">&#10005;</button>
-    </div>
-    <div class="space-y-3">
-      <div>
-        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Item</p>
-        <select id="editSupplyItem" class="inp inp-dk sel w-full">
-          <option>Tiger Tubes</option><option>Alcohol Pads</option><option>RPP Swab</option>
-          <option>Sharps Container</option><option>Urine Container / Cups</option><option>Cotton Balls</option>
-          <option>Lab Coat</option><option>Hand Sanitizer</option><option>Lavender</option>
-          <option>Vacuette</option><option>Bandages</option><option>Label Roll</option>
-          <option>Exam Gloves</option><option>Butterfly 23G</option><option>Butterfly 21G</option>
-          <option>Centrifuge</option><option>Tourniquet</option>
-        </select>
-      </div>
-      <div>
-        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Quantity</p>
-        <input id="editSupplyQty" type="text" inputmode="numeric" placeholder="Quantity" class="inp inp-dk w-full">
-      </div>
-      <div>
-        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Notes</p>
-        <input id="editSupplyNote" type="text" placeholder="Notes (optional)…" class="inp inp-dk w-full">
-      </div>
-    </div>
-    <div class="flex gap-2 mt-4">
-      <button onclick="saveEditSupply()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
-        style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save</button>
-      <button onclick="closeEditSupply()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
-        style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Cancel</button>
-    </div>
   </div>
 </div>
 
@@ -1299,7 +1188,7 @@ var store = {
   del:  function(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 
-var K = { employees:'jtl_employees', timesheet:'jtl_timesheet', supplies:'jtl_supplies', adminHash:'jtl_admin_hash', adminLog:'jtl_admin_log', deletedTs:'jtl_deleted_ts' };
+var K = { employees:'jtl_employees', timesheet:'jtl_timesheet', adminHash:'jtl_admin_hash', adminLog:'jtl_admin_log', deletedTs:'jtl_deleted_ts' };
 
 /* ── AES-256-GCM Encryption (PHI protection) ──────────── */
 var _encKey = null;
@@ -1999,17 +1888,10 @@ function submitClockOut() {
     mileCell.style.display='';
   } else { mileCell.style.display='none'; }
   document.getElementById('clockOutSummaryModal').classList.add('open');
-  // Hold email until we know if a supply request is coming
-  _pendingClockOut = {entry: entry, hrs: hrs, miles: finalMiles};
+  sendClockOutEmail(entry, hrs, finalMiles);
 }
-var _pendingClockOut = null;
 function closeSummaryModal() {
   document.getElementById('clockOutSummaryModal').classList.remove('open');
-  // Send clock-out email now (no supply request was made)
-  if (_pendingClockOut) {
-    sendClockOutEmail(_pendingClockOut.entry, _pendingClockOut.hrs, _pendingClockOut.miles, null);
-    _pendingClockOut = null;
-  }
 }
 // Collection snap file handler
 function handleSnapFile(input) {
@@ -2244,56 +2126,6 @@ function startCamera() {
     });
 }
 
-/* ── supply ─────────────────────────────── */
-/* ── shared supply item row helpers ────────────────────── */
-var SUPPLY_ITEMS = ['Tiger Tubes','Alcohol Pads','RPP Swab','Sharps Container',
-  'Urine Container / Cups','Cotton Balls','Lab Coat','Hand Sanitizer','Lavender',
-  'Vacuette','Bandages','Label Roll','Exam Gloves','Butterfly 23G','Butterfly 21G',
-  'Centrifuge','Tourniquet'];
-var _supRowIdx = 0;
-function _supplyOpts(placeholder) {
-  return '<option value="">'+placeholder+'</option>'
-    + SUPPLY_ITEMS.map(function(s){ return '<option>'+s+'</option>'; }).join('');
-}
-function addSupplyRow(containerId, accent) {
-  var id = 'sr'+(++_supRowIdx);
-  var isReq = containerId === 'supplyReqRows';
-  var div = document.createElement('div');
-  div.id = id;
-  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;';
-  div.innerHTML = '<select class="inp sel srow-item" style="flex:1 1 100%;border-color:'+accent+';font-size:13px;">'
-    +_supplyOpts(isReq ? 'Select item needed…' : 'Select item…')+'</select>'
-    +'<input type="text" inputmode="numeric" class="inp srow-qty" placeholder="Qty" style="flex:1;min-width:0;border-color:'+accent+';text-align:center;">'
-    +'<select class="inp srow-unit" style="flex:1;min-width:0;border-color:'+accent+';font-size:13px;">'
-    +'<option value="pcs">Pieces</option>'
-    +'<option value="box">Box</option>'
-    +'</select>'
-    +'<button onclick="removeSupplyRow(\''+id+'\')" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">&#10005;</button>';
-  document.getElementById(containerId).appendChild(div);
-}
-function removeSupplyRow(id) {
-  var row = document.getElementById(id);
-  if (!row) return;
-  if (row.parentNode.children.length <= 1) { toast('At least one item is required'); return; }
-  row.parentNode.removeChild(row);
-}
-function getSupplyRows(containerId) {
-  var rows = [];
-  document.getElementById(containerId).querySelectorAll('[id^="sr"]').forEach(function(row) {
-    var item = row.querySelector('.srow-item').value;
-    var qty  = row.querySelector('.srow-qty').value || '1';
-    var unitEl = row.querySelector('.srow-unit');
-    var unit = unitEl ? unitEl.value : 'pcs';
-    if (item) rows.push({item:item, qty:qty, unit:unit});
-  });
-  return rows;
-}
-function _initSupplyRows(containerId, accent) {
-  var c = document.getElementById(containerId);
-  c.innerHTML = '';
-  addSupplyRow(containerId, accent);
-}
-
 var empLogsPeriod = 'week';
 
 function openEmpLogs() {
@@ -2448,92 +2280,6 @@ function renderEmpLogs() {
     html += '</div>';
   });
   body.innerHTML = html;
-}
-
-var _supplyPhotoData = null; // holds base64 data URL for current supply log photo
-function openSupply() {
-  _initSupplyRows('supplyRows', '#93c5fd');
-  document.getElementById('supplyNote').value = '';
-  document.getElementById('supplyFrom').value = '';
-  clearSupplyPhoto();
-  document.getElementById('supplyWrap').classList.add('open');
-}
-function closeSupply() { document.getElementById('supplyWrap').classList.remove('open'); }
-function previewSupplyPhoto(input) {
-  if (!input.files || !input.files[0]) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    _supplyPhotoData = e.target.result;
-    document.getElementById('supplyPhotoImg').src = _supplyPhotoData;
-    document.getElementById('supplyPhotoPreview').style.display = '';
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-function clearSupplyPhoto() {
-  _supplyPhotoData = null;
-  var inp = document.getElementById('supplyPhotoInput');
-  if (inp) inp.value = '';
-  var prev = document.getElementById('supplyPhotoPreview');
-  if (prev) prev.style.display = 'none';
-  var img = document.getElementById('supplyPhotoImg');
-  if (img) img.src = '';
-}
-function submitSupply() {
-  var rows = getSupplyRows('supplyRows');
-  if (!rows.length) { toast('Please select at least one item'); return; }
-  var note = document.getElementById('supplyNote').value.trim();
-  var from = document.getElementById('supplyFrom').value.trim();
-  var photo = _supplyPhotoData || null;
-  var arr = store.getJ(K.supplies, []);
-  var now = new Date();
-  var photoTs = null;
-  rows.forEach(function(r, i) {
-    var ts = new Date(now.getTime() + i).toISOString();
-    if (i === 0) photoTs = ts; // attach photo to first row's ts
-    var entry = {name:currentEmp?currentEmp.name:'Unknown', item:r.item, qty:r.qty, unit:r.unit||'pcs', from:from, note:note, ts:ts, reqType:'received', hasPhoto:!!photo};
-    arr.push(entry);
-    if (fbCfg.url) fbPut('supplies', ts, entry);
-  });
-  store.setJ(K.supplies, arr);
-  if (photo && photoTs) savePhoto('sup_'+photoTs, photo);
-  clearSupplyPhoto();
-  closeSupply();
-  toast(rows.length > 1 ? rows.length+' items logged!' : 'Supply log submitted!');
-}
-
-/* ── supply request (employee requests restocking) ─────── */
-function openSupplyRequest() {
-  // Close the summary modal WITHOUT sending the clock-out email yet —
-  // the email will be sent after the supply request is submitted (combined into 1)
-  document.getElementById('clockOutSummaryModal').classList.remove('open');
-  _initSupplyRows('supplyReqRows', '#fdba74');
-  document.getElementById('supplyReqNote').value = '';
-  document.getElementById('supplyRequestWrap').classList.add('open');
-}
-function closeSupplyRequest() { document.getElementById('supplyRequestWrap').classList.remove('open'); }
-function submitSupplyRequest() {
-  var rows = getSupplyRows('supplyReqRows');
-  if (!rows.length) { toast('Please select at least one item'); return; }
-  var note = document.getElementById('supplyReqNote').value.trim();
-  var arr = store.getJ(K.supplies, []);
-  var now = new Date();
-  rows.forEach(function(r, i) {
-    var ts = new Date(now.getTime() + i).toISOString();
-    var entry = {name:currentEmp?currentEmp.name:'Unknown', item:r.item, qty:r.qty, note:note, ts:ts, reqType:'request'};
-    arr.push(entry);
-    if (fbCfg.url) fbPut('supplies', ts, entry);
-  });
-  store.setJ(K.supplies, arr);
-  // Merge supply items into the pending clock-out email (1 email total)
-  if (_pendingClockOut) {
-    sendClockOutEmail(_pendingClockOut.entry, _pendingClockOut.hrs, _pendingClockOut.miles, rows, note);
-    _pendingClockOut = null;
-  } else {
-    // Supply request submitted outside of clock-out flow — send standalone
-    sendSupplyRequestEmail({name:currentEmp?currentEmp.name:'Unknown', items:rows, note:note, ts:now.toISOString()});
-  }
-  closeSupplyRequest();
-  toast(rows.length > 1 ? rows.length+' items requested!' : 'Supply request sent to admin!');
 }
 
 /* ── admin login ─────────────────────────── */
@@ -2930,8 +2676,6 @@ function _renderTablesImpl() {
       if (a.status === 'approved' && a.updatedAt) e.approvedAt = a.updatedAt;
     }
   });
-  var sups = store.getJ(K.supplies,[]).slice().reverse();
-
   var byDate={};
   ts.forEach(function(r){
     var d=new Date(r.ts).toDateString();
@@ -3259,128 +3003,6 @@ function _renderTablesImpl() {
     });
   });
 
-  // Group supply entries by name + reqType + day, sorted newest first
-  function groupSupplies(list) {
-    var groups = {}, order = [];
-    list.forEach(function(r) {
-      var day = new Date(r.ts).toDateString();
-      var key = r.name + '||' + day;
-      if (!groups[key]) { groups[key] = []; order.push(key); }
-      groups[key].push(r);
-    });
-    // sort groups newest first (by first entry's ts)
-    order.sort(function(a,b){ return new Date(groups[b][0].ts) - new Date(groups[a][0].ts); });
-    return order.map(function(k){ return groups[k]; });
-  }
-
-  function buildSupplyGroup(entries) {
-    var first   = entries[0];
-    var isReq   = first.reqType === 'request';
-    var allDone = isReq && entries.every(function(e){ return e.status === 'completed'; });
-    var bg      = allDone ? '#f9fafb' : (isReq ? '#f0fdf4' : '#f8fafc');
-    var border  = allDone ? '#e5e7eb' : (isReq ? '#bbf7d0' : 'rgba(0,0,0,.05)');
-    var dateStr = new Date(first.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-
-    var html = '<div style="background:'+bg+';border:1px solid '+border+';border-radius:12px;margin:5px 0;overflow:hidden;">';
-    // Header row — name + date + from source
-    var fromLabel = first.from ? ' <span style="font-size:10px;font-weight:600;background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:99px;">From: '+first.from+'</span>' : '';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.07);">'
-      +'<span style="font-size:14px;font-weight:800;color:#111827;">'+first.name+fromLabel+'</span>'
-      +'<span style="font-size:12px;font-weight:600;color:#6b7280;">'+dateStr+'</span>'
-      +'</div>';
-
-    // Photo thumbnail (shown once for the group, tied to the first hasPhoto entry)
-    var photoEntry = entries.find(function(e){ return e.hasPhoto && e.reqType !== 'request'; });
-    if (photoEntry) {
-      var supPhotoId = 'sp_'+(String(photoEntry.ts).replace(/[:.]/g,''));
-      html += '<div id="'+supPhotoId+'-wrap" style="padding:8px 12px 4px;border-bottom:1px solid rgba(0,0,0,.05);">'
-        +'<img id="'+supPhotoId+'" src="" onclick="showThumbPhoto(\'sup_'+String(photoEntry.ts).replace(/'/g,'')+'\',\'Supply Photo — '+first.name+'\')" '
-        +'style="width:100%;max-height:140px;object-fit:cover;border-radius:10px;cursor:pointer;display:block;opacity:.3;transition:opacity .25s;">'
-        +'</div>';
-      // Async-load photo
-      (function(pid, pts){ loadPhoto('sup_'+pts, function(url){ if(!url) return; var el=document.getElementById(pid); if(el){el.src=url;el.style.opacity='1';} }); })(supPhotoId, photoEntry.ts);
-    }
-
-    // One row per item
-    entries.forEach(function(r) {
-      var safeTs       = String(r.ts).replace(/'/g,"\\'");
-      var isItemDone   = isReq && r.status === 'completed';
-      var itemColor    = isItemDone ? '#9ca3af' : (isReq ? '#15803d' : '#1d4ed8');
-      var timeStr      = new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
-      var unitLabel    = r.unit ? ' <span style="font-size:10px;color:#6b7280;background:#f3f4f6;padding:1px 5px;border-radius:4px;">'+r.unit+'</span>' : '';
-      var doneBadge    = isItemDone
-        ? ' <span style="font-size:10px;color:#9ca3af;">&#10003; '+new Date(r.completedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})+'</span>'
-        : '';
-      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid rgba(0,0,0,.04);">'
-        +'<div style="flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-        +'<span style="font-size:13px;font-weight:700;color:'+itemColor+';">'+r.item+'</span>'
-        +'<span style="font-size:12px;font-weight:600;color:#374151;">x'+r.qty+'</span>'
-        +unitLabel
-        +'<span style="font-size:11px;color:#9ca3af;">'+timeStr+'</span>'
-        +doneBadge
-        +'</div>'
-        +'<div style="display:flex;gap:4px;flex-shrink:0;">'
-        +(isReq && !isItemDone ? '<button onclick="completeSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;cursor:pointer;font-weight:700;">&#10003;</button>' : '')
-        +'<button onclick="openEditSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#e0e7ff;color:#3730a3;border:none;cursor:pointer;font-weight:600;">Edit</button>'
-        +'<button onclick="deleteSupply(\''+safeTs+'\')" style="font-size:9px;padding:2px 7px;border-radius:4px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:600;">Del</button>'
-        +'</div>'
-        +'</div>';
-    });
-    html += '</div>';
-    return html;
-  }
-
-  // Build supply accordion grouped by date, each date contains RECEIVED + REQUESTS
-  function buildSupplyDateAccordion(allSups, dateIdx) {
-    if (!allSups.length) return '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:24px 0;">No supply records yet.</p>';
-
-    // Group all entries by day, newest first
-    var byDay={}, dayOrder=[];
-    allSups.forEach(function(r){
-      var day=new Date(r.ts).toDateString();
-      if(!byDay[day]){ byDay[day]=[]; dayOrder.push(day); }
-      byDay[day].push(r);
-    });
-    dayOrder.sort(function(a,b){ return new Date(b)-new Date(a); });
-
-    var html='';
-    dayOrder.forEach(function(day, i){
-      var dayEntries=byDay[day];
-      var dateLabel=new Date(day).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
-      var isToday=(new Date(day).toDateString()===new Date().toDateString());
-      var received=dayEntries.filter(function(r){ return r.reqType!=='request'; });
-      var requests=dayEntries.filter(function(r){ return r.reqType==='request'; });
-      var hasPendingReq=requests.some(function(r){ return r.status!=='completed'; });
-      var bodyId='sup-acc-body-'+dateIdx+'-'+i;
-      var arrowId='sup-acc-arrow-'+dateIdx+'-'+i;
-      var autoOpen=(i===0||isToday);
-
-      html += '<div style="border-bottom:1px solid rgba(0,0,0,.06);">'
-        +'<div class="acc-header" onclick="toggleAcc(\''+bodyId+'\',\''+arrowId+'\')" style="padding:10px 4px;">'
-        +'<div>'
-        +'<p class="text-sm font-semibold" style="color:#111827;">'+dateLabel
-          +(isToday?' <span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:99px;margin-left:6px;">Today</span>':'')+'</p>'
-        +'<p class="text-xs mt-0.5" style="color:#6b7280;">'
-          +(received.length?received.length+' received':'')
-          +(received.length&&requests.length?' &middot; ':'')
-          +(requests.length?requests.length+' request'+(requests.length!==1?'s':''):'')
-          +(hasPendingReq?' &middot; <span style="color:#d97706;font-weight:600;">&#9679; Pending</span>':'')
-        +'</p>'
-        +'</div>'
-        +'<span id="'+arrowId+'" class="acc-arrow'+(autoOpen?' open':'')+'">&#9660;</span>'
-        +'</div>'
-        +'<div id="'+bodyId+'" class="acc-body'+(autoOpen?' open':'')+'" style="padding:4px 0 10px;">';
-
-      html+='<p style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px;">&#9989; Received</p>';
-      html+=received.length ? groupSupplies(received).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:4px 0;">None.</p>';
-      html+='<p style="font-size:10px;font-weight:700;color:#c2410c;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px;">&#128230; Requests</p>';
-      html+=requests.length ? groupSupplies(requests).map(buildSupplyGroup).join('') : '<p style="color:#9ca3af;font-size:12px;padding:4px 0;">None.</p>';
-      html+='</div></div>';
-    });
-    return html;
-  }
-
-  document.getElementById('supplyList').innerHTML = buildSupplyDateAccordion(sups, 0);
 }
 
 /* ── edit/delete entries ─────────────────── */
@@ -4365,10 +3987,6 @@ function expandAllDays() {
   document.querySelectorAll('.acc-body').forEach(function(b){ b.classList.add('open'); });
   document.querySelectorAll('.acc-arrow').forEach(function(a){ a.classList.add('open'); });
 }
-function expandAllSupply() {
-  document.querySelectorAll('[id^="sup-acc-body-"]').forEach(function(b){ b.classList.add('open'); });
-  document.querySelectorAll('[id^="sup-acc-arrow-"]').forEach(function(a){ a.classList.add('open'); });
-}
 function openPhoto(src, caption) {
   document.getElementById('photoLightboxImg').src=src;
   document.getElementById('photoLightboxCaption').textContent=caption||'';
@@ -4550,7 +4168,6 @@ function _doGenerateReport(fromStr,toStr,empFilter){
   var allEmps=store.getJ(K.employees,[]);
   var emps=empFilter ? allEmps.filter(function(e){ return e.name===empFilter; }) : allEmps;
   var ts=store.getJ(K.timesheet,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to&&(!empFilter||e.name===empFilter); });
-  var sups=store.getJ(K.supplies,[]).filter(function(e){ var d=new Date(e.ts); return d>=from&&d<=to; });
   var grouped={};
   ts.forEach(function(e){
     if(!grouped[e.name]) grouped[e.name]=[];
@@ -4576,8 +4193,6 @@ function _doGenerateReport(fromStr,toStr,empFilter){
       hasViolation:hasViolation
     };
   });
-  var supByItem={};
-  sups.forEach(function(r){ supByItem[r.item]=(supByItem[r.item]||0)+r.qty; });
   var totalNetHrs=0,present=0;
   Object.keys(empStats).forEach(function(n){ totalNetHrs+=empStats[n].netHrs; if(empStats[n].days>0) present++; });
 
@@ -4607,10 +4222,9 @@ function _doGenerateReport(fromStr,toStr,empFilter){
       +'</div>';
   } else {
     // ── Summary cards (all employees)
-    html += '<div class="grid grid-cols-3 gap-3 rcard">'
+    html += '<div class="grid grid-cols-2 gap-3 rcard">'
       +'<div class="rstat"><p class="n" style="color:#1a2b8c;">'+present+'</p><p class="l">Employees</p></div>'
       +'<div class="rstat"><p class="n">'+fmtHrs(totalNetHrs)+'</p><p class="l">Net Paid Hrs</p></div>'
-      +'<div class="rstat"><p class="n">'+sups.length+'</p><p class="l">Supply Req</p></div>'
       +'</div>';
   }
 
@@ -4701,18 +4315,6 @@ function _doGenerateReport(fromStr,toStr,empFilter){
     html+='</div></div>';
   });
   html+='</div>';
-
-  if(Object.keys(supByItem).length){
-    html+='<div class="rcard"><p class="text-sm font-semibold mb-3" style="color:#374151;">Supply Requests</p>'
-      +'<div class="overflow-x-auto"><table class="w-full text-xs" style="border-collapse:collapse;">'
-      +'<thead><tr><th class="text-left py-2 pr-3 font-semibold" style="color:#6b7280;">Item</th>'
-      +'<th class="text-right py-2 font-semibold" style="color:#6b7280;">Qty</th></tr></thead><tbody>';
-    Object.keys(supByItem).forEach(function(item){
-      html+='<tr style="border-bottom:1px solid rgba(0,0,0,.05);"><td class="py-2 pr-3" style="color:#111827;">'+item+'</td>'
-        +'<td class="py-2 text-right" style="color:#1d4ed8;">'+supByItem[item]+'</td></tr>';
-    });
-    html+='</tbody></table></div></div>';
-  }
 
   html+='<button onclick="window.print()" class="tap w-full py-4 rounded-2xl font-semibold no-print" style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Print / Save as PDF</button>';
   out.innerHTML=html;
@@ -4963,20 +4565,15 @@ function syncFromCloud(cb) {
             localOnly.forEach(function(e){ fbPut('timesheet', e.ts, e); });
           }
           store.setJ(K.timesheet, entries);
-          // Step 3: fetch supplies
-          _syncSupplies();
+          // Step 3: fetch and merge admin log
+          _syncAdminLog();
         });
-        return; // supplies fetched inside approvals callback
+        return; // admin log fetched inside approvals callback
       }
       // no raw data — still proceed
-      _syncSupplies();
-      function _syncSupplies() {
-      fbFetchAll('supplies', function(rawS) {
-        if (rawS && typeof rawS === 'object') {
-          var sups = Array.isArray(rawS) ? rawS : Object.values(rawS);
-          if (sups.length) store.setJ(K.supplies, sups.sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); }));
-        }
-        // Step 4: fetch and merge admin log from all devices
+      _syncAdminLog();
+      function _syncAdminLog() {
+        // Fetch and merge admin log from all devices
         fbFetchAll('adminLog', function(rawLog) {
           if (rawLog && typeof rawLog === 'object') {
             var cloudLog = (Array.isArray(rawLog) ? rawLog : Object.values(rawLog))
@@ -4993,8 +4590,7 @@ function syncFromCloud(cb) {
           }
           if (cb) cb();
         });
-      });
-      } // end _syncSupplies
+      } // end _syncAdminLog
     });
   });
 }
@@ -5005,11 +4601,10 @@ function refreshFromCloud() {
 }
 function pushAllToCloud() {
   if(!fbCfg.url){ toast('Configure Firebase URL in Settings first.'); return; }
-  var ts=store.getJ(K.timesheet,[]), sups=store.getJ(K.supplies,[]), emps=store.getJ(K.employees,[]);
+  var ts=store.getJ(K.timesheet,[]), emps=store.getJ(K.employees,[]);
   ts.forEach(function(e){ fbPut('timesheet', e.ts, e); });
-  sups.forEach(function(e){ fbPut('supplies', e.ts, e); });
   emps.forEach(function(e){ pushEmployeeToFirebase(e); });
-  toast('Pushed '+ts.length+' timesheet + '+sups.length+' supply + '+emps.length+' employees to cloud!');
+  toast('Pushed '+ts.length+' timesheet + '+emps.length+' employees to cloud!');
 }
 // Silently re-push any entries that have inline photos but may have been stored in Firebase
 // without the photo field (before the photo-sync fix). Runs once on employee device startup.
@@ -5078,7 +4673,7 @@ function changePassword() {
 }
 function clearAllData() {
   if(!confirm('Delete ALL data? This cannot be undone.')) return;
-  [K.employees,K.timesheet,K.supplies].forEach(function(k){ store.del(k); });
+  [K.employees,K.timesheet].forEach(function(k){ store.del(k); });
   toast('All data cleared');
   renderEmployeeList(); renderTables();
 }
@@ -6273,7 +5868,7 @@ function sendClockInEmail(entry, photoDataUrl){
   });
 }
 
-function sendClockOutEmail(entry, hoursWorked, miles, supplyItems, supplyNote) {
+function sendClockOutEmail(entry, hoursWorked, miles) {
   var EJS_KEY      = 'BaAmtd4je5XVstCvH';
   var EJS_SERVICE  = 'service_t30r2d8';
   var EJS_TEMPLATE = 'template_jtdfx1a';
@@ -6294,35 +5889,25 @@ function sendClockOutEmail(entry, hoursWorked, miles, supplyItems, supplyNote) {
   if (miles !== null && miles !== undefined) {
     shiftSummary += ' · ' + Number(miles).toFixed(2) + ' miles driven';
   }
-  // Append supply request if present
-  var hasSupply = supplyItems && supplyItems.length > 0;
   var fullNote = shiftSummary;
-  if (hasSupply) {
-    fullNote += '\n\n⚠️ SUPPLY REQUEST:\n'
-      + supplyItems.map(function(r){ return '• '+r.item+' × '+r.qty; }).join('\n')
-      + (supplyNote ? '\nNote: '+supplyNote : '');
-  }
-  var subject = hasSupply
-    ? 'Clock-Out + Supply Request — '+entry.name
-    : 'Clock-Out Summary — '+entry.name;
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
   emailjs.send(serviceId, templateId, {
     to_email:      notifEmail,
-    subject:       subject,
+    subject:       'Clock-Out Summary — '+entry.name,
     employee_name: entry.name,
     clock_time:    clockTime,
     facility:      (entry.facilities&&entry.facilities.length) ? entry.facilities.join(', ') : 'See Records',
     note:          fullNote,
-    note_label:    hasSupply ? 'Shift Summary + Supply Request' : 'Shift Summary',
+    note_label:    'Shift Summary',
     photo_label:   'Photo',
     kiosk_url:     kioskUrl,
     logo_url:      logoUrl,
     photo_note:    (entry.hasPhoto ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.'),
-    header_text:   hasSupply ? 'WorkTrail — Clock-Out + Supply Request' : 'WorkTrail — Clock-Out Summary',
-    subtitle:      hasSupply ? 'has clocked out and submitted a supply request.' : 'has clocked out for the day.',
-    action_text:   hasSupply ? 'Review shift and supply request in the Records tab.' : 'View the full shift details in the Records tab.',
+    header_text:   'WorkTrail — Clock-Out Summary',
+    subtitle:      'has clocked out for the day.',
+    action_text:   'View the full shift details in the Records tab.',
     approve_url:   kioskUrl,
     deny_url:      kioskUrl,
     photo_html:    fullNote
@@ -6331,44 +5916,6 @@ function sendClockOutEmail(entry, hoursWorked, miles, supplyItems, supplyNote) {
   }).catch(function(e){
     console.error('EmailJS error (clock-out):', JSON.stringify(e));
   });
-}
-
-function sendSupplyRequestEmail(entry) {
-  var EJS_KEY      = 'BaAmtd4je5XVstCvH';
-  var EJS_SERVICE  = 'service_t30r2d8';
-  var EJS_TEMPLATE = 'template_jtdfx1a';
-  var cfg = store.getJ(EJS_STORAGE, {});
-  var publicKey  = cfg.publicKey  || EJS_KEY;
-  var serviceId  = cfg.serviceId  || EJS_SERVICE;
-  var templateId = cfg.templateId || EJS_TEMPLATE;
-  var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
-  var kioskUrl   = window.location.origin + window.location.pathname + '?admin&records=1';
-  if (fbCfg.url) kioskUrl += '&fb=' + encodeURIComponent(fbCfg.url);
-  var reqTime = new Date(entry.ts).toLocaleString('en-US',{
-    weekday:'long', month:'long', day:'numeric', year:'numeric',
-    hour:'numeric', minute:'2-digit', hour12:true
-  });
-  try { emailjs.init({publicKey: publicKey}); } catch(e){}
-  var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
-  emailjs.send(serviceId, templateId, {
-    to_email:      notifEmail,
-    subject:       'Supply Request — '+entry.name,
-    employee_name: entry.name,
-    clock_time:    reqTime,
-    facility:      'Supply Request',
-    note:          (entry.items ? entry.items.map(function(r){ return r.item+' × '+r.qty; }).join('\n') : entry.item+' × '+entry.qty) + (entry.note ? '\nNote: '+entry.note : ''),
-    note_label:    entry.items && entry.items.length > 1 ? 'Items Requested ('+entry.items.length+')' : 'Item Requested',
-    photo_label:   '',
-    kiosk_url:     kioskUrl,
-    logo_url:      logoUrl,
-    photo_note:    'View full supply log in Admin → Records → Supply Requests.',
-    header_text:   'WorkTrail — Supply Request',
-    subtitle:      'has submitted a supply request.',
-    action_text:   'Review and action this request in the Records tab.',
-    approve_url:   kioskUrl,
-    deny_url:      kioskUrl,
-    photo_html:    entry.item + ' × ' + entry.qty
-  }).catch(function(e){ console.error('EmailJS supply request error:', JSON.stringify(e)); });
 }
 
 /* ── IndexedDB Photo Storage ─────────────── */
@@ -6485,16 +6032,7 @@ function purgeOldRecords() {
     store.setJ(K.deletedTs, deleted);
   }
 
-  // ── Supplies ──
-  var sups    = store.getJ(K.supplies, []);
-  var oldSups = sups.filter(function(r){ return new Date(r.ts) < cutoff; });
-  var keptSups= sups.filter(function(r){ return new Date(r.ts) >= cutoff; });
-  if (oldSups.length) {
-    store.setJ(K.supplies, keptSups);
-    oldSups.forEach(function(r){ fbDeleteEntry('supplies', r.ts); });
-  }
-
-  var total = old.length + oldSups.length;
+  var total = old.length;
   if (total > 0) {
     logAdminAction('AUTO_PURGE', total + ' records older than 90 days purged (compliance)');
     toast('🗑 Auto-purge: ' + total + ' old records removed (90-day compliance)');
@@ -6510,11 +6048,9 @@ function checkPurgeWarning() {
   var purgeCutoff = new Date(now - NINETY_MS);
 
   var ts   = store.getJ(K.timesheet, []);
-  var sups = store.getJ(K.supplies, []);
 
   var expTs   = ts.filter(function(r){ var d=new Date(r.ts); return d<warnCutoff && d>=purgeCutoff; });
-  var expSups = sups.filter(function(r){ var d=new Date(r.ts); return d<warnCutoff && d>=purgeCutoff; });
-  var total   = expTs.length + expSups.length;
+  var total   = expTs.length;
   if (!total) return;
 
   // Only send once per 7-day window
@@ -6526,7 +6062,7 @@ function checkPurgeWarning() {
   var empMap  = {};
   expTs.forEach(function(r){ if(r.name) empMap[r.name]=true; });
   var empList = Object.keys(empMap).join(', ') || 'N/A';
-  var allDates= expTs.concat(expSups).map(function(r){ return new Date(r.ts); }).sort(function(a,b){return a-b;});
+  var allDates= expTs.map(function(r){ return new Date(r.ts); }).sort(function(a,b){return a-b;});
   var earliest= allDates.length ? allDates[0].toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '';
   var kioskUrl= window.location.origin+window.location.pathname+'?admin&records=1';
   if(fbCfg.url) kioskUrl+='&fb='+encodeURIComponent(fbCfg.url);
@@ -6548,7 +6084,7 @@ function checkPurgeWarning() {
     employee_name: 'Admin',
     clock_time:    new Date().toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}),
     facility:      'Juno Tech Laboratory Kiosk',
-    note:          total+' records ('+expTs.length+' timesheet, '+expSups.length+' supply logs) dated '+earliest+' will be permanently deleted on '+purgeOn+' under the 90-day compliance policy. Employees: '+empList+'. Log in to Admin › Payroll to download reports before they are gone.',
+    note:          total+' timesheet records dated '+earliest+' will be permanently deleted on '+purgeOn+' under the 90-day compliance policy. Employees: '+empList+'. Log in to Admin › Payroll to download reports before they are gone.',
     note_label:    'Records Expiring Soon',
     photo_label:   'Action Required',
     kiosk_url:     kioskUrl,
@@ -6559,7 +6095,7 @@ function checkPurgeWarning() {
     action_text:   'Log in to Admin › Payroll to generate and download reports for records from '+earliest+' before they are permanently deleted on '+purgeOn+'.',
     approve_url:   kioskUrl,
     deny_url:      kioskUrl,
-    photo_html:    '<strong>Expiring records:</strong> '+total+' total ('+expTs.length+' timesheet entries, '+expSups.length+' supply logs)'
+    photo_html:    '<strong>Expiring records:</strong> '+total+' timesheet entries'
   }).then(function(){
     store.set('jtl_purge_warn_sent', new Date().toISOString());
     console.log('Purge warning email sent — '+total+' records expiring soon');
@@ -6620,8 +6156,7 @@ function clearOldRecords() {
   var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-90);
   if(!confirm('Archive and remove all records older than 90 days? This frees storage space. Archived data will be deleted locally but remains in Firebase if connected.')) return;
   var ts = store.getJ(K.timesheet,[]).filter(function(e){ return new Date(e.ts)>=cutoff; });
-  var su = store.getJ(K.supplies,[]).filter(function(e){ return new Date(e.ts)>=cutoff; });
-  store.setJ(K.timesheet, ts); store.setJ(K.supplies, su);
+  store.setJ(K.timesheet, ts);
   updateStorageUsage(); renderTables(); toast('Old records archived. Storage freed.');
 }
 
@@ -7497,68 +7032,6 @@ function runPayroll() {
 }
 
 var _printPayrollData = null;
-
-/* ── Supply edit/delete (admin) ─────────────────────────── */
-var _editSupplyTs = '';
-function openEditSupply(ts) {
-  var sups = store.getJ(K.supplies, []);
-  var entry = sups.find(function(s){ return String(s.ts) === String(ts); });
-  if (!entry) return;
-  _editSupplyTs = ts;
-  document.getElementById('editSupplyItem').value = entry.item || '';
-  document.getElementById('editSupplyQty').value  = entry.qty  || '';
-  document.getElementById('editSupplyNote').value = entry.note || '';
-  document.getElementById('editSupplyModal').style.display = 'flex';
-}
-function closeEditSupply() {
-  document.getElementById('editSupplyModal').style.display = 'none';
-}
-function saveEditSupply() {
-  var sups = store.getJ(K.supplies, []);
-  var idx = sups.findIndex(function(s){ return String(s.ts) === String(_editSupplyTs); });
-  if (idx < 0) return;
-  sups[idx].item = document.getElementById('editSupplyItem').value;
-  sups[idx].qty  = document.getElementById('editSupplyQty').value;
-  sups[idx].note = document.getElementById('editSupplyNote').value.trim();
-  store.setJ(K.supplies, sups);
-  if (fbCfg.url) fbPut('supplies', _editSupplyTs, sups[idx]);
-  closeEditSupply();
-  renderTables();
-  logAdminAction('supply_edit', sups[idx].item + ' x' + sups[idx].qty);
-  toast('Supply entry updated');
-}
-function deleteSupply(ts) {
-  if (!confirm('Delete this supply entry?')) return;
-  var sups = store.getJ(K.supplies, []);
-  store.setJ(K.supplies, sups.filter(function(s){ return String(s.ts) !== String(ts); }));
-  if (fbCfg.url) fetch(fbCfg.url+'/jtl/supplies/'+tsToKey(ts)+'.json', {method:'DELETE'}).catch(function(){});
-  renderTables();
-  logAdminAction('supply_delete', String(ts));
-  toast('Supply entry deleted');
-}
-
-function completeSupply(ts) {
-  if (!confirm('Mark this supply request as completed?')) return;
-  var sups = store.getJ(K.supplies, []);
-  var completedAt = new Date().toISOString();
-  sups.forEach(function(s) {
-    if (String(s.ts) === String(ts)) {
-      s.status = 'completed';
-      s.completedAt = completedAt;
-    }
-  });
-  store.setJ(K.supplies, sups);
-  if (fbCfg.url) {
-    fetch(fbCfg.url+'/jtl/supplies/'+tsToKey(ts)+'.json', {
-      method:'PATCH',
-      body: JSON.stringify({ status:'completed', completedAt: completedAt }),
-      headers:{'Content-Type':'application/json'}
-    }).catch(function(){});
-  }
-  renderTables();
-  logAdminAction('supply_complete', String(ts));
-  toast('Supply request marked as completed ✓');
-}
 
 function printPayroll() {
   if (!_printPayrollData) { toast('Generate a payroll report first.'); return; }
