@@ -7347,18 +7347,28 @@ function runPayroll() {
       if (!seen[bucket]) { seen[bucket] = true; entries.push(e); }
     });
 
-    var sessions = [], cur = null;
+    var sessions = [], cur = null, bst = null, brkType = 'rest';
     entries.forEach(function(e) {
       if (e.type === 'in') {
         var facs = e.facilities || [];
         var nonLab = facs.filter(function(f){ return f !== 'Juno Tech Lab'; });
         cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1,
                travelHours: e.travelHours != null ? e.travelHours : null,
-               drawHours:   e.drawHours   != null ? e.drawHours   : null};
+               drawHours:   e.drawHours   != null ? e.drawHours   : null,
+               mealMs: 0};
         sessions.push(cur);
+        bst = null;
       }
-      if (e.type === 'out' && cur) {
+      else if (e.type === 'break_start' && cur) {
+        bst = new Date(e.ts);
+        brkType = e.breakType || (parseInt(e.note || 0) >= 30 ? 'meal' : 'rest');
+      }
+      else if (e.type === 'break_end' && cur) {
+        if (bst) { if (brkType === 'meal') cur.mealMs += (new Date(e.ts) - bst); bst = null; }
+      }
+      else if (e.type === 'out' && cur) {
         cur.outTs = new Date(e.ts);
+        if (bst) { if (brkType === 'meal') cur.mealMs += (new Date(e.ts) - bst); bst = null; } // break still open at clock-out
         // null means admin explicitly cleared; undefined means not tracked (fall back to IN's value)
         if ('mileage' in e) cur.mileage = e.mileage; // null (cleared) or a number
         // else cur.mileage stays as set from clock-in
@@ -7371,6 +7381,11 @@ function runPayroll() {
     sessions.forEach(function(s) {
       if (s.inTs && s.outTs) {
         var hrs = (s.outTs - s.inTs) / 3600000;
+        // Unpaid 30-min meal break: deducted from paid hours for shifts on/after
+        // BREAK_ALL_EFFECTIVE (Mon Jul 27 2026). Earlier shifts are unchanged.
+        if (s.inTs.getTime() >= BREAK_ALL_EFFECTIVE.getTime()) {
+          hrs = Math.max(0, hrs - (s.mealMs || 0) / 3600000);
+        }
         totalHours += hrs;
         if (s.travelHours != null || s.drawHours != null) {
           hasSplit = true;
