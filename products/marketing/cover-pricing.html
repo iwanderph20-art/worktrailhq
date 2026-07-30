@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+html,body{width:1280px;height:720px;overflow:hidden;}
+.mono{font-family:ui-monospace,'SF Mono','Roboto Mono',Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;}
+.stage{width:1280px;height:720px;background:linear-gradient(125deg,#6c5cf5 0%,#4b3fd1 100%);display:flex;align-items:center;padding:0 68px;gap:56px;position:relative;overflow:hidden;}
+.stage::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:56px 56px;}
+.left{flex:1;color:#fff;position:relative;z-index:2;}
+.brand{font-size:30px;font-weight:900;letter-spacing:-.5px;margin-bottom:20px;}
+.headline{font-size:52px;font-weight:900;line-height:1.05;letter-spacing:-1.2px;margin-bottom:14px;}
+.headline span{color:#ffd9a8;}
+.sub{font-size:20px;color:#ddd8ff;margin-bottom:26px;line-height:1.4;}
+.bul{display:flex;align-items:center;gap:12px;font-size:19px;font-weight:600;margin:11px 0;color:#f1eeff;}
+.tick{width:26px;height:26px;border-radius:50%;background:#fff;color:#5a49e0;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.pricepill{display:inline-block;margin-top:22px;background:#ffb454;color:#3a2408;font-weight:900;font-size:20px;padding:10px 22px;border-radius:999px;}
+.url{margin-top:22px;font-size:17px;color:#cfc8ff;font-weight:700;}
+
+.ticket{width:404px;flex-shrink:0;background:#fff;border-radius:26px;padding:30px 28px;box-shadow:0 44px 90px rgba(20,10,60,.4);position:relative;z-index:2;}
+.tk-l{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#a3aab8;}
+.tk-price{font-size:64px;font-weight:800;letter-spacing:-2px;line-height:1;margin:8px 0 6px;color:#1e2430;}
+.tk-price .cur{font-size:30px;font-weight:700;color:#9aa2b1;vertical-align:top;margin-right:2px;}
+.tk-hint{font-size:14px;color:#6b7280;}
+.tk-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:18px;}
+.tk-stat{background:#f4f6fb;border:1px solid #e6e9f1;border-radius:13px;padding:12px 8px;text-align:center;}
+.tk-stat .v{font-size:22px;font-weight:800;color:#1e2430;}
+.tk-stat .k{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a3aab8;margin-top:4px;}
+.perf{position:relative;height:0;border-top:2px dashed #e6e9f1;margin:20px -28px;}
+.perf::before,.perf::after{content:"";position:absolute;top:-11px;width:20px;height:20px;border-radius:50%;background:#5346d6;}
+.perf::before{left:-10px;}.perf::after{right:-10px;}
+.row{display:flex;justify-content:space-between;font-size:14.5px;padding:6px 0;color:#6b7280;}
+.row .v{font-weight:700;color:#1e2430;}
+.row .v.neg{color:#e05252;}
+.row.total{border-top:1px solid #e6e9f1;margin-top:8px;padding-top:12px;font-size:16px;}
+.row.total .k{font-weight:800;color:#1e2430;}
+.row.total .v{font-weight:800;font-size:18px;color:#12a06a;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="left">
+    <div class="brand">🏷️ ListPrice</div>
+    <div class="headline">Price every listing<br>for <span>profit</span></div>
+    <div class="sub">The reseller pricing calculator for Etsy,<br>eBay, Poshmark, Mercari &amp; more.</div>
+    <div class="bul"><span class="tick">✓</span> Marketplace fees built in &amp; editable</div>
+    <div class="bul"><span class="tick">✓</span> Set a target margin — get the price</div>
+    <div class="bul"><span class="tick">✓</span> See net profit, margin &amp; ROI instantly</div>
+    <div class="bul"><span class="tick">✓</span> Save items &amp; export to CSV</div>
+    <div class="pricepill">One-time · no monthly fees</div>
+    <div class="url">worktrailhq.com</div>
+  </div>
+  <div class="ticket">
+    <div class="tk-l">Recommended list price</div>
+    <div class="tk-price mono"><span class="cur">$</span>36.53</div>
+    <div class="tk-hint">List here to keep $14.61 after all fees.</div>
+    <div class="tk-stats">
+      <div class="tk-stat"><div class="v mono">$15</div><div class="k">Net profit</div></div>
+      <div class="tk-stat"><div class="v mono">40%</div><div class="k">Margin</div></div>
+      <div class="tk-stat"><div class="v mono">81%</div><div class="k">ROI</div></div>
+    </div>
+    <div class="perf"></div>
+    <div class="row"><span class="k">Listing price</span><span class="v mono">$36.53</span></div>
+    <div class="row"><span class="k">Item cost</span><span class="v neg mono">− $12.00</span></div>
+    <div class="row"><span class="k">Shipping</span><span class="v neg mono">− $5.00</span></div>
+    <div class="row"><span class="k">Etsy fees (9.5% + $0.45)</span><span class="v neg mono">− $3.92</span></div>
+    <div class="row total"><span class="k">Net profit</span><span class="v mono">$14.61</span></div>
+  </div>
+</div>
+</body>
+</html>

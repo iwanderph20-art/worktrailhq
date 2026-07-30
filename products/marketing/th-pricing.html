@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+html,body{width:1080px;height:1080px;overflow:hidden;}
+.stage{width:1080px;height:1080px;position:relative;overflow:hidden;
+  background:linear-gradient(155deg,#6c5cf5 0%,#4b3fd1 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px;color:#fff;text-align:center;}
+.stage::before{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
+  background-size:60px 60px;}
+.badge{position:relative;z-index:2;font-size:26px;font-weight:800;letter-spacing:3px;color:#cfc8ff;text-transform:uppercase;margin-bottom:24px;}
+.price{position:relative;z-index:2;font-family:ui-monospace,'SF Mono','Roboto Mono',Menlo,Consolas,monospace;font-size:150px;font-weight:800;line-height:1;letter-spacing:-4px;margin-bottom:8px;}
+.price .cur{font-size:70px;color:#ffd9a8;vertical-align:top;}
+.title{position:relative;z-index:2;font-size:88px;font-weight:900;line-height:.98;letter-spacing:-3px;margin-top:14px;}
+.title span{color:#ffd9a8;}
+.sub{position:relative;z-index:2;font-size:36px;font-weight:600;color:#ddd8ff;margin-top:24px;line-height:1.3;}
+.chips{position:relative;z-index:2;display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:42px;}
+.chip{border:2px solid rgba(255,255,255,.4);border-radius:999px;padding:14px 26px;font-size:26px;font-weight:700;color:#f1eeff;}
+.pill{position:relative;z-index:2;margin-top:44px;background:#ffb454;color:#3a2408;font-weight:900;font-size:32px;padding:16px 36px;border-radius:999px;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="badge">🏷️ ListPrice</div>
+  <div class="price"><span class="cur">$</span>36.53</div>
+  <div class="title">Reseller Pricing<br><span>Calculator</span></div>
+  <div class="sub">Etsy · eBay · Poshmark · Mercari</div>
+  <div class="chips"><span class="chip">Target margin</span><span class="chip">Fees built in</span><span class="chip">Profit &amp; ROI</span></div>
+  <div class="pill">Pay once · no fees</div>
+</div>
+</body>
+</html>
