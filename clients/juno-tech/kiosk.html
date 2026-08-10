@@ -2547,6 +2547,48 @@ function regenCode(code) {
   pushEmployeeToFirebase(emp);
   renderEmployeeList(); toast('New code for '+emp.name+': '+emp.code);
 }
+function renameEmployee(code) {
+  var emps=store.getJ(K.employees,[]);
+  var emp=null; for(var i=0;i<emps.length;i++) if(emps[i].code===code){ emp=emps[i]; break; }
+  if (!emp) return;
+  var oldName=emp.name;
+  var input=prompt('Rename "'+oldName+'"\n\nEnter the corrected full name:', oldName);
+  if (input===null) return;                       // cancelled
+  var newName=input.trim();
+  if (!newName) { toast('Name cannot be blank'); return; }
+  if (newName===oldName) return;                  // no change
+  // Block collision with any OTHER employee's name (case-insensitive)
+  for(var j=0;j<emps.length;j++){
+    if(emps[j].code!==code && emps[j].name.toLowerCase()===newName.toLowerCase()){
+      toast('Another employee already has that name'); return;
+    }
+  }
+  if (!confirm('Rename "'+oldName+'" to "'+newName+'"?\n\nThis also updates all of their timesheet entries and pay profile. Their 4-digit code ('+emp.code+') stays the same.')) return;
+
+  // 1. Employee record (name is the join key, code is unchanged)
+  emp.name=newName;
+  store.setJ(K.employees,emps);
+  pushEmployeeToFirebase(emp);                     // /employees/<code> now carries new name
+
+  // 2. Timesheet entries key off .name — migrate every matching record, then re-push each
+  var ts=store.getJ(K.timesheet,[]);
+  var changed=[];
+  ts.forEach(function(e){ if(e && e.name===oldName){ e.name=newName; changed.push(e); } });
+  if (changed.length) {
+    store.setJ(K.timesheet, ts);
+    changed.forEach(function(e){ if(e.ts) fbPut('timesheet', e.ts, e); }); // keep Firebase in sync so re-seed can't revert it
+  }
+
+  // 3. Pay-profile backup is keyed by name — move it under the new name
+  var backup=store.getJ('jtl_payprofiles', {});
+  if (backup[oldName]) { backup[newName]=backup[oldName]; delete backup[oldName]; store.setJ('jtl_payprofiles', backup); }
+
+  // 4. If this person is the one currently signed in on the kiosk, keep the live session consistent
+  if (typeof currentEmp!=='undefined' && currentEmp && currentEmp.name===oldName) currentEmp.name=newName;
+
+  renderEmployeeList();
+  toast('Renamed to '+newName+(changed.length?(' — '+changed.length+' entr'+(changed.length===1?'y':'ies')+' updated'):''));
+}
 function renderEmployeeList() {
   var emps=store.getJ(K.employees,[]);
   var c=document.getElementById('empList');
@@ -2599,6 +2641,7 @@ function renderEmployeeList() {
       + '<div class="flex gap-2 flex-wrap">'
       + '<button onclick="openPayProfile(\''+safeName+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;cursor:pointer;">Pay Profile</button>'
       + '<button onclick="regenCode(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#dbeafe;color:#1d4ed8;border:none;cursor:pointer;">New Code</button>'
+      + '<button onclick="renameEmployee(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#f3f4f6;color:#374151;border:none;cursor:pointer;">Rename</button>'
       + '<button onclick="removeEmployee(\''+safeCode+'\')" class="tap px-3 py-2 rounded-lg text-xs font-medium" style="background:#fee2e2;color:#dc2626;border:none;cursor:pointer;">Remove</button>'
       + '</div></div>'
       + '</div>';
