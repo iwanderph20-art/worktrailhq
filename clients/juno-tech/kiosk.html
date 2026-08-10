@@ -797,20 +797,6 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button onclick="closePayProfile()" style="background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;">&#10005;</button>
     </div>
     <div class="space-y-3">
-      <div>
-        <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Role</p>
-        <select id="ppRole" onchange="togglePayProfileFields()" class="inp inp-dk sel w-full">
-          <option value="phlebotomist">Phlebotomist</option>
-          <option value="courier">Courier</option>
-          <option value="logistics">Logistics Partner</option>
-        </select>
-      </div>
-      <div id="ppWeeklyFields" style="display:none;">
-        <div>
-          <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Fixed Weekly Rate (USD)</p>
-          <input id="ppWeeklyRate" type="number" min="0" step="0.01" placeholder="e.g. 1000.00" class="inp inp-dk w-full">
-        </div>
-      </div>
       <div id="ppWageFields">
         <div>
           <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Draw Rate — Active Work (USD/hr)</p>
@@ -843,9 +829,6 @@ video{object-fit:cover;transform:scaleX(-1);}
             </div>
           </div>
         </div>
-      </div>
-      <div id="ppCourierNote" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;">
-        <p class="text-xs" style="color:#15803d;margin:0;">&#128663; Courier — mileage reimbursement only. No hourly wages or tax withholding.</p>
       </div>
       <div>
         <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Custom Mileage Rate ($/mile) — leave blank for CMS default</p>
@@ -7231,26 +7214,16 @@ function printPayroll() {
 
 /* ── Pay Profile modal ──────────────────────────────────────── */
 var _ppEmpName = '';
-function togglePayProfileFields() {
-  var role = document.getElementById('ppRole').value;
-  document.getElementById('ppWageFields').style.display    = (role === 'courier' || role === 'logistics') ? 'none' : '';
-  document.getElementById('ppWeeklyFields').style.display  = role === 'logistics' ? '' : 'none';
-  document.getElementById('ppTaxFields').style.display     = role === 'courier' ? 'none' : '';
-  document.getElementById('ppCourierNote').style.display   = role === 'courier' ? '' : 'none';
-}
 function openPayProfile(empName) {
   _ppEmpName = empName;
   var emps = store.getJ(K.employees, []);
   var emp = emps.find(function(e){ return e.name === empName; });
   if (!emp) return;
   var profile = emp.payProfile || {};
-  var role = emp.role || 'phlebotomist';
   var SPLIT_EMPS = ['Krys Ellis', 'Enrique Blanco'];
   document.getElementById('ppEmpName').textContent = empName;
-  document.getElementById('ppRole').value        = role;
   document.getElementById('ppRate').value        = profile.hourlyRate || '';
   document.getElementById('ppTravelRate').value  = profile.travelRate || '';
-  document.getElementById('ppWeeklyRate').value  = profile.weeklyRate || '';
   document.getElementById('ppFiling').value      = profile.filingStatus || 'single';
   document.getElementById('ppFedEx').value   = profile.fedAllowances || '';
   document.getElementById('ppStateEx').value = profile.caAllowances || '';
@@ -7258,7 +7231,6 @@ function openPayProfile(empName) {
   // Only show travel rate field for the two phlebotomists on the two-rate plan
   var travelRateWrap = document.getElementById('ppTravelRate').closest('div');
   if (travelRateWrap) travelRateWrap.style.display = (SPLIT_EMPS.indexOf(empName) >= 0) ? '' : 'none';
-  togglePayProfileFields();
   document.getElementById('payProfileModal').classList.add('open');
 }
 function closePayProfile() {
@@ -7268,14 +7240,13 @@ function savePayProfile() {
   var emps = store.getJ(K.employees, []);
   var emp = emps.find(function(e){ return e.name === _ppEmpName; });
   if (!emp) return;
-  var role = document.getElementById('ppRole').value || 'phlebotomist';
-  emp.role = role;
+  emp.role = 'phlebotomist';
   var rawTravelRate = parseFloat(document.getElementById('ppTravelRate').value) || 16.50;
   if (rawTravelRate < 16.50) rawTravelRate = 16.50;
   emp.payProfile = {
-    hourlyRate:    (role === 'courier' || role === 'logistics') ? 0 : (parseFloat(document.getElementById('ppRate').value) || 0),
-    travelRate:    (role === 'phlebotomist') ? rawTravelRate : 0,
-    weeklyRate:    role === 'logistics' ? (parseFloat(document.getElementById('ppWeeklyRate').value) || 0) : 0,
+    hourlyRate:    parseFloat(document.getElementById('ppRate').value) || 0,
+    travelRate:    rawTravelRate,
+    weeklyRate:    0,
     filingStatus:  document.getElementById('ppFiling').value || 'single',
     fedAllowances: parseInt(document.getElementById('ppFedEx').value) || 0,
     caAllowances:  parseInt(document.getElementById('ppStateEx').value) || 0,
