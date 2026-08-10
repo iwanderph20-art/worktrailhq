@@ -746,9 +746,9 @@ video{object-fit:cover;transform:scaleX(-1);}
       <div class="rcard space-y-3">
         <p class="text-sm font-semibold" style="color:#374151;">Pay Period</p>
         <div class="flex flex-wrap gap-2 text-xs">
-          <button onclick="setPayRange('week')"   class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Week</button>
-          <button onclick="setPayRange('biweek')" class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">Last 2 Weeks</button>
-          <button onclick="setPayRange('month')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">This Month</button>
+          <button onclick="setPayRange('firsthalf')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">1st &ndash; 15th</button>
+          <button onclick="setPayRange('secondhalf')" class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">16th &ndash; End</button>
+          <button onclick="setPayRange('month')"      class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">Whole Month</button>
         </div>
         <div class="flex gap-2 flex-wrap items-center">
           <span class="text-xs font-semibold" style="color:#6b7280;min-width:52px;">Period 1</span>
@@ -769,7 +769,7 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="runPayroll()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
             style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Calculate Payroll</button>
         </div>
-        <p class="text-xs" style="color:#9ca3af;">Mileage reimbursement uses IRS 2026 rate: $0.725/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
+        <p class="text-xs" style="color:#9ca3af;">Semi-monthly pay: <strong>1st&ndash;15th</strong> (paid on the 15th) and <strong>16th&ndash;end of month</strong> (paid on the 30th / last day). Mileage reimbursement uses IRS 2026 rate: $0.725/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
       </div>
 
       <div class="rcard space-y-2">
@@ -6852,15 +6852,20 @@ function getPayrollExcluded() {
 }
 
 function setPayRange(mode) {
+  // Semi-monthly pay structure: 1st–15th (paid on the 15th) and 16th–end of month (paid on the 30th/last day).
   var now = new Date();
-  var from, to = new Date(now);
-  if (mode === 'week') {
-    var dow = now.getDay();
-    from = new Date(now); from.setDate(now.getDate() - dow);
-  } else if (mode === 'biweek') {
-    from = new Date(now); from.setDate(now.getDate() - 13);
+  var y = now.getFullYear(), m = now.getMonth();
+  var eom = new Date(y, m + 1, 0);           // last day of the current month (30th/31st/28th–29th)
+  var from, to;
+  if (mode === 'firsthalf') {
+    from = new Date(y, m, 1);  to = new Date(y, m, 15);
+  } else if (mode === 'secondhalf') {
+    from = new Date(y, m, 16); to = eom;
   } else if (mode === 'month') {
-    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    from = new Date(y, m, 1);  to = eom;
+  } else { // 'current' — auto-pick the half we're in
+    if (now.getDate() <= 15) { from = new Date(y, m, 1);  to = new Date(y, m, 15); }
+    else                     { from = new Date(y, m, 16); to = eom; }
   }
   var pad = function(n){ return String(n).padStart(2,'0'); };
   var fmt = function(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
@@ -6878,8 +6883,8 @@ function populatePayEmpFilter() {
     if (emp.name === current) opt.selected = true;
     sel.appendChild(opt);
   });
-  // init date range to this pay period (biweekly)
-  if (!document.getElementById('payFrom').value) setPayRange('biweek');
+  // init date range to the current semi-monthly pay period (1st–15th or 16th–EOM)
+  if (!document.getElementById('payFrom').value) setPayRange('current');
 }
 
 function runPayroll() {
