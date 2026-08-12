@@ -7097,15 +7097,18 @@ function currentPayIndex(){
   return Math.ceil((today - PAY_ANCHOR) / 86400000 / 14);
 }
 
+var PAY_SCHEDULE_END = new Date(2026, 11, 31);  // list pay dates through Dec 31, 2026
 function populatePayDateSelect(){
   var sel = document.getElementById('payDateSelect');
   if (!sel) return;
   var cur = currentPayIndex();
+  // Find the last scheduled pay date on/before the schedule end (Dec 31, 2026).
+  var last = 0;
+  while (payDateForIndex(last + 1) <= PAY_SCHEDULE_END) last++;
   var html = '';
-  // Show 6 past pay dates through 3 upcoming ones, most recent first.
-  for (var i = cur + 3; i >= cur - 6; i--) {
+  // List every payday from the schedule start through December, most recent first.
+  for (var i = last; i >= 0; i--) {
     var pd = payDateForIndex(i);
-    if (pd < PAY_ANCHOR) continue;           // don't list pay dates before the schedule begins
     var p  = periodForPayDate(pd);
     var tag = i === cur ? '  •  upcoming' : '';
     html += '<option value="'+i+'"'+(i === cur ? ' selected' : '')+'>'
