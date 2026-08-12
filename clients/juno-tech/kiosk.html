@@ -1215,7 +1215,7 @@ var store = {
   del:  function(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 
-var K = { employees:'jtl_employees', timesheet:'jtl_timesheet', adminHash:'jtl_admin_hash', adminLog:'jtl_admin_log', deletedTs:'jtl_deleted_ts', collections:'jtl_collections' };
+var K = { employees:'jtl_employees', timesheet:'jtl_timesheet', adminHash:'jtl_admin_hash', adminLog:'jtl_admin_log', deletedTs:'jtl_deleted_ts', collections:'jtl_collections', deletedCollections:'jtl_deleted_collections' };
 
 /* ── AES-256-GCM Encryption (PHI protection) ──────────── */
 var _encKey = null;
@@ -4805,7 +4805,16 @@ function addScheduleEntry() {
 function deleteScheduleEntry(id, reopenDateStr) {
   var arr = store.getJ(K.collections, []).filter(function(c){ return c.id !== id; });
   store.setJ(K.collections, arr);
-  if (fbCfg.url) { fetch(fbCfg.url+'/jtl/collections/'+id+'.json', {method:'DELETE'}).catch(function(){}); }
+  // Remember the deletion locally (and in the cloud) so a merge-sync from another
+  // device — or from this device before the DELETE lands — can't resurrect it.
+  var del = store.getJ(K.deletedCollections, []);
+  if (del.indexOf(id) < 0) { del.push(id); store.setJ(K.deletedCollections, del); }
+  if (fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/collections/'+id+'.json', {method:'DELETE'}).catch(function(){});
+    fetch(fbCfg.url+'/jtl/deletedCollections/'+id+'.json', {
+      method:'PUT', body:JSON.stringify(true), headers:{'Content-Type':'application/json'}
+    }).catch(function(){});
+  }
   renderCalendar();
   // Refresh the open day modal (or close it if that day is now empty)
   if (reopenDateStr) {
@@ -4823,15 +4832,34 @@ function pushScheduleToCloud(item) {
 }
 function syncScheduleFromCloud(cb) {
   if (!fbCfg.url) { if (cb) cb(); return; }
-  fetch(fbCfg.url+'/jtl/collections.json')
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      var arr = [];
-      if (data && typeof data === 'object') { Object.keys(data).forEach(function(k){ if (data[k]) arr.push(data[k]); }); }
-      store.setJ(K.collections, arr);
-      if (cb) cb();
-    })
-    .catch(function(){ if (cb) cb(); });
+  // Merge cloud + local by id rather than overwriting: a locally-added entry whose
+  // cloud write silently failed (e.g. security rules don't cover /jtl/collections)
+  // must NOT be wiped by an empty cloud read. Deleted ids are honoured so removals stick.
+  Promise.all([
+    fetch(fbCfg.url+'/jtl/collections.json').then(function(r){ return r.json(); }).catch(function(){ return null; }),
+    fetch(fbCfg.url+'/jtl/deletedCollections.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+  ]).then(function(res){
+    var cloud = res[0], cloudDel = res[1];
+    // Union of locally-known and cloud-known deletions
+    var deleted = {};
+    store.getJ(K.deletedCollections, []).forEach(function(id){ deleted[id] = true; });
+    if (cloudDel && typeof cloudDel === 'object') { Object.keys(cloudDel).forEach(function(id){ deleted[id] = true; }); }
+    store.setJ(K.deletedCollections, Object.keys(deleted));
+    // Start from local entries, then merge in cloud entries (cloud wins on id collision)
+    var byId = {};
+    store.getJ(K.collections, []).forEach(function(c){ if (c && c.id) byId[c.id] = c; });
+    var localOnly = {};
+    for (var lid in byId) { if (byId.hasOwnProperty(lid)) localOnly[lid] = true; }
+    if (cloud && typeof cloud === 'object') {
+      Object.keys(cloud).forEach(function(k){ if (cloud[k] && cloud[k].id) { byId[cloud[k].id] = cloud[k]; delete localOnly[cloud[k].id]; } });
+    }
+    var arr = [];
+    Object.keys(byId).forEach(function(id){ if (!deleted[id]) arr.push(byId[id]); });
+    store.setJ(K.collections, arr);
+    // Re-push any surviving local-only entries so a previously-failed write self-heals.
+    Object.keys(localOnly).forEach(function(id){ if (!deleted[id]) pushScheduleToCloud(byId[id]); });
+    if (cb) cb();
+  });
 }
 // Schedule section markup for the day-detail modal (showCalDay).
 function _schedDayCardsHtml(dateStr) {
