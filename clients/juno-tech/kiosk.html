@@ -789,10 +789,9 @@ video{object-fit:cover;transform:scaleX(-1);}
       <!-- Pay period selector -->
       <div class="rcard space-y-3">
         <p class="text-sm font-semibold" style="color:#374151;">Pay Period</p>
-        <div class="flex flex-wrap gap-2 text-xs">
-          <button onclick="setPayRange('firsthalf')"  class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">1st &ndash; 15th</button>
-          <button onclick="setPayRange('secondhalf')" class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">16th &ndash; End</button>
-          <button onclick="setPayRange('month')"      class="tap px-3 py-2 rounded-lg font-medium" style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.08);cursor:pointer;">Whole Month</button>
+        <div class="flex gap-2 flex-wrap items-center">
+          <span class="text-xs font-semibold" style="color:#6b7280;min-width:52px;">Pay Date</span>
+          <select id="payDateSelect" onchange="onPayDateSelect()" class="inp inp-dk sel" style="flex:1;min-width:200px;"></select>
         </div>
         <div class="flex gap-2 flex-wrap items-center">
           <span class="text-xs font-semibold" style="color:#6b7280;min-width:52px;">Period 1</span>
@@ -813,7 +812,7 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="runPayroll()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
             style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Calculate Payroll</button>
         </div>
-        <p class="text-xs" style="color:#9ca3af;">Semi-monthly pay: <strong>1st&ndash;15th</strong> (paid on the 15th) and <strong>16th&ndash;end of month</strong> (paid on the 30th / last day). Mileage reimbursement uses IRS 2026 rate: $0.76/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
+        <p class="text-xs" style="color:#9ca3af;">Biweekly pay: paid <strong>every other Friday</strong>, starting <strong>Aug 14, 2026</strong>. Each pay date covers the 14-day period ending two weeks earlier &mdash; e.g. the <strong>Aug 14</strong> pay covers <strong>Jul 18&ndash;Jul 31</strong>, and the <strong>Aug 28</strong> pay covers <strong>Aug 1&ndash;Aug 14</strong>. Pick a pay date above to auto-fill its coverage window. Mileage reimbursement uses IRS 2026 rate: $0.76/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
       </div>
 
       <div class="rcard space-y-2">
@@ -7069,26 +7068,59 @@ function getPayrollExcluded() {
   return excluded;
 }
 
-function setPayRange(mode) {
-  // Semi-monthly pay structure: 1st–15th (paid on the 15th) and 16th–end of month (paid on the 30th/last day).
-  var now = new Date();
-  var y = now.getFullYear(), m = now.getMonth();
-  var eom = new Date(y, m + 1, 0);           // last day of the current month (30th/31st/28th–29th)
-  var from, to;
-  if (mode === 'firsthalf') {
-    from = new Date(y, m, 1);  to = new Date(y, m, 15);
-  } else if (mode === 'secondhalf') {
-    from = new Date(y, m, 16); to = eom;
-  } else if (mode === 'month') {
-    from = new Date(y, m, 1);  to = eom;
-  } else { // 'current' — auto-pick the half we're in
-    if (now.getDate() <= 15) { from = new Date(y, m, 1);  to = new Date(y, m, 15); }
-    else                     { from = new Date(y, m, 16); to = eom; }
+// ── Biweekly payroll ────────────────────────────────────────────────────────
+// Pay is issued every other Friday. Anchor = Fri Aug 14, 2026 (index 0). Each
+// pay date covers the 14-day period ending 14 days before the pay date:
+//   Pay Aug 14 → covers Jul 18 – Jul 31
+//   Pay Aug 28 → covers Aug 1  – Aug 14
+var PAY_ANCHOR   = new Date(2026, 7, 14);  // Fri Aug 14, 2026 (local midnight)
+var PAY_LAG_DAYS = 14;                     // period END is 14 days before the pay date
+function _payPad(n){ return String(n).padStart(2,'0'); }
+function _payFmt(d){ return d.getFullYear()+'-'+_payPad(d.getMonth()+1)+'-'+_payPad(d.getDate()); }
+function _payLabel(d){
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+}
+function _payShort(d){
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[d.getMonth()]+' '+d.getDate();
+}
+function payDateForIndex(n){ var d = new Date(PAY_ANCHOR); d.setDate(d.getDate() + 14 * n); return d; }
+function periodForPayDate(payDate){
+  var end   = new Date(payDate); end.setDate(end.getDate() - PAY_LAG_DAYS);  // e.g. Jul 31
+  var start = new Date(end);     start.setDate(start.getDate() - 13);        // 14-day window → Jul 18
+  return { start: start, end: end };
+}
+function currentPayIndex(){
+  // Index of the first pay date on/after today (the upcoming payday).
+  var today = new Date(); today.setHours(0,0,0,0);
+  return Math.ceil((today - PAY_ANCHOR) / 86400000 / 14);
+}
+
+function populatePayDateSelect(){
+  var sel = document.getElementById('payDateSelect');
+  if (!sel) return;
+  var cur = currentPayIndex();
+  var html = '';
+  // Show 6 past pay dates through 3 upcoming ones, most recent first.
+  for (var i = cur + 3; i >= cur - 6; i--) {
+    var pd = payDateForIndex(i);
+    if (pd < PAY_ANCHOR) continue;           // don't list pay dates before the schedule begins
+    var p  = periodForPayDate(pd);
+    var tag = i === cur ? '  •  upcoming' : '';
+    html += '<option value="'+i+'"'+(i === cur ? ' selected' : '')+'>'
+      + _payLabel(pd)+' pay — covers '+_payShort(p.start)+'–'+_payShort(p.end)+tag+'</option>';
   }
-  var pad = function(n){ return String(n).padStart(2,'0'); };
-  var fmt = function(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
-  document.getElementById('payFrom').value = fmt(from);
-  document.getElementById('payTo').value   = fmt(to);
+  sel.innerHTML = html;
+  onPayDateSelect();  // fill the date inputs for the default selection
+}
+
+function onPayDateSelect(){
+  var sel = document.getElementById('payDateSelect');
+  if (!sel || sel.value === '') return;
+  var p = periodForPayDate(payDateForIndex(parseInt(sel.value, 10)));
+  document.getElementById('payFrom').value = _payFmt(p.start);
+  document.getElementById('payTo').value   = _payFmt(p.end);
 }
 
 function populatePayEmpFilter() {
@@ -7101,8 +7133,8 @@ function populatePayEmpFilter() {
     if (emp.name === current) opt.selected = true;
     sel.appendChild(opt);
   });
-  // init date range to the current semi-monthly pay period (1st–15th or 16th–EOM)
-  if (!document.getElementById('payFrom').value) setPayRange('current');
+  // init the pay-date dropdown to the upcoming biweekly payday and fill the date range
+  populatePayDateSelect();
 }
 
 function runPayroll() {
