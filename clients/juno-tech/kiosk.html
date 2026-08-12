@@ -7168,6 +7168,9 @@ function runPayroll() {
   var ts   = store.getJ(K.timesheet, []);
   var emps = store.getJ(K.employees, []);
   var payExcluded = getPayrollExcluded();
+  // Permanently exclude Enrique Blanco from payroll (kept on the roster / in Records,
+  // just never calculated). Prior records are untouched.
+  emps = emps.filter(function(e){ return e.name !== 'Enrique Blanco'; });
   if (empFilter) emps = emps.filter(function(e){ return e.name === empFilter; });
   if (payExcluded.length) emps = emps.filter(function(e){ return payExcluded.indexOf(e.name) < 0; });
 
@@ -7279,7 +7282,7 @@ function runPayroll() {
     if (!rosteredNames[e.name]) unrosteredNames[e.name] = true;
   });
   Object.keys(unrosteredNames).sort().forEach(function(name) {
-    if (name === 'Hans Duran') return;
+    if (name === 'Hans Duran' || name === 'Enrique Blanco') return;
     if (empFilter && name !== empFilter) return;
     var stats = buildSessMap(name);
     var result = { empName: name, noProfile: true, notInRoster: true, grossWages: 0, netPay: 0,
