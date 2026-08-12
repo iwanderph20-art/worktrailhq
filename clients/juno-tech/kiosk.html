@@ -89,6 +89,8 @@ video{object-fit:cover;transform:scaleX(-1);}
 .cal-date-num.today-num{background:#3b82f6;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;}
 .cal-emp-pill{font-size:10px;font-weight:700;color:#fff;border-radius:4px;padding:2px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;line-height:1.4;}
 .cal-fac{font-size:9px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+/* Scheduled-collection pill on the calendar — teal, deliberately unlike the navy employee pills */
+.cal-sched-pill{font-size:9px;font-weight:700;color:#0f766e;background:#ccfbf1;border-left:3px solid #14b8a6;border-radius:4px;padding:2px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;line-height:1.4;}
 .cal-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:flex-end;justify-content:center;}
 .cal-modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:620px;max-height:82vh;overflow-y:auto;}
 .cal-modal-hdr{position:sticky;top:0;background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 16px 12px;display:flex;align-items:center;justify-content:space-between;z-index:1;}
@@ -487,7 +489,6 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div class="max-w-4xl mx-auto px-4 flex">
       <button class="atab active" id="tab-employees" onclick="switchTab('employees')">Employees</button>
       <button class="atab" id="tab-records"   onclick="switchTab('records')">Records</button>
-      <button class="atab" id="tab-schedule"  onclick="switchTab('schedule')">&#128197; Schedule</button>
       <button class="atab" id="tab-payroll"   onclick="switchTab('payroll')">Payroll</button>
       <button class="atab" id="tab-settings"  onclick="switchTab('settings')">Settings</button>
       <button class="atab" id="tab-facilitymap" onclick="switchTab('facilitymap')">&#128205; Facility Map</button>
@@ -529,6 +530,7 @@ video{object-fit:cover;transform:scaleX(-1);}
               <button id="vt-cal" onclick="switchRecordView('calendar')" class="active">Calendar</button>
               <button id="vt-list" onclick="switchRecordView('list')">List</button>
             </div>
+            <button onclick="openSchedModal()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">&#128197; Schedule</button>
             <button onclick="openManualEntry()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#43; Add Entry</button>
           </div>
         </div>
@@ -554,37 +556,30 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
     </div>
 
-    <!-- Schedule tab — Facility Collection Schedule (separate from employee logs) -->
-    <div id="pane-schedule" class="apane">
-      <div class="sched-wrap">
-        <div class="flex items-center justify-between">
+    <!-- Facility Collection Schedule — add modal (opened from the Records header) -->
+    <div id="schedModalWrap" style="display:none;position:fixed;inset:0;z-index:160;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
+      <div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:400px;border-top:5px solid #0d9488;">
+        <div class="flex items-center justify-between mb-1">
+          <p style="font-size:16px;font-weight:800;color:#0f766e;margin:0;">&#128197; Schedule Facility Collection</p>
+          <button onclick="closeSchedModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;line-height:1;">&times;</button>
+        </div>
+        <p style="font-size:12px;color:#5e9a94;margin:0 0 14px;">Appears on the Records calendar on its date.</p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
           <div>
-            <p style="font-size:16px;font-weight:800;color:#0f766e;margin:0;">&#128197; Facility Collection Schedule</p>
-            <p style="font-size:12px;color:#5e9a94;margin:2px 0 0;">When each facility is scheduled for specimen collection.</p>
+            <label class="text-xs font-semibold" style="color:#0f766e;">Facility</label>
+            <select id="schedFacility" class="inp w-full mt-1" style="color:#111827;">
+              <option value="">&mdash; Select facility &mdash;</option>
+            </select>
           </div>
-          <button class="sched-addbtn" onclick="toggleScheduleForm()">&#43; Add</button>
-        </div>
-
-        <div id="schedForm" class="sched-form">
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div>
-              <label class="text-xs font-semibold" style="color:#0f766e;">Facility</label>
-              <select id="schedFacility" class="inp w-full mt-1" style="color:#111827;">
-                <option value="">&mdash; Select facility &mdash;</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs font-semibold" style="color:#0f766e;">Date &amp; Time</label>
-              <input id="schedDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
-            </div>
-            <div style="display:flex;gap:8px;">
-              <button onclick="addScheduleEntry()" class="tap flex-1 py-2.5 rounded-xl font-semibold text-sm" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">Add to Schedule</button>
-              <button onclick="toggleScheduleForm()" class="tap px-4 py-2.5 rounded-xl font-semibold text-sm" style="background:#f1f5f9;color:#374151;border:none;cursor:pointer;">Cancel</button>
-            </div>
+          <div>
+            <label class="text-xs font-semibold" style="color:#0f766e;">Date &amp; Time</label>
+            <input id="schedDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:2px;">
+            <button onclick="addScheduleEntry()" class="tap flex-1 py-2.5 rounded-xl font-semibold text-sm" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">Add to Schedule</button>
+            <button onclick="closeSchedModal()" class="tap px-4 py-2.5 rounded-xl font-semibold text-sm" style="background:#f1f5f9;color:#374151;border:none;cursor:pointer;">Cancel</button>
           </div>
         </div>
-
-        <div id="scheduleList"></div>
       </div>
     </div>
 
@@ -2404,14 +2399,14 @@ function switchTab(name) {
   document.getElementById('pane-'+name).classList.add('active');
   stopRecordsAutoRefresh();
   if (name==='records') {
-    if (fbCfg.url) { syncFromCloud(function(){ renderTables(); renderAdminLog(); }); startRecordsAutoRefresh(); }
+    populateScheduleFacilities();
+    if (fbCfg.url) { syncFromCloud(function(){ syncScheduleFromCloud(function(){ renderTables(); renderAdminLog(); }); }); startRecordsAutoRefresh(); }
     else { renderTables(); renderAdminLog(); }
   }
   if (name==='employees') {
     if (fbCfg.url) { syncEmployeesFromCloud(function(){ renderEmployeeList(); }); }
     else { renderEmployeeList(); }
   }
-  if (name==='schedule')  { populateScheduleFacilities(); if (fbCfg.url) { syncScheduleFromCloud(renderSchedule); } else { renderSchedule(); } }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
   if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); }
   if (name==='facilitymap') {
@@ -3811,6 +3806,17 @@ function renderCalendar(){
       if(r.type==='in'&&r.approval==='pending') byDate[key].hasPending=true;
     }
   });
+  // Scheduled collections for this month, grouped by day
+  var schedByDate={};
+  store.getJ(K.collections,[]).forEach(function(c){
+    if(!c||!c.datetime) return;
+    var d=new Date(c.datetime);
+    if(isNaN(d)) return;
+    if(d.getFullYear()===_calYear&&d.getMonth()===_calMonth){
+      var key=d.toDateString();
+      (schedByDate[key]=schedByDate[key]||[]).push(c);
+    }
+  });
   var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calMonthLabel').textContent=MONTHS[_calMonth]+' '+_calYear;
   var todayStr=new Date().toDateString();
@@ -3829,9 +3835,10 @@ function renderCalendar(){
     var dStr=cellDate.toDateString();
     var isToday=(dStr===todayStr);
     var data=isCurMo?byDate[dStr]:null;
+    var sched=isCurMo?schedByDate[dStr]:null;
     var hasPending=!!(data&&data.hasPending);
     var cls='cal-cell'+((!isCurMo)?' out-month':'')+(isToday?' today':'')+(hasPending?' has-pending':'');
-    var clickAttr=(isCurMo&&data)?' onclick="showCalDay(\''+dStr+'\')" role="button"':'';
+    var clickAttr=(isCurMo&&(data||sched))?' onclick="showCalDay(\''+dStr+'\')" role="button"':'';
     html+='<div class="'+cls+'"'+clickAttr+'>';
     if(isToday){
       html+='<div style="margin-bottom:4px;"><span class="cal-date-num today-num">'+dayNum+'</span></div>';
@@ -3852,6 +3859,13 @@ function renderCalendar(){
       if(facs.length>2) html+='<div class="cal-fac">+'+(facs.length-2)+' more</div>';
       if(hasPending) html+='<div style="font-size:9px;font-weight:700;color:#d97706;margin-top:2px;">&#9679; Pending</div>';
     }
+    if(sched){
+      sched.slice().sort(function(a,b){return new Date(a.datetime)-new Date(b.datetime);}).slice(0,3).forEach(function(c){
+        var t=new Date(c.datetime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','').toLowerCase();
+        html+='<span class="cal-sched-pill" title="Scheduled collection">&#128197; '+t+' '+_esc(c.facility)+'</span>';
+      });
+      if(sched.length>3) html+='<div class="cal-fac" style="color:#0f766e;">+'+(sched.length-3)+' more</div>';
+    }
     html+='</div>';
   }
   html+='</div>';
@@ -3861,7 +3875,8 @@ function renderCalendar(){
 function showCalDay(dateStr, empFilter){
   var ts=store.getJ(K.timesheet,[]);
   var dayEntries=ts.filter(function(r){return new Date(r.ts).toDateString()===dateStr;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
-  if(!dayEntries.length) return;
+  var daySched=_collectionsForDay(dateStr);
+  if(!dayEntries.length && !daySched.length) return;
   var dateLabel=new Date(dateStr).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   var empGroups={};
   dayEntries.forEach(function(e){if(!empGroups[e.name]) empGroups[e.name]=[];empGroups[e.name].push(e);});
@@ -3870,7 +3885,8 @@ function showCalDay(dateStr, empFilter){
     var filtered={};filtered[empFilter]=empGroups[empFilter];empGroups=filtered;
   }
   _calPhotoLoads=[];
-  var cardsHtml='';
+  // Scheduled collections lead the modal (hidden when filtering to one employee)
+  var cardsHtml = empFilter ? '' : _schedDayCardsHtml(dateStr);
   Object.keys(empGroups).forEach(function(name){
     var raw=empGroups[name];
     var emp=raw.map(function(e){return Object.assign({},e,{_d:new Date(e.ts)});}).sort(function(a,b){return a._d-b._d;});
@@ -4024,9 +4040,16 @@ function showCalDay(dateStr, empFilter){
   overlay.className='cal-modal-overlay';
   overlay.onclick=function(e){if(e.target===overlay) closeCalModal();};
   var empCount=Object.keys(empGroups).length;
-  var modalSubtitle=empFilter
-    ?'<span style="background:#1a2b8c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;">'+empFilter+'</span>'
-    :(dayEntries.length+' entr'+(dayEntries.length===1?'y':'ies')+' &middot; '+empCount+' employee'+(empCount===1?'':'s'));
+  var schedCount=daySched.length;
+  var _schedNote=schedCount?('<span style="color:#0f766e;font-weight:600;">&#128197; '+schedCount+' scheduled</span>'):'';
+  var modalSubtitle;
+  if(empFilter){
+    modalSubtitle='<span style="background:#1a2b8c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;">'+empFilter+'</span>';
+  } else if(!dayEntries.length){
+    modalSubtitle=_schedNote||'No records';
+  } else {
+    modalSubtitle=dayEntries.length+' entr'+(dayEntries.length===1?'y':'ies')+' &middot; '+empCount+' employee'+(empCount===1?'':'s')+(_schedNote?(' &middot; '+_schedNote):'');
+  }
   overlay.innerHTML='<div class="cal-modal">'
     +'<div class="cal-modal-hdr">'
     +'<div>'
@@ -4724,8 +4747,10 @@ function toggleFacility(el,name){
 function resetFacilityPills(){ selectedFacilities=[]; renderFacilityPills(); var o=document.getElementById('facOther'); if(o){o.value='';o.style.display='none';} }
 
 /* ── Facility Collection Schedule ──────────────────────────────────
- * Standalone from employee logs: just facility + date/time. Stored in
- * K.collections and (when configured) synced to Firebase at /jtl/collections. */
+ * Shown ON the Records calendar (not a separate tab): just facility +
+ * date/time. Stored in K.collections and (when configured) synced to
+ * Firebase at /jtl/collections. Distinct teal styling marks it apart
+ * from employee clock-in entries. */
 function _esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -4739,10 +4764,29 @@ function populateScheduleFacilities() {
     var o = document.createElement('option'); o.value = f; o.textContent = f; sel.appendChild(o);
   });
 }
-function toggleScheduleForm() {
-  var f = document.getElementById('schedForm'); if (!f) return;
-  f.classList.toggle('open');
-  if (f.classList.contains('open')) { document.getElementById('schedFacility').focus(); }
+// Collections for one day, sorted by time. dateStr is a Date.toDateString().
+function _collectionsForDay(dateStr) {
+  return store.getJ(K.collections, []).slice()
+    .filter(function(c){ return c && c.facility && c.datetime && !isNaN(new Date(c.datetime)) && new Date(c.datetime).toDateString() === dateStr; })
+    .sort(function(a,b){ return new Date(a.datetime) - new Date(b.datetime); });
+}
+function openSchedModal(prefillDateStr) {
+  populateScheduleFacilities();
+  var dtEl = document.getElementById('schedDatetime');
+  var facEl = document.getElementById('schedFacility');
+  if (facEl) facEl.value = '';
+  if (dtEl) {
+    // Default to the clicked day (or today) at 8:00 AM local
+    var base = prefillDateStr ? new Date(prefillDateStr) : new Date();
+    base.setHours(8,0,0,0);
+    function pad(n){ return String(n).padStart(2,'0'); }
+    dtEl.value = base.getFullYear()+'-'+pad(base.getMonth()+1)+'-'+pad(base.getDate())+'T'+pad(base.getHours())+':'+pad(base.getMinutes());
+  }
+  document.getElementById('schedModalWrap').style.display = 'flex';
+  setTimeout(function(){ if (facEl) facEl.focus(); }, 80);
+}
+function closeSchedModal() {
+  var w = document.getElementById('schedModalWrap'); if (w) w.style.display = 'none';
 }
 function addScheduleEntry() {
   var facility = document.getElementById('schedFacility').value;
@@ -4754,17 +4798,22 @@ function addScheduleEntry() {
   arr.push(item);
   store.setJ(K.collections, arr);
   pushScheduleToCloud(item);
-  document.getElementById('schedFacility').value = '';
-  document.getElementById('schedDatetime').value = '';
-  document.getElementById('schedForm').classList.remove('open');
-  renderSchedule();
+  closeSchedModal();
+  renderCalendar();
   toast('Collection scheduled for ' + facility);
 }
-function deleteScheduleEntry(id) {
+function deleteScheduleEntry(id, reopenDateStr) {
   var arr = store.getJ(K.collections, []).filter(function(c){ return c.id !== id; });
   store.setJ(K.collections, arr);
   if (fbCfg.url) { fetch(fbCfg.url+'/jtl/collections/'+id+'.json', {method:'DELETE'}).catch(function(){}); }
-  renderSchedule();
+  renderCalendar();
+  // Refresh the open day modal (or close it if that day is now empty)
+  if (reopenDateStr) {
+    closeCalModal();
+    if (_collectionsForDay(reopenDateStr).length || store.getJ(K.timesheet,[]).some(function(r){ return new Date(r.ts).toDateString()===reopenDateStr; })) {
+      showCalDay(reopenDateStr);
+    }
+  }
 }
 function pushScheduleToCloud(item) {
   if (!fbCfg.url || !item) return;
@@ -4784,42 +4833,21 @@ function syncScheduleFromCloud(cb) {
     })
     .catch(function(){ if (cb) cb(); });
 }
-function _schedDateLabel(d) {
-  var today = new Date(); today.setHours(0,0,0,0);
-  var day = new Date(d); day.setHours(0,0,0,0);
-  var diff = Math.round((day - today) / 86400000);
-  var base = d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
-  if (diff === 0) return base + ' · Today';
-  if (diff === 1) return base + ' · Tomorrow';
-  return base;
-}
-function renderSchedule() {
-  var list = document.getElementById('scheduleList');
-  if (!list) return;
-  var arr = store.getJ(K.collections, []).slice()
-    .filter(function(c){ return c && c.facility && c.datetime; })
-    .sort(function(a,b){ return new Date(a.datetime) - new Date(b.datetime); });
-  if (!arr.length) {
-    list.innerHTML = '<div class="sched-empty">No collections scheduled yet. Tap <strong>+ Add</strong> to create one.</div>';
-    return;
-  }
-  var html = '', lastKey = '';
-  arr.forEach(function(c){
-    var d = new Date(c.datetime);
-    if (isNaN(d)) return;
-    var dayKey = d.toDateString();
-    if (dayKey !== lastKey) {
-      html += '<div class="sched-datehdr">' + _schedDateLabel(d) + '</div>';
-      lastKey = dayKey;
-    }
-    var timeStr = d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
-    html += '<div class="sched-row">'
-      + '<span class="sched-time">' + timeStr + '</span>'
+// Schedule section markup for the day-detail modal (showCalDay).
+function _schedDayCardsHtml(dateStr) {
+  var items = _collectionsForDay(dateStr);
+  if (!items.length) return '';
+  var rows = items.map(function(c){
+    var t = new Date(c.datetime).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+    return '<div class="sched-row">'
+      + '<span class="sched-time">' + t + '</span>'
       + '<span class="sched-fac">' + _esc(c.facility) + '</span>'
-      + '<button class="sched-del" title="Remove" onclick="deleteScheduleEntry(\'' + c.id + '\')">&#10005;</button>'
+      + '<button class="sched-del" title="Remove" onclick="deleteScheduleEntry(\'' + c.id + '\',\'' + dateStr + '\')">&#10005;</button>'
       + '</div>';
-  });
-  list.innerHTML = html;
+  }).join('');
+  return '<div style="margin-bottom:10px;">'
+    + '<div class="sched-datehdr" style="margin-top:2px;">&#128197; Scheduled Collections</div>'
+    + rows + '</div>';
 }
 
 /* ── renderTables ────────────────────────── */
