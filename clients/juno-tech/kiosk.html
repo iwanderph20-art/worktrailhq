@@ -769,7 +769,7 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="runPayroll()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
             style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Calculate Payroll</button>
         </div>
-        <p class="text-xs" style="color:#9ca3af;">Semi-monthly pay: <strong>1st&ndash;15th</strong> (paid on the 15th) and <strong>16th&ndash;end of month</strong> (paid on the 30th / last day). Mileage reimbursement uses IRS 2026 rate: $0.725/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
+        <p class="text-xs" style="color:#9ca3af;">Semi-monthly pay: <strong>1st&ndash;15th</strong> (paid on the 15th) and <strong>16th&ndash;end of month</strong> (paid on the 30th / last day). Mileage reimbursement uses IRS 2026 rate: $0.76/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
       </div>
 
       <div class="rcard space-y-2">
@@ -1751,7 +1751,7 @@ function setTripType(type) {
     tn.style.background='#f5f3ff'; tn.style.border='1px solid #ddd6fe';
     tt.style.color='#7c3aed';
     tt.textContent = type === 'ONE_WAY'
-      ? '📍 One-Way: GPS tracks distance to site. Miles × $0.725/mi reimbursed.'
+      ? '📍 One-Way: GPS tracks distance to site. Miles × $0.76/mi reimbursed.'
       : '🔄 Round Trip: Distance × 2. GPS tracks outbound; return leg auto-calculated.';
   }
   document.getElementById('qSubmitBtn').style.display = '';
@@ -6558,13 +6558,13 @@ function getDeviceInfo() {
   return { type: type, os: os.trim(), browser: browser };
 }
 
-var IRS_MILEAGE_2026 = 0.725; // IRS standard mileage rate 2026 (kept for reference)
+var IRS_MILEAGE_2026 = 0.76; // IRS standard mileage rate, business use, eff. Jul 1 2026 (was 0.725 Jan–Jun)
 
-// CMS-CA 2026 Travel Reimbursement (HCPCS)
+// Employee mileage reimbursement (IRS standard rate)
 function calcCMSMileage(rtMiles, isMultiStop) {
-  // IRS 2026 standard mileage rate: $0.725/mile (non-taxable reimbursement)
+  // IRS 2026 standard mileage rate: $0.76/mile (non-taxable reimbursement)
   rtMiles = rtMiles || 0;
-  var rate = IRS_MILEAGE_2026; // 0.725
+  var rate = IRS_MILEAGE_2026; // 0.76
   var total = Math.round(rtMiles * rate * 100) / 100;
   return { hcpcs: 'IRS2026', unitRate: rate, finalUnits: rtMiles, total: total };
 }
