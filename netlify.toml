@@ -2,6 +2,11 @@
   publish = "."
   functions = "netlify/functions"
 
+# Break-reminder push sender — runs every minute to alert clocked-in staff
+# whose break is due (works on a locked phone). See netlify/functions/break-push.js.
+[functions."break-push"]
+  schedule = "* * * * *"
+
 # Clean, shareable URL for Dr. Hossain's booking page.
 # worktrailhq.com/book  ->  serves the booking page (URL stays /book).
 [[redirects]]

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1a2b8c"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#ffffff" stroke-width="26"/>
+  <!-- clock hands pointing to a "break" time -->
+  <line x1="256" y1="256" x2="256" y2="150" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="336" y2="256" stroke="#fbbf24" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="20" fill="#ffffff"/>
+  <!-- small bell to signal the break alarm -->
+  <g transform="translate(360,360)">
+    <path d="M0 -34 C 26 -34 40 -16 40 8 L 46 20 L -46 20 L -40 8 C -40 -16 -26 -34 0 -34 Z" fill="#fbbf24"/>
+    <circle cx="0" cy="32" r="10" fill="#fbbf24"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+{
+  "name": "worktrailhq",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WorkTrail HQ site + Netlify functions",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
