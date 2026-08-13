@@ -1411,6 +1411,7 @@ function enterEmpView() {
 }
 function lockEmployee() {
   stopCamera(); stopBreakTimer(); stopApprovalPoll(); stopBreakCheck(); stopLocationWatch();
+  releaseScreenWakeLock(); stopAlarmLoop(); // let the phone sleep again; silence any ringing alarm
   clearFirebaseLocation(); // remove live location from Firebase
   var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
   var pill=document.getElementById('locationPill'); if(pill) pill.style.display='none';
@@ -2020,6 +2021,7 @@ function startBreak(mins, btype, auto) {
     + (auto ? ' AUTO-STARTED at mandatory deadline ' : ' started at ')
     + new Date(bsTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
   var alrt=document.getElementById('breakAlert'); if(alrt) alrt.style.display='none';
+  stopAlarmLoop(); // break started — silence the ringing siren
   renderEmpState(); startBreakTimer(mins);
   if (auto) {
     toast(breakType==='meal'
@@ -5043,11 +5045,36 @@ function startLocationWatch() {
       {enableHighAccuracy:true, maximumAge:0, timeout:15000}
     );
   }, 10000);
-  // Try Wake Lock API to keep screen active while clocked in (suppresses lock-screen stall)
-  if (navigator.wakeLock) {
-    navigator.wakeLock.request('screen').catch(function(){});
+  // Keep the screen awake while clocked in so the phone never auto-locks mid-shift.
+  // A locked screen freezes JS timers AND suspends Web Audio, which is exactly why
+  // the break alarm goes silent. The wake lock is released by the browser whenever
+  // the page is hidden, so it must be re-acquired on every return to the foreground
+  // (see _reacquireWakeLock, wired to visibilitychange below).
+  requestScreenWakeLock();
+}
+
+/* ── Screen wake lock (re-acquired on resume) ── */
+var _wakeLockSentinel = null;
+var _wakeLockWanted   = false;
+function requestScreenWakeLock() {
+  _wakeLockWanted = true;
+  if (!navigator.wakeLock) return;
+  navigator.wakeLock.request('screen').then(function(sentinel) {
+    _wakeLockSentinel = sentinel;
+    sentinel.addEventListener('release', function(){ _wakeLockSentinel = null; });
+  }).catch(function(){});
+}
+function releaseScreenWakeLock() {
+  _wakeLockWanted = false;
+  if (_wakeLockSentinel) { try { _wakeLockSentinel.release(); } catch(e){} _wakeLockSentinel = null; }
+}
+function _reacquireWakeLock() {
+  // The browser drops the wake lock whenever the page is hidden; grab it again on return.
+  if (_wakeLockWanted && !_wakeLockSentinel && document.visibilityState === 'visible') {
+    requestScreenWakeLock();
   }
 }
+document.addEventListener('visibilitychange', _reacquireWakeLock);
 // Force a fresh location push whenever the employee returns to the page
 // (iOS suspends all JS timers while the screen is locked or tab is backgrounded)
 function _onPageVisibleLocationSync() {
@@ -5450,13 +5477,98 @@ function _getAudioCtx() {
 // for the rest of the session. A near-silent blip primes iOS/Safari.
 function unlockAudio() {
   var ctx = _getAudioCtx();
-  if (!ctx) return;
+  if (ctx) {
+    try {
+      var osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      gain.gain.value = 0.0001;
+      osc.start(); osc.stop(ctx.currentTime + 0.03);
+    } catch(e) {}
+  }
+  primeMediaAlarm(); // unlock the HTMLAudioElement siren too (works on a locked screen)
+}
+
+/* ── Lock-screen-capable siren (HTMLAudioElement) ────────────────────
+ * Web Audio oscillators are SUSPENDED the instant the phone locks, so the
+ * chimes above go silent with the screen off — the employee never hears the
+ * break alarm. A *playing* HTMLAudioElement is treated as background media by
+ * iOS/Android and keeps sounding through the lock screen. We build a loud
+ * looping siren as an in-memory WAV (no external file / network needed) and
+ * "prime" it inside the clock-in tap so it can be replayed later without a
+ * fresh gesture. When a break comes due we play it loud and repeat until the
+ * employee acts. Device vibration is fired as a second channel. ── */
+var _sirenEl = null, _sirenPrimed = false, _alarmLoopID = null;
+
+function _sirenWavDataUri() {
+  // 2-second alternating two-tone siren (800Hz / 1000Hz, 0.25s each), 8kHz mono 16-bit.
+  var rate = 8000, secs = 2, n = rate * secs, bytes = 44 + n * 2;
+  var buf = new Uint8Array(bytes);
+  function w32(o,v){ buf[o]=v&255; buf[o+1]=(v>>8)&255; buf[o+2]=(v>>16)&255; buf[o+3]=(v>>24)&255; }
+  function w16(o,v){ buf[o]=v&255; buf[o+1]=(v>>8)&255; }
+  function wStr(o,s){ for(var i=0;i<s.length;i++) buf[o+i]=s.charCodeAt(i); }
+  wStr(0,'RIFF'); w32(4, 36 + n*2); wStr(8,'WAVE'); wStr(12,'fmt ');
+  w32(16,16); w16(20,1); w16(22,1); w32(24,rate); w32(28,rate*2); w16(32,2); w16(34,16);
+  wStr(36,'data'); w32(40, n*2);
+  for (var i=0;i<n;i++) {
+    var t = i/rate;
+    var freq = (Math.floor(t/0.25) % 2 === 0) ? 800 : 1000;
+    var s = Math.sin(2*Math.PI*freq*t) * 0.9;          // loud
+    var iv = Math.max(-1,Math.min(1,s)) * 32767;
+    w16(44 + i*2, iv < 0 ? iv + 65536 : iv);
+  }
+  var bin = ''; for (var j=0;j<buf.length;j++) bin += String.fromCharCode(buf[j]);
+  return 'data:audio/wav;base64,' + btoa(bin);
+}
+
+function _getSirenEl() {
+  if (_sirenEl) return _sirenEl;
   try {
-    var osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    gain.gain.value = 0.0001;
-    osc.start(); osc.stop(ctx.currentTime + 0.03);
+    _sirenEl = new Audio(_sirenWavDataUri());
+    _sirenEl.loop = true;
+    _sirenEl.preload = 'auto';
+    _sirenEl.setAttribute('playsinline', '');
+  } catch(e) { _sirenEl = null; }
+  return _sirenEl;
+}
+
+// Prime inside a user gesture: start then immediately pause so later .play()
+// calls (from a timer, even with the screen off) are permitted without a gesture.
+function primeMediaAlarm() {
+  var el = _getSirenEl(); if (!el || _sirenPrimed) return;
+  try {
+    el.volume = 0;
+    var p = el.play();
+    if (p && p.then) p.then(function(){ el.pause(); el.currentTime = 0; el.volume = 1; _sirenPrimed = true; })
+                      .catch(function(){});
+    else { el.pause(); el.currentTime = 0; el.volume = 1; _sirenPrimed = true; }
   } catch(e) {}
+}
+
+// Play the loud siren for `seconds` (default ~4s). Survives a locked screen.
+function playMediaSiren(seconds) {
+  var el = _getSirenEl(); if (!el) return;
+  try {
+    el.volume = 1; el.currentTime = 0;
+    var p = el.play(); if (p && p.catch) p.catch(function(){});
+  } catch(e) {}
+  try { if (navigator.vibrate) navigator.vibrate([500,200,500,200,500]); } catch(e) {}
+  clearTimeout(el._stopID);
+  el._stopID = setTimeout(function(){ try { el.pause(); el.currentTime = 0; } catch(e){} },
+                          (seconds || 4) * 1000);
+}
+
+// Ring repeatedly until the employee acts (break started / acknowledged).
+// No-op if already ringing, so the minute-by-minute compliance re-check
+// doesn't reset the cadence or double up.
+function startAlarmLoop() {
+  if (_alarmLoopID) return;
+  playMediaSiren(4);
+  _alarmLoopID = setInterval(function(){ playMediaSiren(4); }, 12000);
+}
+function stopAlarmLoop() {
+  if (_alarmLoopID) { clearInterval(_alarmLoopID); _alarmLoopID = null; }
+  var el = _sirenEl;
+  if (el) { try { clearTimeout(el._stopID); el.pause(); el.currentTime = 0; } catch(e){} }
 }
 
 /* ── Break chime (Web Audio API — no external dependency) ── */
@@ -5753,6 +5865,7 @@ function checkBreakCompliance() {
 
   if (shiftEndDue) {
     // ── HIGHEST PRIORITY: 8-hour shift limit
+    startAlarmLoop(); // keep ringing (lock-screen audible) until they clock out
     alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
     alrt.style.display = '';
     alrtTitle.textContent = '⛔ 8-Hour Shift Limit Reached';
@@ -5770,6 +5883,7 @@ function checkBreakCompliance() {
       startBreak(30, 'meal', true);
       return;
     }
+    startAlarmLoop(); // keep ringing (lock-screen audible) until the meal break starts
     alrt.className = 'glass rounded-3xl px-5 py-4 break-notice-urgent';
     alrt.style.display = '';
     var mbtns = '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#dc2626;color:#fff;border:none;cursor:pointer;">🍽️ Start Meal Break Now</button>';
@@ -5791,6 +5905,7 @@ function checkBreakCompliance() {
       startBreak(10, 'rest', true);
       return;
     }
+    startAlarmLoop(); // keep ringing (lock-screen audible) until the rest break starts
     alrt.className = 'glass rounded-3xl px-5 py-4 break-notice';
     alrt.style.display = '';
     var rbtns = '<button onclick="startBreak(10,\'rest\')" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">☕ Start 10-min Rest Break</button>';
@@ -5802,6 +5917,7 @@ function checkBreakCompliance() {
     rbtns += ' <button onclick="delayRestBreak()" class="tap flex-1 py-2.5 rounded-xl text-sm font-semibold" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;cursor:pointer;">⏱ Delay 15 min (Clinical Emergency Only)</button>';
     alrtBtns.innerHTML = rbtns;
   } else if (!_mealSnoozed && !_restDelayed) {
+    stopAlarmLoop(); // nothing due — silence any ringing siren
     alrt.style.display = 'none';
   }
 }
@@ -5822,6 +5938,7 @@ function _getMealDeadlineStr() {
 function snoozeMealBreak() {
   if (_mealSnoozeTimer) { clearTimeout(_mealSnoozeTimer); _mealSnoozeTimer = null; }
   _mealSnoozed = true;
+  stopAlarmLoop(); // acknowledged (delayed) — silence the ringing siren
   var alrt = document.getElementById('breakAlert');
   if (alrt) alrt.style.display = 'none';
   var deadlineStr = _getMealDeadlineStr();
@@ -5844,6 +5961,7 @@ function snoozeMealBreak() {
 function delayRestBreak() {
   if (_restDelayTimer) { clearTimeout(_restDelayTimer); _restDelayTimer = null; }
   _restDelayed = true;
+  stopAlarmLoop(); // acknowledged (delayed) — silence the ringing siren
   var alrt = document.getElementById('breakAlert');
   if (alrt) alrt.style.display = 'none';
   // Compute which rest break we're on and its hard cutoff
