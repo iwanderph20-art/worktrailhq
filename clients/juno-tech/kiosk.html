@@ -4459,9 +4459,14 @@ function _doGenerateReport(fromStr,toStr,empFilter){
 }
 
 /* ── Firebase Cloud Sync ─────────────────────────── */
+// Built-in default so a fresh device — including the installed home-screen app,
+// which starts in its own empty storage — connects to the lab's cloud without
+// needing the staff link. (A Firebase DB URL is not a secret; access is gated by
+// Firebase security rules.) A stored value or a ?fb= link param still overrides it.
+var DEFAULT_FB_URL = 'https://junotech-kiosk-default-rtdb.firebaseio.com';
 var fbCfg = { url: '' };
 function fbInit() {
-  fbCfg.url = (store.get('fb_url') || '').replace(/\/+$/, '');
+  fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
   // Auto-configure from ?fb= URL param (staff device opening shared kiosk link or email approval link)
   try {
     var _p = new URLSearchParams(window.location.search);

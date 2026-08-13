@@ -19,7 +19,9 @@ const webpush = require('web-push');
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || 'BFsSACZIvSVJP5a8rbg_FLT9pJlA55fh-b8uHyrs0ePdiGjjQ2i6_yVQQtrRSgCFLA5yy0uVwQ4hEIGjwUrYgBo';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:info@junotechlaboratory.com';
-const DB = (process.env.FIREBASE_DB_URL || '').replace(/\/+$/, '');
+// Firebase DB URL — env var wins; falls back to the lab's database so the only
+// env var you must set in Netlify is VAPID_PRIVATE_KEY.
+const DB = (process.env.FIREBASE_DB_URL || 'https://junotech-kiosk-default-rtdb.firebaseio.com').replace(/\/+$/, '');
 
 // Break thresholds — kept in sync with kiosk.html.
 const REST1_HRS = 2.0, MEAL_DUE_HRS = 4.0, REST2_HRS = 6.0, SHIFT_WARN_HRS = 7.5, SHIFT_MAX_HRS = 8.0;
