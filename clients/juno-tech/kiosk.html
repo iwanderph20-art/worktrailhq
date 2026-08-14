@@ -4,14 +4,14 @@
 <script>if(location.protocol==='http:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1')location.replace('https:'+location.href.substring(location.protocol.length));</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Juno Tech Laboratory — Kiosk</title>
+<title>JT Kiosk</title>
 <!-- PWA: lets the kiosk be added to the home screen so break reminders can push
      to a locked phone (required for Web Push on iOS 16.4+). -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1a2b8c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Juno Clock">
+<meta name="apple-mobile-web-app-title" content="JT Kiosk">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Local utility CSS replaces the 2.5 MB Tailwind CDN runtime -->
 <link rel="stylesheet" href="tw.css">
@@ -1461,6 +1461,29 @@ function _syncClockStateLocal() {
   else if (last.type==='break_end')   { clockState='in'; }
   else                                { clockState='out'; }
 }
+/* ts of the entry that currently anchors this employee's live clock state
+   (the last transition entry — matches what fbPutState recorded). */
+function _liveAnchorTs() {
+  if (!currentEmp) return '';
+  var es = store.getJ(K.timesheet, [])
+    .filter(function(e){ return e.name === currentEmp.name; })
+    .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+  var last = es[es.length - 1];
+  return last ? String(last.ts) : '';
+}
+/* Poll the live clock state every 30 s while the employee is on the kiosk and
+   clocked in / on break / pending, so admin edits made on another device (time
+   changes, forced clock-outs) reach this screen without a manual reload. */
+var liveStatePollID = null;
+function startLiveStatePoll() {
+  if (liveStatePollID || !fbCfg.url) return;
+  liveStatePollID = setInterval(function(){
+    if (currentEmp && clockState !== 'out') syncClockState(); else stopLiveStatePoll();
+  }, 30000);
+}
+function stopLiveStatePoll() {
+  if (liveStatePollID) { clearInterval(liveStatePollID); liveStatePollID = null; }
+}
 /* Full sync: local immediately, then Firebase for cross-device accuracy */
 function syncClockState() {
   _syncClockStateLocal();
@@ -1471,6 +1494,18 @@ function syncClockState() {
     if (!d || !d.state || !currentEmp) return;
     var fbState = d.state;
     var fbTs    = d.ts || '';
+    // An admin may have edited this employee's live clock-in/out time on another
+    // device. The state itself is unchanged (still 'in'/'break'/'pending') but its
+    // ts moved. Detect that drift and pull the corrected entry so this device's
+    // "since" line and payroll reflect the edit right away.
+    var localTs = _liveAnchorTs();
+    if (fbTs && localTs && String(fbTs) !== String(localTs)) {
+      syncFromCloud(function(){
+        _syncClockStateLocal();
+        renderEmpState(); updateTodaySummary();
+      });
+      return;
+    }
     if (fbState === 'pending' && fbTs) {
       var localStatus = getApprovalStatus(fbTs);
       if (localStatus === 'approved' || localStatus === 'denied') {
@@ -1520,10 +1555,12 @@ function renderEmpState() {
   var mp2=document.getElementById('mileagePill'); if(mp2) mp2.style.display='none';
 
   if (clockState==='out') {
+    stopLiveStatePoll();
     badge.textContent='Not Clocked In'; badge.className='b-out text-xs font-semibold px-3 py-1 rounded-full';
     clockBtn.textContent='Clock In'; clockBtn.style.background='#1a2b8c';
     mainCard.style.display='';
   } else if (clockState==='pending') {
+    startLiveStatePoll();
     badge.textContent='Pending Approval'; badge.className='b-pending text-xs font-semibold px-3 py-1 rounded-full';
     pendingCard.style.display='';
     clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
@@ -1532,6 +1569,7 @@ function renderEmpState() {
     var mp3=document.getElementById('mileagePill'); if(mp3) mp3.style.display = mileageTracking ? '' : 'none';
     if(mileageTracking) updateMileagePill();
   } else if (clockState==='in') {
+    startLiveStatePoll();
     badge.textContent='Clocked In ✓'; badge.className='b-in text-xs font-semibold px-3 py-1 rounded-full';
     var entries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; });
     var lastIn = null;
@@ -1545,6 +1583,7 @@ function renderEmpState() {
     if(mp) mp.style.display = mileageTracking ? '' : 'none';
     if(mileageTracking) updateMileagePill();
   } else if (clockState==='break') {
+    startLiveStatePoll();
     badge.textContent='On Break'; badge.className='b-break text-xs font-semibold px-3 py-1 rounded-full';
     breakCard.style.display='flex'; breakCard.style.flexDirection='column';
   }
@@ -3399,6 +3438,16 @@ function saveEditEntry() {
     }
   }
   fbPut('timesheet', newTs, updatedEntry);
+  // If this entry was the anchor for the employee's live clock state (i.e. they are
+  // still clocked in / on break on another device), move the state pointer to the new
+  // ts so that device honours the time change instead of clinging to the old ts.
+  if (dtChanged && fbCfg.url && updatedEntry) {
+    (function(name, oTs, nTs){
+      fbGetState(name, function(st){
+        if (st && st.ts && String(st.ts) === String(oTs)) fbPutState(name, st.state, nTs);
+      });
+    })(updatedEntry.name, origTs, newTs);
+  }
   // Save admin photo under separate key — never overwrites employee photo
   if (editPhotoUrl) savePhoto('admin_'+newTs, editPhotoUrl);
   // Migrate employee photo to new ts key if time was changed
@@ -5128,7 +5177,7 @@ function enableBreakPush(interactive) {
     return;
   }
   if (_isIOS() && !_isStandalone()) {
-    if (interactive) toast('To get alerts when your screen is off: tap Share → “Add to Home Screen”, then open Juno Clock from the home screen.', 10000);
+    if (interactive) toast('To get alerts when your screen is off: tap Share → “Add to Home Screen”, then open JT Kiosk from the home screen.', 10000);
     return;
   }
   if (Notification.permission === 'denied') {

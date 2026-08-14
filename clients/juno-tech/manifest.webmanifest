@@ -1,6 +1,6 @@
 {
-  "name": "Juno Tech Time Clock",
-  "short_name": "Juno Clock",
+  "name": "JT Kiosk",
+  "short_name": "JT Kiosk",
   "description": "Clock in/out and break reminders for Juno Tech Laboratory staff.",
   "start_url": "/clients/juno-tech/kiosk.html",
   "scope": "/clients/juno-tech/",
