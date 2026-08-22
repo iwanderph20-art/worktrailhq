@@ -1158,11 +1158,11 @@ video{object-fit:cover;transform:scaleX(-1);}
 <div id="mealGateModal">
   <div style="background:#fff;border-radius:24px;padding:28px 24px;max-width:380px;width:100%;margin:16px;text-align:center;position:relative;">
     <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style="background:#fff7ed;font-size:34px;">&#127859;</div>
-    <p class="text-xl font-bold mb-1" style="color:#111827;">30-minute meal break</p>
-    <p class="text-sm mb-5" style="color:#6b7280;line-height:1.5;">Did you take your 30-minute unpaid meal break during this shift?</p>
-    <button onclick="mealGateYes()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">&#9989; Yes, I took it &mdash; clock me out</button>
-    <button onclick="mealGateNo()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#c2410c;color:#fff;border:none;cursor:pointer;">&#10060; No, I didn&rsquo;t &mdash; clock me out anyway</button>
-    <p class="text-xs mt-2 mb-3" style="color:#9ca3af;line-height:1.5;">If you didn&rsquo;t take it, you&rsquo;ll be paid for the full time you worked. Your answer is recorded for your manager.</p>
+    <p class="text-xl font-bold mb-1" style="color:#111827;">Take your meal break</p>
+    <p class="text-sm mb-5" style="color:#6b7280;line-height:1.5;">You haven&rsquo;t taken your 30-minute unpaid meal break yet. Please take it before you clock out.</p>
+    <button onclick="mealGateTakeBreak()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">&#9749; Start my 30-minute break now</button>
+    <button onclick="mealGateSkip()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#fff;color:#c2410c;border:1px solid #fecaca;cursor:pointer;">Clock out without taking it</button>
+    <p class="text-xs mt-2 mb-3" style="color:#9ca3af;line-height:1.5;">If you clock out without taking it, you&rsquo;ll be paid for the full time you worked, and it&rsquo;s recorded for your manager.</p>
     <button onclick="mealGateCancel()" class="tap w-full py-2 rounded-2xl font-medium text-xs" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Not clocking out yet</button>
   </div>
 </div>
@@ -2183,17 +2183,15 @@ function _openMealGate() {
 function _closeMealGate() {
   document.getElementById('mealGateModal').classList.remove('open');
 }
-function mealGateYes() {
+function mealGateTakeBreak() {
   _closeMealGate();
-  var empCode = currentEmp.code || currentEmp.name;
-  logAdminAction('MEAL_ATTESTED', currentEmp.name + ' (ID: ' + empCode + ') confirmed taking the 30-min unpaid meal break at clock-out.');
-  if (!currentLocation) { openLocationModal(); return; }
-  _openPreClockForm();
+  pendingAction = null; // clock-out is deferred — take the break first, then clock out
+  startBreak(30, 'meal'); // required break; once taken it's logged and deducted at payroll
 }
-function mealGateNo() {
+function mealGateSkip() {
   _closeMealGate();
-  // Break wasn't taken — clock out at the actual recorded time and pay the full
-  // worked hours (no meal deduction, since no meal was taken). Recorded for the manager.
+  // Clocking out without taking the break — pay the full recorded hours (no meal
+  // deduction, since none was taken) and log it for the manager.
   var empCode = currentEmp.code || currentEmp.name;
   logAdminAction('MEAL_NOT_TAKEN', currentEmp.name + ' (ID: ' + empCode + ') clocked out WITHOUT taking the 30-min meal break. Paid for full hours worked; no meal deducted.');
   if (!currentLocation) { openLocationModal(); return; }
