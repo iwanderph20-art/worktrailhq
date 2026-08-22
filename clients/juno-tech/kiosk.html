@@ -855,8 +855,8 @@ video{object-fit:cover;transform:scaleX(-1);}
         </div>
         <div style="margin-top:10px;">
           <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Travel Rate — Non-Productive Time (USD/hr)</p>
-          <input id="ppTravelRate" type="number" min="16.50" step="0.01" placeholder="16.50 (CA minimum)" class="inp inp-dk w-full">
-          <p class="text-xs mt-1" style="color:#9ca3af;">Must be ≥ $16.50/hr (CA minimum wage). Applies to travel to/from facility.</p>
+          <input id="ppTravelRate" type="number" min="17" step="0.01" placeholder="17.00 (company floor)" class="inp inp-dk w-full">
+          <p class="text-xs mt-1" style="color:#9ca3af;">Must be ≥ $17/hr (company floor, above CA minimum wage). Applies to travel to/from facility.</p>
         </div>
       </div>
       <div id="ppTaxFields">
@@ -7154,8 +7154,8 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
 
   if (!rate) return {empName: emp.name, noProfile: true, grossWages: 0, totalMiles: totalMiles, netPay: 0};
 
-  var travelRate = parseFloat(profile.travelRate) || 16.50;
-  if (travelRate < 16.50) travelRate = 16.50;
+  var travelRate = parseFloat(profile.travelRate) || 17;
+  if (travelRate < 17) travelRate = 17;
 
   hoursWorked = r2(hoursWorked);
 
@@ -7667,7 +7667,7 @@ function printPayroll() {
       +'</div>'
       // Table
       +'<table style="width:100%;border-collapse:collapse;">'
-      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+(r.role==='logistics' ? 'Fixed Weekly Rate: $'+(r.weeklyRate||0).toFixed(2)+'/wk' : (r.hasSplit ? 'Draw: '+fmtHrs(r.drawHours)+' @ $'+(r.hourlyRate||0).toFixed(2)+'/hr  |  Travel: '+fmtHrs(r.travelHours)+' @ $'+(r.travelRate||16.50).toFixed(2)+'/hr' : fmtHrs(r.hoursWorked)+' worked @ $'+(r.hourlyRate||0).toFixed(2)+'/hr'))+'</td></tr>'
+      +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+(r.role==='logistics' ? 'Fixed Weekly Rate: $'+(r.weeklyRate||0).toFixed(2)+'/wk' : (r.hasSplit ? 'Draw: '+fmtHrs(r.drawHours)+' @ $'+(r.hourlyRate||0).toFixed(2)+'/hr  |  Travel: '+fmtHrs(r.travelHours)+' @ $'+(r.travelRate||17).toFixed(2)+'/hr' : fmtHrs(r.hoursWorked)+' worked @ $'+(r.hourlyRate||0).toFixed(2)+'/hr'))+'</td></tr>'
       // Shift detail rows
       +(function(){
         var _mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -7810,8 +7810,8 @@ function savePayProfile() {
   var emp = emps.find(function(e){ return e.name === _ppEmpName; });
   if (!emp) return;
   emp.role = 'phlebotomist';
-  var rawTravelRate = parseFloat(document.getElementById('ppTravelRate').value) || 16.50;
-  if (rawTravelRate < 16.50) rawTravelRate = 16.50;
+  var rawTravelRate = parseFloat(document.getElementById('ppTravelRate').value) || 17;
+  if (rawTravelRate < 17) rawTravelRate = 17;
   emp.payProfile = {
     hourlyRate:    parseFloat(document.getElementById('ppRate').value) || 0,
     travelRate:    rawTravelRate,
