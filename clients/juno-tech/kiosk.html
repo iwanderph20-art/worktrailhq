@@ -1465,7 +1465,14 @@ function _syncClockStateLocal() {
     }
   }
   else if (last.type==='in')          { clockState='in'; }
-  else if (last.type==='break_start') { clockState='break'; }
+  else if (last.type==='break_start') {
+    // Reconstruct/resolve a break whose live state was lost to a reload or lock.
+    var rawBs = allEntries.filter(function(e){ return String(e.ts)===String(last.ts) && e.type==='break_start'; })[0]
+              || {ts:last.ts, breakType:'', note:''};
+    var res = _restoreBreakStateFromEntry(rawBs);
+    if (res === 'out') { clockState='out'; }
+    else { clockState='break'; startBreakTimer(breakMins); }
+  }
   else if (last.type==='break_end')   { clockState='in'; }
   else                                { clockState='out'; }
 }
@@ -2149,9 +2156,10 @@ function stopBreakTimer() { if(breakTimerID){ clearInterval(breakTimerID); break
 function endBreak() {
   stopBreakTimer();
   var endD = new Date();
-  // For a consented auto-clock-out break, never record past the scheduled end — if the
-  // phone was locked past it, cap at breakStart+breakMins so pay isn't inflated.
-  if (_autoClockOutAfterBreak && breakStart) {
+  // Never record a break longer than its intended length. If the phone was locked or
+  // the page reloaded past the break's end, cap at breakStart+breakMins so a long gap
+  // can't inflate a paid shift or over-deduct the unpaid meal. (Ending early is fine.)
+  if (breakStart) {
     var sched = new Date(breakStart.getTime() + breakMins*60000);
     if (endD > sched) endD = sched;
   }
@@ -2178,6 +2186,62 @@ function endBreak() {
   fbPutState(currentEmp.name,'in',beTs);
   renderEmpState(); updateTodaySummary();
   toast('Break ended — welcome back!');
+}
+
+/* ── Stale break recovery on return ───────────────────────────────────────
+ * If the kiosk was fully closed/reloaded during a break, the live countdown
+ * state is lost. On the next open we reconstruct it from the open break_start
+ * entry: if a consented auto-clock-out meal break already ran its full length
+ * while away, close the shift at the scheduled end; otherwise re-arm the
+ * countdown (and auto-clock-out flag) so it finishes normally. Returns the
+ * resulting clock state ('out' if resolved, 'break' if restored). */
+function _restoreBreakStateFromEntry(bs) {
+  var mins  = parseInt(bs.note) || (bs.breakType === 'meal' ? 30 : 10);
+  var auto  = bs.autoClockOut === true;
+  var start = new Date(bs.ts);
+  var schedEnd = start.getTime() + mins*60000;
+  if (auto && Date.now() >= schedEnd) {
+    _finishStaleAutoBreak(bs, mins);
+    return 'out';
+  }
+  breakStart = start; breakMins = mins; _autoClockOutAfterBreak = auto;
+  var endStr = new Date(schedEnd).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  var lblEl = document.getElementById('breakLabel');
+  if (lblEl) lblEl.textContent = auto
+    ? '30-min unpaid meal break — you will be clocked out automatically at ' + endStr
+    : (bs.breakType==='meal' ? '30-min unpaid meal break — back in 30 minutes' : mins+'-min paid rest break');
+  var endBtn = document.getElementById('endBreakBtn');
+  if (endBtn) endBtn.textContent = auto ? 'Clock Out Now' : 'End Break Early';
+  return 'break';
+}
+function _finishStaleAutoBreak(bs, mins) {
+  var schedEndMs   = new Date(bs.ts).getTime() + mins*60000;
+  var breakEndTs   = new Date(schedEndMs).toISOString();
+  var clockOutTs   = new Date(schedEndMs + 1000).toISOString(); // +1s so keys/order don't collide
+  var empCode      = currentEmp.code || currentEmp.name;
+  var arr = store.getJ(K.timesheet, []);
+  var beEntry = {name:currentEmp.name, type:'break_end', ts:breakEndTs, note:mins+' min', empId:empCode};
+  var clockInEntry = null;
+  for (var i=arr.length-1;i>=0;i--){ if(arr[i].name===currentEmp.name && arr[i].type==='in'){ clockInEntry=arr[i]; break; } }
+  var outEntry = {
+    name: currentEmp.name, type:'out', ts: clockOutTs,
+    hasPhoto:false, photo:null,
+    note:'Auto clock-out at end of meal break (resolved on return)',
+    location: null,
+    mileage: (clockInEntry && clockInEntry.mileage!=null) ? clockInEntry.mileage : null,
+    tripType: clockInEntry ? (clockInEntry.tripType||'ONE_WAY') : 'ONE_WAY',
+    autoClockOut: true, device: getDeviceInfo()
+  };
+  arr.push(beEntry); arr.push(outEntry);
+  store.setJ(K.timesheet, arr);
+  fbPut('timesheet', breakEndTs, beEntry);
+  fbPut('timesheet', clockOutTs, outEntry);
+  fbPutState(currentEmp.name, 'out', clockOutTs);
+  _autoClockOutAfterBreak = false; breakStart = null; breakMins = 0;
+  logAdminAction('AUTO_CLOCK_OUT', currentEmp.name + ' (ID: ' + empCode + ') was automatically clocked out at '
+    + new Date(clockOutTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
+    + ' — meal break resolved on return (consent was given at clock-out).');
+  toast('You were automatically clocked out at the end of your 30-minute meal break.', 9000);
 }
 
 /* ── Unpaid meal-break gate at clock-out ──────────────────────────────────
