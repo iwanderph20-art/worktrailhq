@@ -161,8 +161,9 @@ video{object-fit:cover;transform:scaleX(-1);}
 #clockOutSummaryModal.open{display:flex;}
 #mealGateModal{position:fixed;inset:0;z-index:250;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);}
 #mealGateModal.open{display:flex;}
-#mealReasonModal{position:fixed;inset:0;z-index:260;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);}
-#mealReasonModal.open{display:flex;}
+.mealopt{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:11px 12px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:8px;cursor:pointer;font-size:14px;color:#111827;}
+.mealopt input{margin-top:3px;flex-shrink:0;}
+.mealopt-sub{color:#6b7280;font-size:12px;font-weight:400;}
 /* pay profile modal */
 #payProfileModal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);}
 #payProfileModal.open{display:flex;}
@@ -1158,36 +1159,17 @@ video{object-fit:cover;transform:scaleX(-1);}
 
 <!-- ── MEAL-BREAK GATE MODAL (shown at clock-out of a 5h+ shift) ─────────── -->
 <div id="mealGateModal">
-  <div style="background:#fff;border-radius:24px;padding:28px 24px;max-width:380px;width:100%;margin:16px;text-align:center;position:relative;">
-    <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style="background:#fff7ed;font-size:34px;">&#127859;</div>
-    <p class="text-xl font-bold mb-1" style="color:#111827;">Meal break</p>
-    <p class="text-sm mb-5" style="color:#6b7280;line-height:1.5;">You haven&rsquo;t logged a 30-minute meal break for this shift. Choose one:</p>
-    <button onclick="mealGateTakeBreak()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">&#9749; Take my 30-minute break now</button>
-    <button onclick="mealGateDidntTake()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#eef2ff;color:#1a2b8c;border:1px solid rgba(26,43,140,.15);cursor:pointer;">I didn&rsquo;t take my full break</button>
-    <button onclick="mealGateCancel()" class="tap w-full py-2 rounded-2xl font-medium text-xs mt-1" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Not clocking out yet</button>
-  </div>
-</div>
-
-<!-- ── MEAL "TOOK BUT DIDN'T LOG" REASON MODAL ──────────────────────────── -->
-<div id="mealReasonModal">
-  <div style="background:#fff;border-radius:24px;padding:28px 24px;max-width:380px;width:100%;margin:16px;position:relative;">
+  <div style="background:#fff;border-radius:24px;padding:24px 20px;max-width:400px;width:100%;margin:16px;position:relative;">
+    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style="background:#fff7ed;font-size:30px;">&#127859;</div>
     <p class="text-xl font-bold mb-1" style="color:#111827;text-align:center;">Your meal break</p>
-    <p class="text-sm mb-4" style="color:#6b7280;line-height:1.5;text-align:center;">You didn&rsquo;t log a 30-minute meal break for this shift. Pick what happened, then choose below.</p>
-    <label class="text-xs font-semibold" style="color:#6b7280;">Reason</label>
-    <select id="mealReasonSelect" class="inp w-full mt-1 mb-3" style="color:#111827;" onchange="var e=document.getElementById('mealReasonErr'); if(e) e.style.display='none';">
-      <option value="">&mdash; Select a reason &mdash;</option>
-      <option value="Forgot to log it">Forgot to log it</option>
-      <option value="Kiosk or phone wasn't available">Kiosk or phone wasn&rsquo;t available</option>
-      <option value="Was too busy / short-staffed">Was too busy / short-staffed</option>
-      <option value="Chose to work through it">Chose to work through it</option>
-      <option value="Other">Other</option>
-    </select>
-    <label class="text-xs font-semibold" style="color:#6b7280;">Details</label>
-    <textarea id="mealReasonText" rows="2" placeholder="Add any details (optional)" class="inp w-full mt-1" style="color:#111827;resize:none;"></textarea>
-    <p id="mealReasonErr" class="text-xs mt-2" style="color:#dc2626;display:none;">Please select a reason first.</p>
-    <button onclick="mealReasonTook()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mt-3 mb-2" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">I took my 30-min break &mdash; unpaid, clock out</button>
-    <button onclick="mealReasonWaive()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#fff;color:#c2410c;border:1px solid #fecaca;cursor:pointer;">I&rsquo;m waiving it &mdash; pay my full hours</button>
-    <button onclick="mealReasonBack()" class="tap w-full py-2 rounded-2xl font-medium text-xs mt-1" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Back</button>
+    <p class="text-sm mb-4" style="color:#6b7280;line-height:1.5;text-align:center;">You haven&rsquo;t logged a 30-minute meal break for this shift. Choose one:</p>
+    <label class="mealopt"><input type="radio" name="mealChoice" value="took" onchange="_clearMealChoiceErr()"><span><strong>I took my 30-min break but forgot to log it</strong><br><span class="mealopt-sub">The 30 minutes are unpaid.</span></span></label>
+    <label class="mealopt"><input type="radio" name="mealChoice" value="takenow" onchange="_clearMealChoiceErr()"><span><strong>Kiosk/phone wasn&rsquo;t available &mdash; I&rsquo;ll take it now</strong><br><span class="mealopt-sub">Starts a 30-minute break, then clocks you out automatically.</span></span></label>
+    <label class="mealopt"><input type="radio" name="mealChoice" value="waive" onchange="_clearMealChoiceErr()"><span><strong>Waive my meal break</strong><br><span class="mealopt-sub">You didn&rsquo;t take it &mdash; paid for full hours worked.</span></span></label>
+    <textarea id="mealReasonText" rows="2" placeholder="Add details (optional)" class="inp w-full mt-1" style="color:#111827;resize:none;"></textarea>
+    <p id="mealReasonErr" class="text-xs mt-2" style="color:#dc2626;display:none;">Please choose one option above.</p>
+    <button onclick="mealReasonSubmit()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mt-3" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Clock out</button>
+    <button onclick="mealGateCancel()" class="tap w-full py-2 rounded-2xl font-medium text-xs mt-1" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Not clocking out yet</button>
   </div>
 </div>
 
@@ -1340,6 +1322,7 @@ var clockState = 'out';
 var breakTimerID = null;
 var breakStart = null;
 var breakMins = 0;
+var _autoClockOutAfterBreak = false; // set when a "take it now" meal break must auto-clock-out at its end
 var pendingAction = null;
 var pendingEntryTs = null;
 var camStream = null;
@@ -1489,11 +1472,12 @@ function _syncClockStateLocal() {
   }
   else if (last.type==='in')          { clockState='in'; }
   else if (last.type==='break_start') {
-    // Reconstruct a break whose live countdown state was lost to a reload.
+    // Reconstruct (or resolve) a break whose live countdown state was lost to a reload.
     var rawBs = allEntries.filter(function(e){ return String(e.ts)===String(last.ts) && e.type==='break_start'; })[0]
               || {ts:last.ts, breakType:'', note:''};
-    _restoreBreakStateFromEntry(rawBs);
-    clockState='break'; startBreakTimer(breakMins);
+    var res = _restoreBreakStateFromEntry(rawBs);
+    if (res === 'out') { clockState='out'; }
+    else { clockState='break'; startBreakTimer(breakMins); }
   }
   else if (last.type==='break_end')   { clockState='in'; }
   else                                { clockState='out'; }
@@ -2090,16 +2074,23 @@ function captureAndClock() {
 }
 
 /* ── breaks ─────────────────────────────── */
-function startBreak(mins, btype) {
+function startBreak(mins, btype, opts) {
   var breakType = btype || (mins >= 30 ? 'meal' : 'rest');
+  var autoOut = !!(opts && opts.autoClockOut);
+  _autoClockOutAfterBreak = autoOut;
   breakMins=mins; breakStart=new Date(); clockState='break';
-  var lbl = breakType==='meal' ? '30-min unpaid meal break — back in 30 minutes' : mins+'-min paid rest break started';
+  var endStr = new Date(breakStart.getTime()+mins*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  var lbl = autoOut
+    ? '30-min unpaid meal break — you will be clocked out automatically at ' + endStr
+    : (breakType==='meal' ? '30-min unpaid meal break — back in 30 minutes' : mins+'-min paid rest break started');
   document.getElementById('breakLabel').textContent=lbl;
   var endBtn = document.getElementById('endBreakBtn');
-  if (endBtn) endBtn.textContent = 'End Break Early';
+  if (endBtn) endBtn.textContent = autoOut ? 'Clock Out Now' : 'End Break Early';
   var bsTs=breakStart.toISOString();
   var empCode = currentEmp.code || currentEmp.name;
   var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min',breakType:breakType,empId:empCode};
+  if (autoOut) bsEntry.autoClockOut = true;
+  if (opts && opts.note) bsEntry.reason = opts.note;
   var arr=store.getJ(K.timesheet,[]);
   arr.push(bsEntry);
   store.setJ(K.timesheet,arr);
@@ -2149,25 +2140,111 @@ function endBreak() {
     + new Date(beTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
     + '. Duration: ' + actualMins.toFixed(1) + ' min.');
   breakStart=null; breakMins=0;
+  // "Take it now" meal break: close the shift at the (capped) break-end time.
+  if (_autoClockOutAfterBreak) {
+    _autoClockOutAfterBreak = false;
+    autoClockOut(beTs);
+    return;
+  }
   clockState='in';
   fbPutState(currentEmp.name,'in',beTs);
   renderEmpState(); updateTodaySummary();
   toast('Break ended — welcome back!');
 }
+/* Auto clock-out at the end of a "take it now" meal break: writes a clean
+ * clock-out entry at the given time (no photo/form) and notifies. */
+function autoClockOut(atTs) {
+  if (!currentEmp) return;
+  var entryTs = atTs || new Date().toISOString();
+  var tsArr = store.getJ(K.timesheet, []);
+  var clockInEntry = null;
+  for (var i = tsArr.length - 1; i >= 0; i--) {
+    if (tsArr[i].name === currentEmp.name && tsArr[i].type === 'in') { clockInEntry = tsArr[i]; break; }
+  }
+  var tripType   = clockInEntry ? (clockInEntry.tripType || 'ONE_WAY') : 'ONE_WAY';
+  var rawMiles   = mileageTracking ? Math.round(mileageTotalMiles * 100) / 100 : null;
+  var finalMiles = rawMiles !== null ? (tripType === 'ROUND_TRIP' ? Math.round(rawMiles * 2 * 100) / 100 : rawMiles) : null;
+  var isMultiStop = clockInEntry ? ((clockInEntry.facilities||[]).filter(function(f){ return f!=='Juno Tech Lab'; }).length > 1) : false;
+  var cms = finalMiles !== null ? calcCMSMileage(finalMiles, isMultiStop) : null;
+  var tripSlip = finalMiles !== null ? {
+    dateTime: entryTs, startingPoint: 'Juno Tech Lab (Office)',
+    destination: clockInEntry && clockInEntry.facilities ? clockInEntry.facilities.filter(function(f){ return f!=='Juno Tech Lab'; }).join(', ') : 'Patient Site',
+    rawMiles: rawMiles, totalMiles: finalMiles, tripType: tripType, isMultiStop: isMultiStop,
+    hcpcs: cms.hcpcs, billedUnits: cms.finalUnits, unitRate: cms.unitRate, totalReimbursement: cms.total, nonTaxable: true
+  } : null;
+  var empCode = currentEmp.code || currentEmp.name;
+  var entry = {
+    name: currentEmp.name, type:'out', ts: entryTs,
+    hasPhoto:false, photo:null,
+    note: 'Auto clock-out at end of meal break (kiosk/phone unavailable — took it at clock-out)',
+    location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null,
+    mileage: finalMiles, tripType: tripType, tripSlip: tripSlip,
+    autoClockOut: true, device: getDeviceInfo()
+  };
+  var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
+  fbPut('timesheet', entryTs, entry);
+  clockState='out';
+  fbPutState(currentEmp.name,'out',entryTs);
+  mileageTracking=false; pendingAction=null; pendingPhoto=null; snapDataUrl=null;
+  logAdminAction('AUTO_CLOCK_OUT', currentEmp.name + ' (ID: ' + empCode + ') was automatically clocked out at '
+    + new Date(entryTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
+    + ' at the end of the 30-min meal break taken at clock-out.');
+  renderEmpState(); updateTodaySummary();
+  sendClockOutEmail(entry, computeTodayHours(currentEmp.name), finalMiles);
+  toast('You were automatically clocked out at the end of your 30-minute meal break.', 9000);
+}
 
-/* ── Break countdown recovery on return ───────────────────────────────────
- * If the kiosk was reloaded during a voluntary break, the live countdown state
- * is lost. On the next open we reconstruct breakStart/breakMins from the open
- * break_start entry so the countdown resumes (endBreak caps it at the intended
- * length, so a long gap can't over-record). */
+/* ── Break recovery on return ─────────────────────────────────────────────
+ * If the kiosk was reloaded during a break, the live countdown state is lost.
+ * On the next open we reconstruct it from the open break_start entry. For a
+ * "take it now" auto-clock-out meal that already ran its full length while away,
+ * close the shift at the scheduled end; otherwise re-arm the countdown (and the
+ * auto-clock-out flag). endBreak caps at the intended length, so a long gap
+ * can't over-record. Returns 'out' if resolved, 'break' if restored. */
 function _restoreBreakStateFromEntry(bs) {
   var mins  = parseInt(bs.note) || (bs.breakType === 'meal' ? 30 : 10);
-  breakStart = new Date(bs.ts); breakMins = mins;
+  var auto  = bs.autoClockOut === true;
+  var start = new Date(bs.ts);
+  var schedEnd = start.getTime() + mins*60000;
+  if (auto && Date.now() >= schedEnd) { _finishStaleAutoBreak(bs, mins); return 'out'; }
+  breakStart = start; breakMins = mins; _autoClockOutAfterBreak = auto;
+  var endStr = new Date(schedEnd).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
   var lblEl = document.getElementById('breakLabel');
-  if (lblEl) lblEl.textContent = (bs.breakType==='meal' ? '30-min unpaid meal break — back in 30 minutes' : mins+'-min paid rest break');
+  if (lblEl) lblEl.textContent = auto
+    ? '30-min unpaid meal break — you will be clocked out automatically at ' + endStr
+    : (bs.breakType==='meal' ? '30-min unpaid meal break — back in 30 minutes' : mins+'-min paid rest break');
   var endBtn = document.getElementById('endBreakBtn');
-  if (endBtn) endBtn.textContent = 'End Break Early';
+  if (endBtn) endBtn.textContent = auto ? 'Clock Out Now' : 'End Break Early';
   return 'break';
+}
+function _finishStaleAutoBreak(bs, mins) {
+  var schedEndMs = new Date(bs.ts).getTime() + mins*60000;
+  var breakEndTs = new Date(schedEndMs).toISOString();
+  var clockOutTs = new Date(schedEndMs + 1000).toISOString(); // +1s so keys/order don't collide
+  var empCode    = currentEmp.code || currentEmp.name;
+  var arr = store.getJ(K.timesheet, []);
+  var beEntry = {name:currentEmp.name, type:'break_end', ts:breakEndTs, note:mins+' min', empId:empCode};
+  var clockInEntry = null;
+  for (var i=arr.length-1;i>=0;i--){ if(arr[i].name===currentEmp.name && arr[i].type==='in'){ clockInEntry=arr[i]; break; } }
+  var outEntry = {
+    name: currentEmp.name, type:'out', ts: clockOutTs,
+    hasPhoto:false, photo:null,
+    note:'Auto clock-out at end of meal break (resolved on return)',
+    location: null,
+    mileage: (clockInEntry && clockInEntry.mileage!=null) ? clockInEntry.mileage : null,
+    tripType: clockInEntry ? (clockInEntry.tripType||'ONE_WAY') : 'ONE_WAY',
+    autoClockOut: true, device: getDeviceInfo()
+  };
+  arr.push(beEntry); arr.push(outEntry);
+  store.setJ(K.timesheet, arr);
+  fbPut('timesheet', breakEndTs, beEntry);
+  fbPut('timesheet', clockOutTs, outEntry);
+  fbPutState(currentEmp.name, 'out', clockOutTs);
+  _autoClockOutAfterBreak = false; breakStart = null; breakMins = 0;
+  logAdminAction('AUTO_CLOCK_OUT', currentEmp.name + ' (ID: ' + empCode + ') was automatically clocked out at '
+    + new Date(clockOutTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
+    + ' — meal break resolved on return.');
+  toast('You were automatically clocked out at the end of your 30-minute meal break.', 9000);
 }
 
 /* ── Unpaid meal-break gate at clock-out ──────────────────────────────────
@@ -2202,72 +2279,67 @@ function _mealSatisfiedForCurrentShift() {
   return mealLogged;
 }
 function _openMealGate() {
+  var r = document.querySelectorAll('input[name="mealChoice"]'); for (var i=0;i<r.length;i++) r[i].checked=false;
+  var t = document.getElementById('mealReasonText'); if (t) t.value = '';
+  _clearMealChoiceErr();
   document.getElementById('mealGateModal').classList.add('open');
 }
 function _closeMealGate() {
   document.getElementById('mealGateModal').classList.remove('open');
 }
-function mealGateTakeBreak() {
-  _closeMealGate();
-  pendingAction = null; // clock-out is deferred — take the break first, then clock out
-  startBreak(30, 'meal'); // required break; once taken it's logged and deducted at payroll
-}
+function _clearMealChoiceErr() { var e=document.getElementById('mealReasonErr'); if(e) e.style.display='none'; }
 function mealGateCancel() {
   _closeMealGate();
   pendingAction = null; // stay clocked in
 }
+// Locked-phone safety: iOS suspends the break countdown while the screen is off.
+// On return, if a "take it now" auto-clock-out meal break has run its full length,
+// close the shift now (endBreak caps the time at the scheduled end); otherwise
+// re-arm the visible countdown.
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState !== 'visible') return;
+  if (clockState === 'break' && _autoClockOutAfterBreak && breakStart) {
+    var elapsedMin = (Date.now() - breakStart.getTime()) / 60000;
+    if (elapsedMin >= breakMins) endBreak();
+    else startBreakTimer(breakMins);
+  }
+});
 function _proceedToClockOut() {
   if (!currentLocation) { openLocationModal(); return; }
   _openPreClockForm();
 }
-// "I didn't take my full break" — open the neutral reason screen where the
-// employee documents what happened and chooses: took it (unpaid) or waive it.
-function mealGateDidntTake() {
-  _closeMealGate();
-  var sel = document.getElementById('mealReasonSelect'); if (sel) sel.value = '';
-  var txt = document.getElementById('mealReasonText'); if (txt) txt.value = '';
-  var err = document.getElementById('mealReasonErr'); if (err) err.style.display = 'none';
-  document.getElementById('mealReasonModal').classList.add('open');
-}
-function mealReasonBack() {
-  document.getElementById('mealReasonModal').classList.remove('open');
-  _openMealGate();
-}
-// Read + validate the documented reason. Returns the reason text, or null (and
-// shows the inline error) if none was selected.
-function _mealReasonValue() {
-  var sel = document.getElementById('mealReasonSelect');
-  var reason = sel ? sel.value : '';
-  if (!reason) { var e=document.getElementById('mealReasonErr'); if(e) e.style.display=''; return null; }
+// Single handler for the meal-gate choice. Optional details apply to all three.
+function mealReasonSubmit() {
+  var sel = document.querySelector('input[name="mealChoice"]:checked');
+  if (!sel) { var e=document.getElementById('mealReasonErr'); if(e) e.style.display=''; return; }
+  var choice  = sel.value;
   var details = (document.getElementById('mealReasonText').value || '').trim();
-  return reason + (details ? (' — ' + details) : '');
-}
-// Took the break but didn't log it live: record a 30-min meal (ending now, within
-// the shift) so it's deducted as unpaid, with the documented reason.
-function mealReasonTook() {
-  var noteTxt = _mealReasonValue(); if (noteTxt === null) return;
-  document.getElementById('mealReasonModal').classList.remove('open');
   var empCode = currentEmp.code || currentEmp.name;
-  var endMs = Date.now(), startMs = endMs - 30*60000;
-  var bsTs = new Date(startMs).toISOString(), beTs = new Date(endMs).toISOString();
-  var bs = {name:currentEmp.name, type:'break_start', ts:bsTs, note:'30 min', breakType:'meal', empId:empCode, reconstructed:true, reason:noteTxt};
-  var be = {name:currentEmp.name, type:'break_end',   ts:beTs, note:'30 min', empId:empCode, reconstructed:true};
-  var arr = store.getJ(K.timesheet, []); arr.push(bs); arr.push(be); store.setJ(K.timesheet, arr);
-  fbPut('timesheet', bsTs, bs); fbPut('timesheet', beTs, be);
-  logAdminAction('MEAL_LOGGED_AT_CLOCKOUT', currentEmp.name + ' (ID: ' + empCode + ') confirmed taking the 30-min meal break (not logged live). Reason: ' + noteTxt + '. 30 min deducted as unpaid.');
-  _proceedToClockOut();
-}
-// Waive: break not taken; record a documented waiver and pay the full worked hours.
-function mealReasonWaive() {
-  var noteTxt = _mealReasonValue(); if (noteTxt === null) return;
-  document.getElementById('mealReasonModal').classList.remove('open');
-  var empCode = currentEmp.code || currentEmp.name;
-  var wTs = new Date().toISOString();
-  var w = {name:currentEmp.name, type:'break_waived', ts:wTs, note:'meal waived at clock-out — ' + noteTxt, breakType:'meal', empId:empCode, reason:noteTxt};
-  var arr = store.getJ(K.timesheet, []); arr.push(w); store.setJ(K.timesheet, arr);
-  fbPut('timesheet', wTs, w);
-  logAdminAction('MEAL_WAIVED', currentEmp.name + ' (ID: ' + empCode + ') waived the 30-min meal break at clock-out. Reason: ' + noteTxt + '. Paid for full hours worked; no meal deducted.');
-  _proceedToClockOut();
+  _closeMealGate();
+  if (choice === 'took') {
+    // Took it but didn't log it live — record a 30-min meal (ending now, within the
+    // shift) so it's deducted as unpaid, with the documented note.
+    var endMs = Date.now(), startMs = endMs - 30*60000;
+    var bsTs = new Date(startMs).toISOString(), beTs = new Date(endMs).toISOString();
+    var noteTxt = 'Took break, logged at clock-out' + (details ? (' — ' + details) : '');
+    var bs = {name:currentEmp.name, type:'break_start', ts:bsTs, note:'30 min', breakType:'meal', empId:empCode, reconstructed:true, reason:noteTxt};
+    var be = {name:currentEmp.name, type:'break_end',   ts:beTs, note:'30 min', empId:empCode, reconstructed:true};
+    var arr = store.getJ(K.timesheet, []); arr.push(bs); arr.push(be); store.setJ(K.timesheet, arr);
+    fbPut('timesheet', bsTs, bs); fbPut('timesheet', beTs, be);
+    logAdminAction('MEAL_LOGGED_AT_CLOCKOUT', currentEmp.name + ' (ID: ' + empCode + ') confirmed taking the 30-min meal break (not logged live).' + (details ? (' Details: ' + details) : '') + ' 30 min deducted as unpaid.');
+    _proceedToClockOut();
+  } else if (choice === 'waive') {
+    // Didn't take it — documented waiver, pay full hours.
+    var wTs = new Date().toISOString();
+    var w = {name:currentEmp.name, type:'break_waived', ts:wTs, note:'meal waived at clock-out' + (details ? (' — ' + details) : ''), breakType:'meal', empId:empCode, reason:details};
+    var arr2 = store.getJ(K.timesheet, []); arr2.push(w); store.setJ(K.timesheet, arr2);
+    fbPut('timesheet', wTs, w);
+    logAdminAction('MEAL_WAIVED', currentEmp.name + ' (ID: ' + empCode + ') waived the 30-min meal break at clock-out.' + (details ? (' Details: ' + details) : '') + ' Paid for full hours worked; no meal deducted.');
+    _proceedToClockOut();
+  } else { // 'takenow' — take the 30-min break now, then auto clock-out at its end
+    pendingAction = null;
+    startBreak(30, 'meal', { autoClockOut: true, note: details });
+  }
 }
 
 /* ── hours calculation ──────────────────── */
