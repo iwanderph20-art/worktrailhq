@@ -159,6 +159,8 @@ video{object-fit:cover;transform:scaleX(-1);}
 /* clock-out summary */
 #clockOutSummaryModal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);}
 #clockOutSummaryModal.open{display:flex;}
+#mealGateModal{position:fixed;inset:0;z-index:250;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);}
+#mealGateModal.open{display:flex;}
 /* pay profile modal */
 #payProfileModal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);}
 #payProfileModal.open{display:flex;}
@@ -288,7 +290,7 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-xs font-medium mt-1" style="color:#d97706;">On Break</p>
       </div>
       <p id="breakLabel" class="text-sm font-medium text-center mt-3" style="color:#6b7280;"></p>
-      <button onclick="endBreak()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mt-2"
+      <button id="endBreakBtn" onclick="endBreak()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mt-2"
         style="background:#fef3c7;color:#92400e;border:none;cursor:pointer;">End Break Early</button>
     </div>
     <div id="mainCard" class="glass rounded-3xl px-6 py-6 space-y-3">
@@ -1152,6 +1154,19 @@ video{object-fit:cover;transform:scaleX(-1);}
   </div>
 </div>
 
+<!-- ── MEAL-BREAK GATE MODAL (shown at clock-out of a 5h+ shift) ─────────── -->
+<div id="mealGateModal">
+  <div style="background:#fff;border-radius:24px;padding:28px 24px;max-width:380px;width:100%;margin:16px;text-align:center;position:relative;">
+    <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style="background:#fff7ed;font-size:34px;">&#127859;</div>
+    <p class="text-xl font-bold mb-1" style="color:#111827;">30-minute meal break</p>
+    <p class="text-sm mb-5" style="color:#6b7280;line-height:1.5;">Have you taken your 30-minute unpaid meal break for this shift?</p>
+    <button onclick="mealGateYes()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">&#9989; Yes, I took it &mdash; clock me out</button>
+    <button onclick="mealGateNo()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#c2410c;color:#fff;border:none;cursor:pointer;">&#9200; No &mdash; start it &amp; auto clock-out at <span id="mealGateEndTime">—</span></button>
+    <p class="text-xs mt-2 mb-3" style="color:#9ca3af;line-height:1.5;">Tapping &ldquo;No&rdquo; starts your 30-minute break now. When it ends you&rsquo;ll be <strong>clocked out automatically</strong> &mdash; you don&rsquo;t have to return to the kiosk.</p>
+    <button onclick="mealGateCancel()" class="tap w-full py-2 rounded-2xl font-medium text-xs" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Not clocking out yet</button>
+  </div>
+</div>
+
 <!-- ── EMPLOYEE LOGS MODAL ────────────────────────── -->
 <div id="empLogsModal" style="position:fixed;inset:0;z-index:200;display:none;flex-direction:column;background:#f9fafb;">
   <header style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);flex-shrink:0;">
@@ -1301,6 +1316,7 @@ var clockState = 'out';
 var breakTimerID = null;
 var breakStart = null;
 var breakMins = 0;
+var _autoClockOutAfterBreak = false; // set when a clock-out-gate meal break must auto-clock-out at its end
 var pendingAction = null;
 var pendingEntryTs = null;
 var camStream = null;
@@ -1592,7 +1608,7 @@ function handleClock() {
   // Meal-break gate: before clocking out of a qualifying shift, the unpaid 30-min
   // meal must be taken or attested. If not, prompt; clock-out is blocked until resolved.
   if (pendingAction === 'out' && _mealRequiredForCurrentShift() && !_mealSatisfiedForCurrentShift()) {
-    _promptMealBeforeClockOut();
+    _openMealGate();
     return;
   }
   if (!currentLocation) { openLocationModal(); return; }
@@ -1965,6 +1981,49 @@ function submitClockOut() {
   document.getElementById('clockOutSummaryModal').classList.add('open');
   sendClockOutEmail(entry, hrs, finalMiles);
 }
+/* Auto clock-out at the end of a consented meal break. Writes a clean clock-out
+ * entry at the given time (no photo/form), finalizes mileage, and notifies. */
+function autoClockOut(atTs) {
+  if (!currentEmp) return;
+  var entryTs = atTs || new Date().toISOString();
+  var tsArr = store.getJ(K.timesheet, []);
+  var clockInEntry = null;
+  for (var i = tsArr.length - 1; i >= 0; i--) {
+    if (tsArr[i].name === currentEmp.name && tsArr[i].type === 'in') { clockInEntry = tsArr[i]; break; }
+  }
+  var tripType   = clockInEntry ? (clockInEntry.tripType || 'ONE_WAY') : 'ONE_WAY';
+  var rawMiles   = mileageTracking ? Math.round(mileageTotalMiles * 100) / 100 : null;
+  var finalMiles = rawMiles !== null ? (tripType === 'ROUND_TRIP' ? Math.round(rawMiles * 2 * 100) / 100 : rawMiles) : null;
+  var isMultiStop = clockInEntry ? ((clockInEntry.facilities||[]).filter(function(f){ return f!=='Juno Tech Lab'; }).length > 1) : false;
+  var cms = finalMiles !== null ? calcCMSMileage(finalMiles, isMultiStop) : null;
+  var tripSlip = finalMiles !== null ? {
+    dateTime: entryTs, startingPoint: 'Juno Tech Lab (Office)',
+    destination: clockInEntry && clockInEntry.facilities ? clockInEntry.facilities.filter(function(f){ return f!=='Juno Tech Lab'; }).join(', ') : 'Patient Site',
+    rawMiles: rawMiles, totalMiles: finalMiles, tripType: tripType, isMultiStop: isMultiStop,
+    hcpcs: cms.hcpcs, billedUnits: cms.finalUnits, unitRate: cms.unitRate, totalReimbursement: cms.total, nonTaxable: true
+  } : null;
+  var empCode = currentEmp.code || currentEmp.name;
+  var entry = {
+    name: currentEmp.name, type:'out', ts: entryTs,
+    hasPhoto:false, photo:null,
+    note: 'Auto clock-out at end of meal break (consented at clock-out)',
+    location: currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null,
+    mileage: finalMiles, tripType: tripType, tripSlip: tripSlip,
+    autoClockOut: true, device: getDeviceInfo()
+  };
+  var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
+  fbPut('timesheet', entryTs, entry);
+  clockState='out';
+  fbPutState(currentEmp.name,'out',entryTs);
+  mileageTracking=false; pendingAction=null; pendingPhoto=null; snapDataUrl=null;
+  logAdminAction('AUTO_CLOCK_OUT', currentEmp.name + ' (ID: ' + empCode + ') was automatically clocked out at '
+    + new Date(entryTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
+    + ' at the end of the mandated meal break. Consent was given at clock-out.');
+  renderEmpState(); updateTodaySummary();
+  var hrs = computeTodayHours(currentEmp.name);
+  sendClockOutEmail(entry, hrs, finalMiles);
+  toast('You were automatically clocked out at the end of your 30-minute meal break.', 9000);
+}
 function closeSummaryModal() {
   document.getElementById('clockOutSummaryModal').classList.remove('open');
 }
@@ -2045,16 +2104,22 @@ function captureAndClock() {
 }
 
 /* ── breaks ─────────────────────────────── */
-function startBreak(mins, btype) {
+function startBreak(mins, btype, opts) {
   var breakType = btype || (mins >= 30 ? 'meal' : 'rest');
+  var autoOut = !!(opts && opts.autoClockOut);
+  _autoClockOutAfterBreak = autoOut;
   breakMins=mins; breakStart=new Date(); clockState='break';
-  var lbl = breakType==='meal'
-    ? '30-min unpaid meal break — back in 30 minutes'
-    : mins+'-min paid rest break started';
+  var endStr = new Date(breakStart.getTime()+mins*60000).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  var lbl = autoOut
+    ? '30-min unpaid meal break — you will be clocked out automatically at ' + endStr
+    : (breakType==='meal' ? '30-min unpaid meal break — back in 30 minutes' : mins+'-min paid rest break started');
   document.getElementById('breakLabel').textContent=lbl;
+  var endBtn = document.getElementById('endBreakBtn');
+  if (endBtn) endBtn.textContent = autoOut ? 'Clock Out Now' : 'End Break Early';
   var bsTs=breakStart.toISOString();
   var empCode = currentEmp.code || currentEmp.name;
   var bsEntry={name:currentEmp.name,type:'break_start',ts:bsTs,note:mins+' min',breakType:breakType,empId:empCode};
+  if (autoOut) bsEntry.autoClockOut = true;
   var arr=store.getJ(K.timesheet,[]);
   arr.push(bsEntry);
   store.setJ(K.timesheet,arr);
@@ -2082,8 +2147,14 @@ function startBreakTimer(mins) {
 }
 function stopBreakTimer() { if(breakTimerID){ clearInterval(breakTimerID); breakTimerID=null; } }
 function endBreak() {
-  stopBreakTimer(); clockState='in';
+  stopBreakTimer();
   var endD = new Date();
+  // For a consented auto-clock-out break, never record past the scheduled end — if the
+  // phone was locked past it, cap at breakStart+breakMins so pay isn't inflated.
+  if (_autoClockOutAfterBreak && breakStart) {
+    var sched = new Date(breakStart.getTime() + breakMins*60000);
+    if (endD > sched) endD = sched;
+  }
   var beTs=endD.toISOString();
   var actualMins = breakStart ? ((endD - breakStart) / 60000) : breakMins;
   var empCode = currentEmp.code || currentEmp.name;
@@ -2092,12 +2163,19 @@ function endBreak() {
   arr.push(beEntry);
   store.setJ(K.timesheet,arr);
   fbPut('timesheet',beTs,beEntry);
-  fbPutState(currentEmp.name,'in',beTs);
   // Audit log — visible to admin
   logAdminAction('BREAK_END', currentEmp.name + ' (ID: ' + empCode + ') — break ended at '
     + new Date(beTs).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
     + '. Duration: ' + actualMins.toFixed(1) + ' min.');
   breakStart=null; breakMins=0;
+  // Consented auto-clock-out: close the shift at the break-end time instead of returning to work.
+  if (_autoClockOutAfterBreak) {
+    _autoClockOutAfterBreak = false;
+    autoClockOut(beTs);
+    return;
+  }
+  clockState='in';
+  fbPutState(currentEmp.name,'in',beTs);
   renderEmpState(); updateTodaySummary();
   toast('Break ended — welcome back!');
 }
@@ -2133,19 +2211,44 @@ function _mealSatisfiedForCurrentShift() {
   });
   return mealLogged;
 }
-function _promptMealBeforeClockOut() {
-  var took = confirm('Have you taken your 30-minute unpaid meal break?\n\nOK = Yes, I took it.\nCancel = Not yet — you must take it before clocking out.');
-  if (took) {
-    var empCode = currentEmp.code || currentEmp.name;
-    logAdminAction('MEAL_ATTESTED', currentEmp.name + ' (ID: ' + empCode + ') confirmed taking the 30-min unpaid meal break at clock-out.');
-    if (!currentLocation) { openLocationModal(); return; }
-    _openPreClockForm();
-  } else {
-    pendingAction = null;
-    toast('Take your 30-minute unpaid meal break before clocking out.', 6000);
-    startBreak(30, 'meal');
-  }
+function _openMealGate() {
+  // Show the auto-clock-out end time (now + 30 min) so the consent is explicit
+  var end = new Date(Date.now() + 30*60000);
+  var el = document.getElementById('mealGateEndTime');
+  if (el) el.textContent = end.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  document.getElementById('mealGateModal').classList.add('open');
 }
+function _closeMealGate() {
+  document.getElementById('mealGateModal').classList.remove('open');
+}
+function mealGateYes() {
+  _closeMealGate();
+  var empCode = currentEmp.code || currentEmp.name;
+  logAdminAction('MEAL_ATTESTED', currentEmp.name + ' (ID: ' + empCode + ') confirmed taking the 30-min unpaid meal break at clock-out.');
+  if (!currentLocation) { openLocationModal(); return; }
+  _openPreClockForm();
+}
+function mealGateNo() {
+  _closeMealGate();
+  // Employee consented (via the button label) to be auto-clocked out at the break's end
+  startBreak(30, 'meal', { autoClockOut: true });
+}
+function mealGateCancel() {
+  _closeMealGate();
+  pendingAction = null; // stay clocked in
+}
+// Locked-phone safety: iOS suspends the break countdown while the screen is off.
+// On return, if a consented auto-clock-out meal break has run its full length,
+// close the shift now (endBreak caps the time at the scheduled end); otherwise
+// re-arm the visible countdown.
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState !== 'visible') return;
+  if (clockState === 'break' && _autoClockOutAfterBreak && breakStart) {
+    var elapsedMin = (Date.now() - breakStart.getTime()) / 60000;
+    if (elapsedMin >= breakMins) endBreak();
+    else startBreakTimer(breakMins);
+  }
+});
 
 /* ── hours calculation ──────────────────── */
 function fmtHrs(h) {
