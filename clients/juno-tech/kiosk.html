@@ -161,6 +161,8 @@ video{object-fit:cover;transform:scaleX(-1);}
 #clockOutSummaryModal.open{display:flex;}
 #mealGateModal{position:fixed;inset:0;z-index:250;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);}
 #mealGateModal.open{display:flex;}
+#mealReasonModal{position:fixed;inset:0;z-index:260;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);}
+#mealReasonModal.open{display:flex;}
 /* pay profile modal */
 #payProfileModal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);}
 #payProfileModal.open{display:flex;}
@@ -1158,10 +1160,33 @@ video{object-fit:cover;transform:scaleX(-1);}
 <div id="mealGateModal">
   <div style="background:#fff;border-radius:24px;padding:28px 24px;max-width:380px;width:100%;margin:16px;text-align:center;position:relative;">
     <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style="background:#fff7ed;font-size:34px;">&#127859;</div>
-    <p class="text-xl font-bold mb-1" style="color:#111827;">Take your meal break</p>
-    <p class="text-sm mb-5" style="color:#6b7280;line-height:1.5;">You haven&rsquo;t taken your 30-minute unpaid meal break yet. You need to take it before you can clock out.</p>
-    <button onclick="mealGateTakeBreak()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">&#9749; Start my 30-minute break now</button>
-    <button onclick="mealGateCancel()" class="tap w-full py-2 rounded-2xl font-medium text-xs" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Not clocking out yet</button>
+    <p class="text-xl font-bold mb-1" style="color:#111827;">Meal break</p>
+    <p class="text-sm mb-5" style="color:#6b7280;line-height:1.5;">You haven&rsquo;t logged a 30-minute meal break for this shift. Choose one:</p>
+    <button onclick="mealGateTakeBreak()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">&#9749; Take my 30-minute break now</button>
+    <button onclick="mealGateTookButMissed()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mb-2" style="background:#eef2ff;color:#1a2b8c;border:1px solid rgba(26,43,140,.15);cursor:pointer;">I took it but didn&rsquo;t log it</button>
+    <button onclick="mealGateWaive()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#fff;color:#c2410c;border:1px solid #fecaca;cursor:pointer;">Waive it &mdash; pay my full hours</button>
+    <button onclick="mealGateCancel()" class="tap w-full py-2 rounded-2xl font-medium text-xs mt-1" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Not clocking out yet</button>
+  </div>
+</div>
+
+<!-- ── MEAL "TOOK BUT DIDN'T LOG" REASON MODAL ──────────────────────────── -->
+<div id="mealReasonModal">
+  <div style="background:#fff;border-radius:24px;padding:28px 24px;max-width:380px;width:100%;margin:16px;position:relative;">
+    <p class="text-xl font-bold mb-1" style="color:#111827;text-align:center;">Confirm your meal break</p>
+    <p class="text-sm mb-4" style="color:#6b7280;line-height:1.5;text-align:center;">You took your 30-minute meal break but didn&rsquo;t log it. Pick a reason so your manager has a record. The 30 minutes will be unpaid.</p>
+    <label class="text-xs font-semibold" style="color:#6b7280;">Reason</label>
+    <select id="mealReasonSelect" class="inp w-full mt-1 mb-3" style="color:#111827;" onchange="var e=document.getElementById('mealReasonErr'); if(e) e.style.display='none';">
+      <option value="">&mdash; Select a reason &mdash;</option>
+      <option value="Forgot to tap the break button">Forgot to tap the break button</option>
+      <option value="Kiosk or phone wasn't available">Kiosk or phone wasn&rsquo;t available</option>
+      <option value="Was busy — logging it now">Was busy &mdash; logging it now</option>
+      <option value="Other">Other</option>
+    </select>
+    <label class="text-xs font-semibold" style="color:#6b7280;">Details</label>
+    <textarea id="mealReasonText" rows="2" placeholder="Add any details (optional)" class="inp w-full mt-1" style="color:#111827;resize:none;"></textarea>
+    <p id="mealReasonErr" class="text-xs mt-2" style="color:#dc2626;display:none;">Please select a reason first.</p>
+    <button onclick="mealReasonConfirm()" class="tap w-full py-3 rounded-2xl font-semibold text-sm mt-3" style="background:#16a34a;color:#fff;border:none;cursor:pointer;">Confirm &amp; clock out</button>
+    <button onclick="mealReasonBack()" class="tap w-full py-2 rounded-2xl font-medium text-xs mt-1" style="background:none;color:#9ca3af;border:none;cursor:pointer;">Back</button>
   </div>
 </div>
 
@@ -2189,6 +2214,53 @@ function mealGateTakeBreak() {
 function mealGateCancel() {
   _closeMealGate();
   pendingAction = null; // stay clocked in
+}
+function _proceedToClockOut() {
+  if (!currentLocation) { openLocationModal(); return; }
+  _openPreClockForm();
+}
+// "I took it but didn't log it" — capture a documented reason, record the 30-min meal
+// (so it's deducted as unpaid), then clock out.
+function mealGateTookButMissed() {
+  _closeMealGate();
+  var sel = document.getElementById('mealReasonSelect'); if (sel) sel.value = '';
+  var txt = document.getElementById('mealReasonText'); if (txt) txt.value = '';
+  var err = document.getElementById('mealReasonErr'); if (err) err.style.display = 'none';
+  document.getElementById('mealReasonModal').classList.add('open');
+}
+function mealReasonBack() {
+  document.getElementById('mealReasonModal').classList.remove('open');
+  _openMealGate();
+}
+function mealReasonConfirm() {
+  var sel = document.getElementById('mealReasonSelect');
+  var reason = sel ? sel.value : '';
+  if (!reason) { var e=document.getElementById('mealReasonErr'); if(e) e.style.display=''; return; }
+  var details = (document.getElementById('mealReasonText').value || '').trim();
+  document.getElementById('mealReasonModal').classList.remove('open');
+  // Record a 30-min meal break (ending now, within the shift) so payroll deducts it,
+  // with the documented reason it wasn't logged live.
+  var empCode = currentEmp.code || currentEmp.name;
+  var endMs = Date.now(), startMs = endMs - 30*60000;
+  var bsTs = new Date(startMs).toISOString(), beTs = new Date(endMs).toISOString();
+  var noteTxt = reason + (details ? (' — ' + details) : '');
+  var bs = {name:currentEmp.name, type:'break_start', ts:bsTs, note:'30 min', breakType:'meal', empId:empCode, reconstructed:true, reason:noteTxt};
+  var be = {name:currentEmp.name, type:'break_end',   ts:beTs, note:'30 min', empId:empCode, reconstructed:true};
+  var arr = store.getJ(K.timesheet, []); arr.push(bs); arr.push(be); store.setJ(K.timesheet, arr);
+  fbPut('timesheet', bsTs, bs); fbPut('timesheet', beTs, be);
+  logAdminAction('MEAL_LOGGED_AT_CLOCKOUT', currentEmp.name + ' (ID: ' + empCode + ') confirmed taking the 30-min meal break (not logged live). Reason: ' + noteTxt + '. 30 min deducted as unpaid.');
+  _proceedToClockOut();
+}
+// "Waive it" — didn't take the break; record a documented waiver and pay full hours.
+function mealGateWaive() {
+  _closeMealGate();
+  var empCode = currentEmp.code || currentEmp.name;
+  var wTs = new Date().toISOString();
+  var w = {name:currentEmp.name, type:'break_waived', ts:wTs, note:'meal waived at clock-out', breakType:'meal', empId:empCode};
+  var arr = store.getJ(K.timesheet, []); arr.push(w); store.setJ(K.timesheet, arr);
+  fbPut('timesheet', wTs, w);
+  logAdminAction('MEAL_WAIVED', currentEmp.name + ' (ID: ' + empCode + ') voluntarily waived the 30-min meal break at clock-out. Paid for full hours worked; no meal deducted.');
+  _proceedToClockOut();
 }
 
 /* ── hours calculation ──────────────────── */
