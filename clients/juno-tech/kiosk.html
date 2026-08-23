@@ -1479,7 +1479,7 @@ function _syncClockStateLocal() {
     if (res === 'out') { clockState='out'; }
     else { clockState='break'; startBreakTimer(breakMins); }
   }
-  else if (last.type==='break_end')   { clockState='in'; }
+  else if (last.type==='break_end')   { clockState=_shiftPreBreakState(); }
   else                                { clockState='out'; }
 }
 /* ts of the entry that currently anchors this employee's live clock state
@@ -1559,6 +1559,23 @@ function syncClockState() {
     }
   });
 }
+// Whether the current shift's clock-in is still awaiting approval. Used to decide
+// the state a break should return to ('pending' vs 'in'), surviving page reloads.
+function _shiftPreBreakState() {
+  var entries = store.getJ(K.timesheet,[]).filter(function(e){
+    return e.type==='in' && (!currentEmp || e.name===currentEmp.name);
+  }).sort(function(a,b){ return new Date(b.ts) - new Date(a.ts); });
+  var lastIn = entries[0];
+  if (lastIn && lastIn.approval==='pending' && getApprovalStatus(lastIn.ts)!=='approved') return 'pending';
+  return 'in';
+}
+// Voluntary break buttons markup — shared by the pending and clocked-in states
+function _breakBtnsHtml() {
+  return '<div style="display:flex;gap:8px;margin-top:8px;">'
+    + '<button onclick="startBreak(10,\'rest\')" class="tap flex-1 py-3 rounded-2xl font-semibold text-sm" style="background:#eef2ff;color:#1a2b8c;border:1px solid rgba(26,43,140,.15);cursor:pointer;">&#9749; 10-min Break</button>'
+    + '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-3 rounded-2xl font-semibold text-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;cursor:pointer;">&#127859; 30-min Meal</button>'
+    + '</div>';
+}
 function renderEmpState() {
   var badge    = document.getElementById('statusBadge');
   var since    = document.getElementById('clockedSince');
@@ -1586,6 +1603,9 @@ function renderEmpState() {
     pendingCard.style.display='';
     clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
     mainCard.style.display='';
+    // Time is already recording while pending, so allow breaks here too
+    breakBtns.innerHTML = _breakBtnsHtml();
+    breakBtns.style.display='';
     var mp3=document.getElementById('mileagePill'); if(mp3) mp3.style.display = mileageTracking ? '' : 'none';
     if(mileageTracking) updateMileagePill();
   } else if (clockState==='in') {
@@ -1598,11 +1618,7 @@ function renderEmpState() {
     clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
     mainCard.style.display='';
     // Voluntary break options while clocked in
-    breakBtns.innerHTML =
-      '<div style="display:flex;gap:8px;margin-top:8px;">'
-      + '<button onclick="startBreak(10,\'rest\')" class="tap flex-1 py-3 rounded-2xl font-semibold text-sm" style="background:#eef2ff;color:#1a2b8c;border:1px solid rgba(26,43,140,.15);cursor:pointer;">&#9749; 10-min Break</button>'
-      + '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-3 rounded-2xl font-semibold text-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;cursor:pointer;">&#127859; 30-min Meal</button>'
-      + '</div>';
+    breakBtns.innerHTML = _breakBtnsHtml();
     breakBtns.style.display='';
     // Update mileage pill if tracking
     var mp=document.getElementById('mileagePill');
@@ -2146,8 +2162,10 @@ function endBreak() {
     autoClockOut(beTs);
     return;
   }
-  clockState='in';
-  fbPutState(currentEmp.name,'in',beTs);
+  // Restore the pre-break state; a pending clock-in must not be promoted to approved
+  // by taking a break. Derive from the clock-in's live approval status (reload-safe).
+  clockState = _shiftPreBreakState();
+  fbPutState(currentEmp.name,clockState,beTs);
   renderEmpState(); updateTodaySummary();
   toast('Break ended — welcome back!');
 }
@@ -5877,7 +5895,11 @@ function handleApprovalResult(ts, status) {
     var _aat=new Date().toISOString();
     arr.forEach(function(e){if(e.ts===ts){e.approval='approved'; e.approvedAt=_aat;}});
     store.setJ(K.timesheet,arr);
-    clockState='in'; pendingEntryTs=null;
+    pendingEntryTs=null;
+    // If the worker is on a break when approval lands, record it but don't yank the
+    // break UI away — endBreak() will resolve to 'in' via _shiftPreBreakState().
+    if(clockState==='break'){ toast('Clock-in approved! You\'re all set.'); return; }
+    clockState='in';
     if(currentEmp) fbPutState(currentEmp.name,'in',ts); // cross-device state
     var an=document.getElementById('approvedNotice');
     var pc=document.getElementById('pendingCard');
