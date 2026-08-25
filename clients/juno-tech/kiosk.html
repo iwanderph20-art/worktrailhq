@@ -549,7 +549,6 @@ video{object-fit:cover;transform:scaleX(-1);}
               <button id="vt-cal" onclick="switchRecordView('calendar')" class="active">Calendar</button>
               <button id="vt-list" onclick="switchRecordView('list')">List</button>
             </div>
-            <button onclick="openSchedModal()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">&#128197; Schedule</button>
             <button onclick="openManualEntry()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">&#43; Add Entry</button>
           </div>
         </div>
@@ -4184,17 +4183,9 @@ function renderCalendar(){
       if(r.type==='in'&&r.approval==='pending') byDate[key].hasPending=true;
     }
   });
-  // Scheduled collections for this month, grouped by day
-  var schedByDate={};
-  store.getJ(K.collections,[]).forEach(function(c){
-    if(!c||!c.datetime) return;
-    var d=new Date(c.datetime);
-    if(isNaN(d)) return;
-    if(d.getFullYear()===_calYear&&d.getMonth()===_calMonth){
-      var key=d.toDateString();
-      (schedByDate[key]=schedByDate[key]||[]).push(c);
-    }
-  });
+  // Note: scheduled collections are intentionally NOT shown on the Records
+  // calendar — they live on the dedicated Collections tab. Records shows only
+  // who worked (employee pills) and where (facility).
   var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   document.getElementById('calMonthLabel').textContent=MONTHS[_calMonth]+' '+_calYear;
   var todayStr=new Date().toDateString();
@@ -4213,10 +4204,9 @@ function renderCalendar(){
     var dStr=cellDate.toDateString();
     var isToday=(dStr===todayStr);
     var data=isCurMo?byDate[dStr]:null;
-    var sched=isCurMo?schedByDate[dStr]:null;
     var hasPending=!!(data&&data.hasPending);
     var cls='cal-cell'+((!isCurMo)?' out-month':'')+(isToday?' today':'')+(hasPending?' has-pending':'');
-    var clickAttr=(isCurMo&&(data||sched))?' onclick="showCalDay(\''+dStr+'\')" role="button"':'';
+    var clickAttr=(isCurMo&&data)?' onclick="showCalDay(\''+dStr+'\')" role="button"':'';
     html+='<div class="'+cls+'"'+clickAttr+'>';
     if(isToday){
       html+='<div style="margin-bottom:4px;"><span class="cal-date-num today-num">'+dayNum+'</span></div>';
@@ -4237,15 +4227,6 @@ function renderCalendar(){
       if(facs.length>2) html+='<div class="cal-fac">+'+(facs.length-2)+' more</div>';
       if(hasPending) html+='<div style="font-size:9px;font-weight:700;color:#d97706;margin-top:2px;">&#9679; Pending</div>';
     }
-    if(sched){
-      sched.slice().sort(function(a,b){return new Date(a.datetime)-new Date(b.datetime);}).slice(0,3).forEach(function(c){
-        var t=new Date(c.datetime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','').toLowerCase();
-        var cov=_coverageInfo(c.coverage);
-        var pillTitle='Scheduled collection — '+cov.full+(c.tests?'\nTests: '+c.tests:'');
-        html+='<span class="cal-sched-pill" title="'+_esc(pillTitle)+'">&#128197; '+t+' '+_esc(c.facility)+' &middot; '+_esc(cov.abbr)+(c.tests?' &#129514;':'')+'</span>';
-      });
-      if(sched.length>3) html+='<div class="cal-fac" style="color:#0f766e;">+'+(sched.length-3)+' more</div>';
-    }
     html+='</div>';
   }
   html+='</div>';
@@ -4255,8 +4236,7 @@ function renderCalendar(){
 function showCalDay(dateStr, empFilter){
   var ts=store.getJ(K.timesheet,[]);
   var dayEntries=ts.filter(function(r){return new Date(r.ts).toDateString()===dateStr;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
-  var daySched=_collectionsForDay(dateStr);
-  if(!dayEntries.length && !daySched.length) return;
+  if(!dayEntries.length) return;
   var dateLabel=new Date(dateStr).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   var empGroups={};
   dayEntries.forEach(function(e){if(!empGroups[e.name]) empGroups[e.name]=[];empGroups[e.name].push(e);});
@@ -4265,8 +4245,9 @@ function showCalDay(dateStr, empFilter){
     var filtered={};filtered[empFilter]=empGroups[empFilter];empGroups=filtered;
   }
   _calPhotoLoads=[];
-  // Scheduled collections lead the modal (hidden when filtering to one employee)
-  var cardsHtml = empFilter ? '' : _schedDayCardsHtml(dateStr);
+  // Records day-detail shows worked entries only; scheduled collections live on
+  // the Collections tab.
+  var cardsHtml = '';
   Object.keys(empGroups).forEach(function(name){
     var raw=empGroups[name];
     var emp=raw.map(function(e){return Object.assign({},e,{_d:new Date(e.ts)});}).sort(function(a,b){return a._d-b._d;});
@@ -4420,15 +4401,11 @@ function showCalDay(dateStr, empFilter){
   overlay.className='cal-modal-overlay';
   overlay.onclick=function(e){if(e.target===overlay) closeCalModal();};
   var empCount=Object.keys(empGroups).length;
-  var schedCount=daySched.length;
-  var _schedNote=schedCount?('<span style="color:#0f766e;font-weight:600;">&#128197; '+schedCount+' scheduled</span>'):'';
   var modalSubtitle;
   if(empFilter){
     modalSubtitle='<span style="background:#1a2b8c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;">'+empFilter+'</span>';
-  } else if(!dayEntries.length){
-    modalSubtitle=_schedNote||'No records';
   } else {
-    modalSubtitle=dayEntries.length+' entr'+(dayEntries.length===1?'y':'ies')+' &middot; '+empCount+' employee'+(empCount===1?'':'s')+(_schedNote?(' &middot; '+_schedNote):'');
+    modalSubtitle=dayEntries.length+' entr'+(dayEntries.length===1?'y':'ies')+' &middot; '+empCount+' employee'+(empCount===1?'':'s');
   }
   overlay.innerHTML='<div class="cal-modal">'
     +'<div class="cal-modal-hdr">'
