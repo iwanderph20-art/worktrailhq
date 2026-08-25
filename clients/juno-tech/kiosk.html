@@ -66,9 +66,13 @@ video{object-fit:cover;transform:scaleX(-1);}
 .sched-datehdr{display:flex;align-items:center;gap:8px;margin:16px 0 8px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#0f766e;}
 .sched-datehdr:first-of-type{margin-top:6px;}
 .sched-datehdr::after{content:"";flex:1;height:1px;background:#99f6e4;}
-.sched-row{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #ccfbf1;border-left:5px solid #14b8a6;border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.sched-row{display:flex;align-items:flex-start;gap:12px;background:#fff;border:1px solid #ccfbf1;border-left:5px solid #14b8a6;border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.sched-main{flex:1;min-width:0;}
+.sched-top{display:flex;align-items:center;gap:14px;}
 .sched-time{font-size:20px;font-weight:800;color:#0d9488;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px;}
 .sched-fac{flex:1;min-width:0;font-size:15px;font-weight:700;color:#134e4a;overflow:hidden;text-overflow:ellipsis;}
+.sched-tests{margin-top:6px;font-size:13px;color:#374151;line-height:1.45;word-break:break-word;}
+.sched-tests-lbl{font-weight:700;color:#0f766e;}
 .sched-cov{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap;}
 .sched-cov.cov-both{background:#ccfbf1;color:#0f766e;}
 .sched-cov.cov-medicare{background:#dbeafe;color:#1d4ed8;}
@@ -593,6 +597,10 @@ video{object-fit:cover;transform:scaleX(-1);}
           <div>
             <label class="text-xs font-semibold" style="color:#0f766e;">Date &amp; Time</label>
             <input id="schedDatetime" type="datetime-local" class="inp w-full mt-1" style="color:#111827;">
+          </div>
+          <div>
+            <label class="text-xs font-semibold" style="color:#0f766e;">Tests / Notes <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+            <textarea id="schedTests" rows="2" class="inp w-full mt-1" style="color:#111827;resize:vertical;" placeholder="e.g. CBC, CMP, HbA1c, lipid panel…"></textarea>
           </div>
           <div style="display:flex;gap:8px;margin-top:2px;">
             <button onclick="addScheduleEntry()" class="tap flex-1 py-2.5 rounded-xl font-semibold text-sm" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">Add to Schedule</button>
@@ -4179,7 +4187,8 @@ function renderCalendar(){
       sched.slice().sort(function(a,b){return new Date(a.datetime)-new Date(b.datetime);}).slice(0,3).forEach(function(c){
         var t=new Date(c.datetime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','').toLowerCase();
         var cov=_coverageInfo(c.coverage);
-        html+='<span class="cal-sched-pill" title="Scheduled collection — '+_esc(cov.full)+'">&#128197; '+t+' '+_esc(c.facility)+' &middot; '+_esc(cov.abbr)+'</span>';
+        var pillTitle='Scheduled collection — '+cov.full+(c.tests?'\nTests: '+c.tests:'');
+        html+='<span class="cal-sched-pill" title="'+_esc(pillTitle)+'">&#128197; '+t+' '+_esc(c.facility)+' &middot; '+_esc(cov.abbr)+(c.tests?' &#129514;':'')+'</span>';
       });
       if(sched.length>3) html+='<div class="cal-fac" style="color:#0f766e;">+'+(sched.length-3)+' more</div>';
     }
@@ -5108,6 +5117,8 @@ function openSchedModal(prefillDateStr) {
   if (facEl) facEl.value = '';
   var covEl = document.getElementById('schedCoverage');
   if (covEl) covEl.value = 'both';
+  var testsEl = document.getElementById('schedTests');
+  if (testsEl) testsEl.value = '';
   if (dtEl) {
     // Default to the clicked day (or today) at 8:00 AM local
     var base = prefillDateStr ? new Date(prefillDateStr) : new Date();
@@ -5125,9 +5136,10 @@ function addScheduleEntry() {
   var facility = document.getElementById('schedFacility').value;
   var dt       = document.getElementById('schedDatetime').value; // 'YYYY-MM-DDTHH:mm' local
   var coverage = (document.getElementById('schedCoverage') || {}).value || 'both';
+  var tests    = ((document.getElementById('schedTests') || {}).value || '').trim();
   if (!facility) { toast('Please select a facility'); return; }
   if (!dt)       { toast('Please pick a date & time'); return; }
-  var item = { id: 'c'+Date.now()+Math.floor(Math.random()*1000), facility: facility, datetime: dt, coverage: coverage };
+  var item = { id: 'c'+Date.now()+Math.floor(Math.random()*1000), facility: facility, datetime: dt, coverage: coverage, tests: tests };
   var arr = store.getJ(K.collections, []);
   arr.push(item);
   store.setJ(K.collections, arr);
@@ -5202,10 +5214,16 @@ function _schedDayCardsHtml(dateStr) {
   var rows = items.map(function(c){
     var t = new Date(c.datetime).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
     var cov = _coverageInfo(c.coverage);
+    var testsHtml = c.tests ? '<div class="sched-tests"><span class="sched-tests-lbl">&#129514; Tests:</span> ' + _esc(c.tests) + '</div>' : '';
     return '<div class="sched-row">'
+      + '<div class="sched-main">'
+      + '<div class="sched-top">'
       + '<span class="sched-time">' + t + '</span>'
       + '<span class="sched-fac">' + _esc(c.facility) + '</span>'
       + '<span class="sched-cov ' + cov.cls + '" title="' + _esc(cov.full) + '">' + _esc(cov.abbr) + '</span>'
+      + '</div>'
+      + testsHtml
+      + '</div>'
       + '<button class="sched-del" title="Remove" onclick="deleteScheduleEntry(\'' + c.id + '\',\'' + dateStr + '\')">&#10005;</button>'
       + '</div>';
   }).join('');
