@@ -69,6 +69,10 @@ video{object-fit:cover;transform:scaleX(-1);}
 .sched-row{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #ccfbf1;border-left:5px solid #14b8a6;border-radius:12px;padding:12px 14px;margin-bottom:8px;}
 .sched-time{font-size:20px;font-weight:800;color:#0d9488;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px;}
 .sched-fac{flex:1;min-width:0;font-size:15px;font-weight:700;color:#134e4a;overflow:hidden;text-overflow:ellipsis;}
+.sched-cov{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap;}
+.sched-cov.cov-both{background:#ccfbf1;color:#0f766e;}
+.sched-cov.cov-medicare{background:#dbeafe;color:#1d4ed8;}
+.sched-cov.cov-medical{background:#f3e8ff;color:#7e22ce;}
 .sched-del{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:18px;line-height:1;padding:4px 6px;border-radius:8px;}
 .sched-del:hover{color:#dc2626;background:#fee2e2;}
 .sched-addbtn{background:#0d9488;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;}
@@ -576,6 +580,14 @@ video{object-fit:cover;transform:scaleX(-1);}
             <label class="text-xs font-semibold" style="color:#0f766e;">Facility</label>
             <select id="schedFacility" class="inp w-full mt-1" style="color:#111827;">
               <option value="">&mdash; Select facility &mdash;</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold" style="color:#0f766e;">Coverage</label>
+            <select id="schedCoverage" class="inp w-full mt-1" style="color:#111827;">
+              <option value="both">Medicare &amp; Medi-Cal (both)</option>
+              <option value="medicare">Medicare only</option>
+              <option value="medi-cal">Medi-Cal only</option>
             </select>
           </div>
           <div>
@@ -4166,7 +4178,8 @@ function renderCalendar(){
     if(sched){
       sched.slice().sort(function(a,b){return new Date(a.datetime)-new Date(b.datetime);}).slice(0,3).forEach(function(c){
         var t=new Date(c.datetime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','').toLowerCase();
-        html+='<span class="cal-sched-pill" title="Scheduled collection">&#128197; '+t+' '+_esc(c.facility)+'</span>';
+        var cov=_coverageInfo(c.coverage);
+        html+='<span class="cal-sched-pill" title="Scheduled collection — '+_esc(cov.full)+'">&#128197; '+t+' '+_esc(c.facility)+' &middot; '+_esc(cov.abbr)+'</span>';
       });
       if(sched.length>3) html+='<div class="cal-fac" style="color:#0f766e;">+'+(sched.length-3)+' more</div>';
     }
@@ -5066,6 +5079,14 @@ function _esc(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// Coverage label for a collection. Legacy entries (no .coverage) are treated as "both".
+function _coverageInfo(cov) {
+  switch (cov) {
+    case 'medicare': return { full: 'Medicare only', abbr: 'Medicare', cls: 'cov-medicare' };
+    case 'medi-cal': return { full: 'Medi-Cal only', abbr: 'Medi-Cal', cls: 'cov-medical' };
+    default:         return { full: 'Medicare & Medi-Cal', abbr: 'Both', cls: 'cov-both' };
+  }
+}
 function populateScheduleFacilities() {
   var sel = document.getElementById('schedFacility');
   if (!sel) return;
@@ -5085,6 +5106,8 @@ function openSchedModal(prefillDateStr) {
   var dtEl = document.getElementById('schedDatetime');
   var facEl = document.getElementById('schedFacility');
   if (facEl) facEl.value = '';
+  var covEl = document.getElementById('schedCoverage');
+  if (covEl) covEl.value = 'both';
   if (dtEl) {
     // Default to the clicked day (or today) at 8:00 AM local
     var base = prefillDateStr ? new Date(prefillDateStr) : new Date();
@@ -5101,9 +5124,10 @@ function closeSchedModal() {
 function addScheduleEntry() {
   var facility = document.getElementById('schedFacility').value;
   var dt       = document.getElementById('schedDatetime').value; // 'YYYY-MM-DDTHH:mm' local
+  var coverage = (document.getElementById('schedCoverage') || {}).value || 'both';
   if (!facility) { toast('Please select a facility'); return; }
   if (!dt)       { toast('Please pick a date & time'); return; }
-  var item = { id: 'c'+Date.now()+Math.floor(Math.random()*1000), facility: facility, datetime: dt };
+  var item = { id: 'c'+Date.now()+Math.floor(Math.random()*1000), facility: facility, datetime: dt, coverage: coverage };
   var arr = store.getJ(K.collections, []);
   arr.push(item);
   store.setJ(K.collections, arr);
@@ -5177,9 +5201,11 @@ function _schedDayCardsHtml(dateStr) {
   if (!items.length) return '';
   var rows = items.map(function(c){
     var t = new Date(c.datetime).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+    var cov = _coverageInfo(c.coverage);
     return '<div class="sched-row">'
       + '<span class="sched-time">' + t + '</span>'
       + '<span class="sched-fac">' + _esc(c.facility) + '</span>'
+      + '<span class="sched-cov ' + cov.cls + '" title="' + _esc(cov.full) + '">' + _esc(cov.abbr) + '</span>'
       + '<button class="sched-del" title="Remove" onclick="deleteScheduleEntry(\'' + c.id + '\',\'' + dateStr + '\')">&#10005;</button>'
       + '</div>';
   }).join('');
