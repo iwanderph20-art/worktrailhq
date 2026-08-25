@@ -82,7 +82,10 @@ video{object-fit:cover;transform:scaleX(-1);}
 .sched-addbtn{background:#0d9488;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;}
 .sched-form{background:#fff;border:1px dashed #5eead4;border-radius:12px;padding:14px;margin-top:12px;display:none;}
 .sched-form.open{display:block;}
-.sched-empty{text-align:center;color:#5e9a94;font-size:13px;padding:22px 8px;}
+.sched-empty{text-align:center;color:#5e9a94;font-size:13px;padding:22px 8px;line-height:1.6;}
+.col-summary{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.col-summary:empty{display:none;}
+.col-chip{font-size:11px;font-weight:700;color:#334155;background:#f1f5f9;border-radius:999px;padding:4px 10px;}
 .rstat{text-align:center;}.rstat .n{font-size:28px;font-weight:700;color:#111827;}
 .rstat .l{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
 .break-ring{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;border:4px solid #fbbf24;background:rgba(251,191,36,.08);}
@@ -504,6 +507,7 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div class="max-w-4xl mx-auto px-4 flex">
       <button class="atab active" id="tab-employees" onclick="switchTab('employees')">Employees</button>
       <button class="atab" id="tab-records"   onclick="switchTab('records')">Records</button>
+      <button class="atab" id="tab-collections" onclick="switchTab('collections')">&#128197; Collections</button>
       <button class="atab" id="tab-payroll"   onclick="switchTab('payroll')">Payroll</button>
       <button class="atab" id="tab-settings"  onclick="switchTab('settings')">Settings</button>
       <button class="atab" id="tab-facilitymap" onclick="switchTab('facilitymap')">&#128205; Facility Map</button>
@@ -571,6 +575,32 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
     </div>
 
+    <!-- Collections tab — month-per-month scheduled collections & tests per facility -->
+    <div id="pane-collections" class="apane space-y-4">
+      <div class="rcard">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <p class="text-sm font-semibold" style="color:#374151;">&#128197; Scheduled Collections &amp; Tests</p>
+            <p class="text-xs mt-0.5" style="color:#9ca3af;">Facility collections and the tests being run, by month.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="refreshFromCloud()" class="text-xs font-semibold" style="color:#059669;background:none;border:none;cursor:pointer;">&#8635; Sync</button>
+            <button onclick="openSchedModal()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">&#43; Schedule Collection</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <button onclick="colPrevMonth()" style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px 14px;cursor:pointer;font-size:18px;color:#374151;line-height:1;">&#8249;</button>
+          <div style="text-align:center;">
+            <span id="colMonthLabel" style="font-size:14px;font-weight:700;color:#111827;"></span>
+            <button onclick="colToday()" style="display:block;margin:2px auto 0;background:none;border:none;color:#0d9488;font-size:11px;font-weight:600;cursor:pointer;">Today</button>
+          </div>
+          <button onclick="colNextMonth()" style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:4px 14px;cursor:pointer;font-size:18px;color:#374151;line-height:1;">&#8250;</button>
+        </div>
+        <div id="colSummary" class="col-summary"></div>
+        <div id="colBody"></div>
+      </div>
+    </div>
+
     <!-- Facility Collection Schedule — add modal (opened from the Records header) -->
     <div id="schedModalWrap" style="display:none;position:fixed;inset:0;z-index:160;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
       <div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:400px;border-top:5px solid #0d9488;">
@@ -578,7 +608,7 @@ video{object-fit:cover;transform:scaleX(-1);}
           <p style="font-size:16px;font-weight:800;color:#0f766e;margin:0;">&#128197; Schedule Facility Collection</p>
           <button onclick="closeSchedModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;line-height:1;">&times;</button>
         </div>
-        <p style="font-size:12px;color:#5e9a94;margin:0 0 14px;">Appears on the Records calendar on its date.</p>
+        <p style="font-size:12px;color:#5e9a94;margin:0 0 14px;">Appears on the Records calendar and the Collections tab.</p>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div>
             <label class="text-xs font-semibold" style="color:#0f766e;">Facility</label>
@@ -2704,6 +2734,11 @@ function switchTab(name) {
   if (name==='employees') {
     if (fbCfg.url) { syncEmployeesFromCloud(function(){ renderEmployeeList(); }); }
     else { renderEmployeeList(); }
+  }
+  if (name==='collections') {
+    populateScheduleFacilities();
+    if (fbCfg.url) { syncScheduleFromCloud(function(){ renderCollections(); }); }
+    else { renderCollections(); }
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
   if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); }
@@ -5146,6 +5181,7 @@ function addScheduleEntry() {
   pushScheduleToCloud(item);
   closeSchedModal();
   renderCalendar();
+  if (typeof renderCollections === 'function') renderCollections();
   toast('Collection scheduled for ' + facility);
 }
 function deleteScheduleEntry(id, reopenDateStr) {
@@ -5162,6 +5198,7 @@ function deleteScheduleEntry(id, reopenDateStr) {
     }).catch(function(){});
   }
   renderCalendar();
+  if (typeof renderCollections === 'function') renderCollections();
   // Refresh the open day modal (or close it if that day is now empty)
   if (reopenDateStr) {
     closeCalModal();
@@ -5207,29 +5244,91 @@ function syncScheduleFromCloud(cb) {
     if (cb) cb();
   });
 }
+// One collection row. reopenDateStr is passed to deleteScheduleEntry so the
+// caller's view refreshes after a delete (the day modal passes its date; the
+// Collections tab passes '' since it re-renders itself).
+function _collectionRowHtml(c, reopenDateStr) {
+  var t = new Date(c.datetime).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+  var cov = _coverageInfo(c.coverage);
+  var testsHtml = c.tests ? '<div class="sched-tests"><span class="sched-tests-lbl">&#129514; Tests:</span> ' + _esc(c.tests) + '</div>' : '';
+  return '<div class="sched-row">'
+    + '<div class="sched-main">'
+    + '<div class="sched-top">'
+    + '<span class="sched-time">' + t + '</span>'
+    + '<span class="sched-fac">' + _esc(c.facility) + '</span>'
+    + '<span class="sched-cov ' + cov.cls + '" title="' + _esc(cov.full) + '">' + _esc(cov.abbr) + '</span>'
+    + '</div>'
+    + testsHtml
+    + '</div>'
+    + '<button class="sched-del" title="Remove" onclick="deleteScheduleEntry(\'' + c.id + '\',\'' + (reopenDateStr || '') + '\')">&#10005;</button>'
+    + '</div>';
+}
 // Schedule section markup for the day-detail modal (showCalDay).
 function _schedDayCardsHtml(dateStr) {
   var items = _collectionsForDay(dateStr);
   if (!items.length) return '';
-  var rows = items.map(function(c){
-    var t = new Date(c.datetime).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
-    var cov = _coverageInfo(c.coverage);
-    var testsHtml = c.tests ? '<div class="sched-tests"><span class="sched-tests-lbl">&#129514; Tests:</span> ' + _esc(c.tests) + '</div>' : '';
-    return '<div class="sched-row">'
-      + '<div class="sched-main">'
-      + '<div class="sched-top">'
-      + '<span class="sched-time">' + t + '</span>'
-      + '<span class="sched-fac">' + _esc(c.facility) + '</span>'
-      + '<span class="sched-cov ' + cov.cls + '" title="' + _esc(cov.full) + '">' + _esc(cov.abbr) + '</span>'
-      + '</div>'
-      + testsHtml
-      + '</div>'
-      + '<button class="sched-del" title="Remove" onclick="deleteScheduleEntry(\'' + c.id + '\',\'' + dateStr + '\')">&#10005;</button>'
-      + '</div>';
-  }).join('');
+  var rows = items.map(function(c){ return _collectionRowHtml(c, dateStr); }).join('');
   return '<div style="margin-bottom:10px;">'
     + '<div class="sched-datehdr" style="margin-top:2px;">&#128197; Scheduled Collections</div>'
     + rows + '</div>';
+}
+
+/* ── Collections tab — month-per-month view of scheduled collections & tests ── */
+var COL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var _colMonth = new Date().getMonth();
+var _colYear  = new Date().getFullYear();
+function colPrevMonth(){ _colMonth--; if(_colMonth<0){_colMonth=11;_colYear--;} renderCollections(); }
+function colNextMonth(){ _colMonth++; if(_colMonth>11){_colMonth=0;_colYear++;} renderCollections(); }
+function colToday(){ var n=new Date(); _colMonth=n.getMonth(); _colYear=n.getFullYear(); renderCollections(); }
+// All collections falling in the currently-selected month, sorted by datetime.
+function _collectionsForMonth() {
+  return store.getJ(K.collections, []).slice()
+    .filter(function(c){
+      if (!c || !c.facility || !c.datetime) return false;
+      var d = new Date(c.datetime);
+      return !isNaN(d) && d.getFullYear()===_colYear && d.getMonth()===_colMonth;
+    })
+    .sort(function(a,b){ return new Date(a.datetime) - new Date(b.datetime); });
+}
+function renderCollections() {
+  var lbl = document.getElementById('colMonthLabel');
+  if (lbl) lbl.textContent = COL_MONTHS[_colMonth] + ' ' + _colYear;
+  var body = document.getElementById('colBody');
+  if (!body) return;
+  var items = _collectionsForMonth();
+  if (!items.length) {
+    body.innerHTML = '<div class="sched-empty">No collections scheduled for ' + COL_MONTHS[_colMonth] + ' ' + _colYear + '.<br>Use <strong>+ Schedule Collection</strong> above to add one.</div>';
+    var s = document.getElementById('colSummary'); if (s) s.innerHTML = '';
+    return;
+  }
+  // Summary chips: total + per-coverage counts + distinct facilities
+  var byCov = {both:0, medicare:0, 'medi-cal':0};
+  var facSet = {};
+  items.forEach(function(c){ byCov[(c.coverage in byCov)?c.coverage:'both']++; facSet[c.facility]=true; });
+  var sumEl = document.getElementById('colSummary');
+  if (sumEl) {
+    sumEl.innerHTML =
+        '<span class="col-chip">' + items.length + ' collection' + (items.length===1?'':'s') + '</span>'
+      + '<span class="col-chip">' + Object.keys(facSet).length + ' facilit' + (Object.keys(facSet).length===1?'y':'ies') + '</span>'
+      + (byCov.medicare ? '<span class="col-chip sched-cov cov-medicare">' + byCov.medicare + ' Medicare</span>' : '')
+      + (byCov['medi-cal'] ? '<span class="col-chip sched-cov cov-medical">' + byCov['medi-cal'] + ' Medi-Cal</span>' : '')
+      + (byCov.both ? '<span class="col-chip sched-cov cov-both">' + byCov.both + ' Both</span>' : '');
+  }
+  // Group by day
+  var days = [];
+  var byDay = {};
+  items.forEach(function(c){
+    var ds = new Date(c.datetime).toDateString();
+    if (!byDay[ds]) { byDay[ds] = []; days.push(ds); }
+    byDay[ds].push(c);
+  });
+  body.innerHTML = days.map(function(ds){
+    var hdr = new Date(ds).toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+    var rows = byDay[ds].map(function(c){ return _collectionRowHtml(c, ''); }).join('');
+    return '<div style="margin-bottom:14px;">'
+      + '<div class="sched-datehdr">&#128197; ' + hdr + '</div>'
+      + rows + '</div>';
+  }).join('');
 }
 
 /* ── renderTables ────────────────────────── */
