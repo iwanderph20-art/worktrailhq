@@ -911,20 +911,34 @@ video{object-fit:cover;transform:scaleX(-1);}
       <div id="ppTaxFields">
         <div class="space-y-3">
           <div>
-            <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Filing Status</p>
+            <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Filing Status <span style="font-weight:400;color:#9ca3af;">(federal W-4, line 1c)</span></p>
             <select id="ppFiling" class="inp inp-dk sel w-full">
-              <option value="single">Single</option>
+              <option value="single">Single or Married filing separately</option>
               <option value="mfj">Married Filing Jointly</option>
               <option value="hoh">Head of Household</option>
             </select>
           </div>
+          <div class="rounded-lg p-2" style="background:#f8fafc;border:1px solid #eef2f7;">
+            <p class="text-xs font-semibold mb-1" style="color:#6b7280;">W-4 Step 3 — Dependents</p>
+            <div class="flex gap-2">
+              <div style="flex:1;">
+                <p class="text-xs mb-1" style="color:#9ca3af;">Children &lt; 17 <span title="$2,000 each">&#9432;</span></p>
+                <input id="ppKids" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+              </div>
+              <div style="flex:1;">
+                <p class="text-xs mb-1" style="color:#9ca3af;">Other dependents <span title="$500 each">&#9432;</span></p>
+                <input id="ppOtherDeps" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+              </div>
+            </div>
+            <p class="text-xs mt-1" style="color:#9ca3af;">$2,000 per child under 17, $500 per other dependent (IRS W-4 Step 3).</p>
+          </div>
           <div class="flex gap-2">
             <div style="flex:1;">
-              <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Federal Allowances</p>
-              <input id="ppFedEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
+              <p class="text-xs font-semibold mb-1" style="color:#6b7280;">Extra Fed / check ($) <span style="font-weight:400;color:#9ca3af;">Step 4(c)</span></p>
+              <input id="ppFedExtra" type="number" min="0" step="0.01" placeholder="0.00" class="inp inp-dk w-full">
             </div>
             <div style="flex:1;">
-              <p class="text-xs font-semibold mb-1" style="color:#6b7280;">CA Allowances</p>
+              <p class="text-xs font-semibold mb-1" style="color:#6b7280;">CA Allowances <span style="font-weight:400;color:#9ca3af;">(DE-4)</span></p>
               <input id="ppStateEx" type="number" min="0" step="1" placeholder="0" class="inp inp-dk w-full">
             </div>
           </div>
@@ -2967,8 +2981,11 @@ function renderEmployeeList() {
     var rate       = parseFloat(p.hourlyRate) || null;
     var weeklyRate = parseFloat(p.weeklyRate) || null;
     var filing  = p.filingStatus || null;
-    var fedEx   = parseInt(p.fedAllowances) || 0;
+    var kids    = parseInt(p.step3Kids)   || 0;
+    var others  = parseInt(p.step3Others) || 0;
     var caEx    = parseInt(p.caAllowances)  || 0;
+    var depCount = kids + others;
+    var depLabel = depCount ? (depCount + ' dep' + (depCount===1?'':'s') + ' ($' + (kids*2000 + others*500).toLocaleString() + ')') : 'None';
     var filingLabel = {single:'Single', mfj:'Married Filing Jointly', hoh:'Head of Household'}[filing] || 'Single';
     var roleLabel = role === 'courier' ? 'Courier' : role === 'logistics' ? 'Logistics Partner' : 'Phlebotomist';
     var roleBg    = role === 'courier' ? '#fef9c3' : role === 'logistics' ? '#f0fdf4' : '#eff6ff';
@@ -2982,11 +2999,13 @@ function renderEmployeeList() {
     } else if (role === 'logistics' && weeklyRate) {
       summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Weekly Rate</span> $'+weeklyRate.toFixed(2)+'/wk</span>';
       summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Filing</span> '+filingLabel+'</span>';
-      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Fed/CA</span> '+fedEx+'/'+caEx+'</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Dependents</span> '+depLabel+'</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">CA allow.</span> '+caEx+'</span>';
     } else if (rate) {
       summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Rate</span> $'+rate.toFixed(2)+'/hr</span>';
       summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Filing</span> '+filingLabel+'</span>';
-      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Fed/CA</span> '+fedEx+'/'+caEx+'</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">Dependents</span> '+depLabel+'</span>';
+      summaryHtml += '<span style="font-size:11px;color:#374151;"><span style="color:#9ca3af;">CA allow.</span> '+caEx+'</span>';
       summaryHtml += '<span style="font-size:11px;color:#7c3aed;"><span style="color:#9ca3af;">Mileage</span> CMS-CA 2026</span>';
     } else {
       summaryHtml += '<span style="font-size:11px;color:#f59e0b;">&#9888; No pay profile set</span>';
@@ -6711,44 +6730,42 @@ function acceptPhiDisclaimer() {
 
 /* ── PAYROLL ENGINE ──────────────────────────────────────────────────────── */
 
-// 2026 Federal tax tables — annualized wage method (IRS Pub 15-T)
-var TAX_FED = {
-  single: {
-    stdDed: 15350,
-    brackets: [
-      {min:0,      max:11925,  rate:0.10, base:0},
-      {min:11925,  max:48475,  rate:0.12, base:1192.50},
-      {min:48475,  max:103350, rate:0.22, base:5578.50},
-      {min:103350, max:197300, rate:0.24, base:17651.50},
-      {min:197300, max:250525, rate:0.32, base:40199.50},
-      {min:250525, max:626350, rate:0.35, base:57231.00},
-      {min:626350, max:Infinity,rate:0.37,base:188769.75}
-    ]
-  },
-  mfj: {
-    stdDed: 30700,
-    brackets: [
-      {min:0,      max:23850,  rate:0.10, base:0},
-      {min:23850,  max:96950,  rate:0.12, base:2385.00},
-      {min:96950,  max:206700, rate:0.22, base:11157.00},
-      {min:206700, max:394600, rate:0.24, base:35302.00},
-      {min:394600, max:501050, rate:0.32, base:80398.00},
-      {min:501050, max:751600, rate:0.35, base:114462.00},
-      {min:751600, max:Infinity,rate:0.37,base:202154.50}
-    ]
-  },
-  hoh: {
-    stdDed: 22650,
-    brackets: [
-      {min:0,      max:17000,  rate:0.10, base:0},
-      {min:17000,  max:64850,  rate:0.12, base:1700.00},
-      {min:64850,  max:103350, rate:0.22, base:7442.00},
-      {min:103350, max:197300, rate:0.24, base:15892.00},
-      {min:197300, max:250500, rate:0.32, base:38444.00},
-      {min:250500, max:626350, rate:0.35, base:55452.00},
-      {min:626350, max:Infinity,rate:0.37,base:187664.50}
-    ]
-  }
+// 2026 Federal withholding — official IRS Pub 15-T "Annual Percentage Method,
+// STANDARD Withholding Rate Schedules" (Forms W-4 from 2020+, Step 2 box NOT
+// checked). These schedules already bake in the standard deduction, so the
+// Adjusted Annual Wage is looked up directly — do NOT subtract std. deduction.
+// Verified against IRS Publication 15-T (2026). `base` = cumulative tax at `min`.
+var FED_SCHED_2026 = {
+  single: [
+    {min:0,      max:7500,   rate:0,    base:0},
+    {min:7500,   max:19900,  rate:0.10, base:0},
+    {min:19900,  max:57900,  rate:0.12, base:1240.00},
+    {min:57900,  max:113200, rate:0.22, base:5800.00},
+    {min:113200, max:209275, rate:0.24, base:17966.00},
+    {min:209275, max:263725, rate:0.32, base:41024.00},
+    {min:263725, max:648100, rate:0.35, base:58448.00},
+    {min:648100, max:Infinity,rate:0.37,base:192979.25}
+  ],
+  mfj: [
+    {min:0,      max:19300,  rate:0,    base:0},
+    {min:19300,  max:44100,  rate:0.10, base:0},
+    {min:44100,  max:120100, rate:0.12, base:2480.00},
+    {min:120100, max:230700, rate:0.22, base:11600.00},
+    {min:230700, max:422850, rate:0.24, base:35932.00},
+    {min:422850, max:531750, rate:0.32, base:82048.00},
+    {min:531750, max:788000, rate:0.35, base:116896.00},
+    {min:788000, max:Infinity,rate:0.37,base:206583.50}
+  ],
+  hoh: [
+    {min:0,      max:15550,  rate:0,    base:0},
+    {min:15550,  max:33250,  rate:0.10, base:0},
+    {min:33250,  max:83000,  rate:0.12, base:1770.00},
+    {min:83000,  max:121250, rate:0.22, base:7740.00},
+    {min:121250, max:217300, rate:0.24, base:16155.00},
+    {min:217300, max:271750, rate:0.32, base:39207.00},
+    {min:271750, max:656150, rate:0.35, base:56631.00},
+    {min:656150, max:Infinity,rate:0.37,base:191171.00}
+  ]
 };
 
 // 2026 California tax tables (estimated, based on 2025 FTB DE 4)
@@ -6850,18 +6867,52 @@ function applyBrackets(taxableIncome, brackets) {
   return Math.max(0, tax);
 }
 
-function calcFedWithholding(annualGross, filing, allowances) {
-  var tbl = TAX_FED[filing] || TAX_FED.single;
-  var taxableIncome = annualGross - tbl.stdDed - (allowances * FED_ALLOWANCE_2026);
-  return Math.max(0, applyBrackets(taxableIncome, tbl.brackets));
+// Federal annual withholding via the IRS Pub 15-T percentage method (Worksheet 1A).
+// annualWage is the Adjusted Annual Wage (period wage × pay periods/year). The
+// schedule is self-contained (std. deduction baked in). step3Annual is the W-4
+// Step 3 dependent-credit dollars ($2,000/qualifying child + $500/other dependent),
+// subtracted from the annual tentative amount before dividing by pay periods.
+function calcFedWithholding(annualWage, filing, step3Annual) {
+  var sched = FED_SCHED_2026[filing] || FED_SCHED_2026.single;
+  var tentative = applyBrackets(Math.max(0, annualWage), sched);
+  return Math.max(0, tentative - (step3Annual || 0));
 }
 
-function calcCAWithholding(annualGross, filing, allowances) {
+// California annual withholding (DE-4 style: std. deduction + brackets, then
+// per-allowance exemption credits). CA did NOT adopt the 2020+ federal W-4
+// redesign, so it still uses withholding allowances.
+function calcCAWithholding(annualWage, filing, allowances) {
   var tbl = TAX_CA[filing] || TAX_CA.single;
-  var taxableIncome = annualGross - tbl.stdDed;
+  var taxableIncome = annualWage - tbl.stdDed;
   var annualTax = applyBrackets(taxableIncome, tbl.brackets);
   annualTax -= (allowances * CA_ALLOWANCE_2026);
   return Math.max(0, annualTax);
+}
+
+// Full set of per-period withholdings for a given gross wage and pay-profile.
+// Annualizes on the payroll frequency (biweekly=26, weekly=52, etc.), applies
+// the federal percentage method + CA method, then de-annualizes. FICA/Medicare
+// are flat statutory rates. Returns amounts already rounded to the cent.
+function calcWithholdings(grossWages, periodDays, profile) {
+  var r2 = function(n){ return Math.round(n * 100) / 100; };
+  profile = profile || {};
+  var filing         = profile.filingStatus || 'single';
+  var periodsPerYear = periodDays ? Math.max(1, Math.round(364 / periodDays)) : 26;
+  var annualWage     = grossWages * periodsPerYear;
+  // W-4 Step 3 dependent credit (2020+ form): $2,000 per child <17, $500 per other dependent
+  var kids   = parseInt(profile.step3Kids)   || 0;
+  var others = parseInt(profile.step3Others) || 0;
+  var step3Annual = kids * 2000 + others * 500;
+  var caEx     = parseInt(profile.caAllowances) || 0;
+  var fedExtra = parseFloat(profile.fedExtra)   || 0; // W-4 Step 4(c) extra per paycheck
+  var fedAnnual = calcFedWithholding(annualWage, filing, step3Annual);
+  var caAnnual  = calcCAWithholding(annualWage, filing, caEx);
+  return {
+    fica:      r2(grossWages * 0.062),
+    medicare:  r2(grossWages * 0.0145),
+    fedWith:   r2(fedAnnual / periodsPerYear + fedExtra),
+    stateWith: r2(caAnnual  / periodsPerYear)
+  };
 }
 
 function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats, totalTravelHours, totalDrawHours, hasSplit) {
@@ -6890,18 +6941,17 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
 
   var rate       = parseFloat(profile.hourlyRate) || 0;
   var weeklyRate = parseFloat(profile.weeklyRate) || 0;
-  var filing  = profile.filingStatus || 'single';
-  var fedEx   = parseInt(profile.fedAllowances) || 0;
-  var caEx    = parseInt(profile.caAllowances) || 0;
+  var filing  = profile.filingStatus || 'single'; // for display on the paystub
 
   if (role === 'logistics') {
     if (!weeklyRate) return {empName: emp.name, role: 'logistics', noProfile: true, grossWages: 0, totalMiles: totalMiles, netPay: 0};
     var weeks       = r2((periodDays || 7) / 7);
     var grossWages  = r2(weeklyRate * weeks);
-    var fica        = r2(grossWages * 0.062);
-    var medicare    = r2(grossWages * 0.0145);
-    var fedWith     = r2(grossWages * 0.08);
-    var stateWith   = r2(grossWages * 0.04);
+    var wh          = calcWithholdings(grossWages, periodDays, profile);
+    var fica        = wh.fica;
+    var medicare    = wh.medicare;
+    var fedWith     = wh.fedWith;
+    var stateWith   = wh.stateWith;
     var totalDeductions = r2(fica + medicare + fedWith + stateWith);
     var mileageReimb    = r2(totalMileageReimb || 0);
     var netPay          = r2(grossWages - totalDeductions + mileageReimb);
@@ -6954,10 +7004,11 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
     }
   }
 
-  var fica            = r2(grossWages * 0.062);
-  var medicare        = r2(grossWages * 0.0145);
-  var fedWith         = r2(grossWages * 0.08);
-  var stateWith       = r2(grossWages * 0.04);
+  var wh              = calcWithholdings(grossWages, periodDays, profile);
+  var fica            = wh.fica;
+  var medicare        = wh.medicare;
+  var fedWith         = wh.fedWith;
+  var stateWith       = wh.stateWith;
   var totalDeductions = r2(fica + medicare + fedWith + stateWith);
   var mileageReimb    = r2(totalMileageReimb || 0);
   var netPay          = r2(grossWages - totalDeductions + guaranteeNonTax + mileageReimb);
@@ -7556,7 +7607,9 @@ function openPayProfile(empName) {
   document.getElementById('ppRate').value        = profile.hourlyRate || '';
   document.getElementById('ppTravelRate').value  = profile.travelRate || '';
   document.getElementById('ppFiling').value      = profile.filingStatus || 'single';
-  document.getElementById('ppFedEx').value   = profile.fedAllowances || '';
+  document.getElementById('ppKids').value      = profile.step3Kids   || '';
+  document.getElementById('ppOtherDeps').value = profile.step3Others || '';
+  document.getElementById('ppFedExtra').value  = profile.fedExtra    || '';
   document.getElementById('ppStateEx').value = profile.caAllowances || '';
   document.getElementById('ppMileage').value = profile.mileageRate || '';
   // Travel rate applies to any phlebotomist — they earn it when dispatched to a
@@ -7580,7 +7633,9 @@ function savePayProfile() {
     travelRate:    rawTravelRate,
     weeklyRate:    0,
     filingStatus:  document.getElementById('ppFiling').value || 'single',
-    fedAllowances: parseInt(document.getElementById('ppFedEx').value) || 0,
+    step3Kids:     parseInt(document.getElementById('ppKids').value) || 0,
+    step3Others:   parseInt(document.getElementById('ppOtherDeps').value) || 0,
+    fedExtra:      parseFloat(document.getElementById('ppFedExtra').value) || 0,
     caAllowances:  parseInt(document.getElementById('ppStateEx').value) || 0,
     mileageRate:   parseFloat(document.getElementById('ppMileage').value) || 0
   };
