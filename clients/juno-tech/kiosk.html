@@ -77,6 +77,9 @@ video{object-fit:cover;transform:scaleX(-1);}
 .sched-cov.cov-both{background:#ccfbf1;color:#0f766e;}
 .sched-cov.cov-medicare{background:#dbeafe;color:#1d4ed8;}
 .sched-cov.cov-medical{background:#f3e8ff;color:#7e22ce;}
+.sched-actions{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+.sched-edit{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;padding:4px 6px;border-radius:8px;}
+.sched-edit:hover{color:#0d9488;background:#ccfbf1;}
 .sched-del{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:18px;line-height:1;padding:4px 6px;border-radius:8px;}
 .sched-del:hover{color:#dc2626;background:#fee2e2;}
 .sched-addbtn{background:#0d9488;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;}
@@ -604,7 +607,7 @@ video{object-fit:cover;transform:scaleX(-1);}
     <div id="schedModalWrap" style="display:none;position:fixed;inset:0;z-index:160;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
       <div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:400px;border-top:5px solid #0d9488;">
         <div class="flex items-center justify-between mb-1">
-          <p style="font-size:16px;font-weight:800;color:#0f766e;margin:0;">&#128197; Schedule Facility Collection</p>
+          <p id="schedModalTitle" style="font-size:16px;font-weight:800;color:#0f766e;margin:0;">&#128197; Schedule Facility Collection</p>
           <button onclick="closeSchedModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;line-height:1;">&times;</button>
         </div>
         <p style="font-size:12px;color:#5e9a94;margin:0 0 14px;">Appears on the Records calendar and the Collections tab.</p>
@@ -632,7 +635,7 @@ video{object-fit:cover;transform:scaleX(-1);}
             <textarea id="schedTests" rows="2" class="inp w-full mt-1" style="color:#111827;resize:vertical;" placeholder="e.g. CBC, CMP, HbA1c, lipid panel…"></textarea>
           </div>
           <div style="display:flex;gap:8px;margin-top:2px;">
-            <button onclick="addScheduleEntry()" class="tap flex-1 py-2.5 rounded-xl font-semibold text-sm" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">Add to Schedule</button>
+            <button id="schedSubmitBtn" onclick="addScheduleEntry()" class="tap flex-1 py-2.5 rounded-xl font-semibold text-sm" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">Add to Schedule</button>
             <button onclick="closeSchedModal()" class="tap px-4 py-2.5 rounded-xl font-semibold text-sm" style="background:#f1f5f9;color:#374151;border:none;cursor:pointer;">Cancel</button>
           </div>
         </div>
@@ -5141,7 +5144,14 @@ function _collectionsForDay(dateStr) {
     .filter(function(c){ return c && c.facility && c.datetime && !isNaN(new Date(c.datetime)) && new Date(c.datetime).toDateString() === dateStr; })
     .sort(function(a,b){ return new Date(a.datetime) - new Date(b.datetime); });
 }
+// Holds the id of the collection currently being edited (null when adding a new one).
+var _editingSchedId = null;
 function openSchedModal(prefillDateStr) {
+  _editingSchedId = null;
+  var titleEl = document.getElementById('schedModalTitle');
+  if (titleEl) titleEl.innerHTML = '&#128197; Schedule Facility Collection';
+  var submitEl = document.getElementById('schedSubmitBtn');
+  if (submitEl) submitEl.textContent = 'Add to Schedule';
   populateScheduleFacilities();
   var dtEl = document.getElementById('schedDatetime');
   var facEl = document.getElementById('schedFacility');
@@ -5162,6 +5172,37 @@ function openSchedModal(prefillDateStr) {
 }
 function closeSchedModal() {
   var w = document.getElementById('schedModalWrap'); if (w) w.style.display = 'none';
+  _editingSchedId = null; _editingSchedReopen = '';
+}
+// Reopen context for an in-progress edit (which day modal to refresh after saving).
+var _editingSchedReopen = '';
+// Open the schedule modal pre-filled with an existing entry, in "edit" mode.
+function editScheduleEntry(id, reopenDateStr) {
+  var entry = store.getJ(K.collections, []).filter(function(c){ return c && c.id === id; })[0];
+  if (!entry) { toast('Collection not found'); return; }
+  populateScheduleFacilities();
+  _editingSchedId = id;
+  _editingSchedReopen = reopenDateStr || '';
+  var titleEl = document.getElementById('schedModalTitle');
+  if (titleEl) titleEl.innerHTML = '&#9998; Edit Facility Collection';
+  var submitEl = document.getElementById('schedSubmitBtn');
+  if (submitEl) submitEl.textContent = 'Save Changes';
+  var facEl = document.getElementById('schedFacility');
+  if (facEl) {
+    // Preserve the entry's facility even if it's since been renamed/removed from FACILITIES.
+    if (entry.facility && !Array.prototype.some.call(facEl.options, function(o){ return o.value === entry.facility; })) {
+      var o = document.createElement('option'); o.value = entry.facility; o.textContent = entry.facility; facEl.appendChild(o);
+    }
+    facEl.value = entry.facility || '';
+  }
+  var covEl = document.getElementById('schedCoverage');
+  if (covEl) covEl.value = entry.coverage || 'both';
+  var testsEl = document.getElementById('schedTests');
+  if (testsEl) testsEl.value = entry.tests || '';
+  var dtEl = document.getElementById('schedDatetime');
+  if (dtEl) dtEl.value = String(entry.datetime || '').slice(0,16);
+  document.getElementById('schedModalWrap').style.display = 'flex';
+  setTimeout(function(){ if (facEl) facEl.focus(); }, 80);
 }
 function addScheduleEntry() {
   var facility = document.getElementById('schedFacility').value;
@@ -5170,8 +5211,30 @@ function addScheduleEntry() {
   var tests    = ((document.getElementById('schedTests') || {}).value || '').trim();
   if (!facility) { toast('Please select a facility'); return; }
   if (!dt)       { toast('Please pick a date & time'); return; }
-  var item = { id: 'c'+Date.now()+Math.floor(Math.random()*1000), facility: facility, datetime: dt, coverage: coverage, tests: tests };
   var arr = store.getJ(K.collections, []);
+  if (_editingSchedId) {
+    // Update the existing entry in place, preserving its id.
+    var reopen = _editingSchedReopen;
+    var updated = null;
+    arr = arr.map(function(c){
+      if (c && c.id === _editingSchedId) { updated = { id: c.id, facility: facility, datetime: dt, coverage: coverage, tests: tests }; return updated; }
+      return c;
+    });
+    store.setJ(K.collections, arr);
+    if (updated) pushScheduleToCloud(updated);
+    closeSchedModal();
+    renderCalendar();
+    if (typeof renderCollections === 'function') renderCollections();
+    // Refresh the open day modal if the edit came from one (the day may have changed).
+    if (reopen) {
+      closeCalModal();
+      var newDay = new Date(dt).toDateString();
+      showCalDay(_collectionsForDay(newDay).length ? newDay : reopen);
+    }
+    toast('Collection updated');
+    return;
+  }
+  var item = { id: 'c'+Date.now()+Math.floor(Math.random()*1000), facility: facility, datetime: dt, coverage: coverage, tests: tests };
   arr.push(item);
   store.setJ(K.collections, arr);
   pushScheduleToCloud(item);
@@ -5256,7 +5319,10 @@ function _collectionRowHtml(c, reopenDateStr) {
     + '</div>'
     + testsHtml
     + '</div>'
+    + '<div class="sched-actions">'
+    + '<button class="sched-edit" title="Edit" onclick="editScheduleEntry(\'' + c.id + '\',\'' + (reopenDateStr || '') + '\')">&#9998;</button>'
     + '<button class="sched-del" title="Remove" onclick="deleteScheduleEntry(\'' + c.id + '\',\'' + (reopenDateStr || '') + '\')">&#10005;</button>'
+    + '</div>'
     + '</div>';
 }
 // Schedule section markup for the day-detail modal (showCalDay).
