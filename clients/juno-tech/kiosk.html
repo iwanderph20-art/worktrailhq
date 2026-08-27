@@ -2788,7 +2788,74 @@ function deleteEmployeeFromFirebase(code) {
   if (!fbCfg.url || !code) return;
   fetch(fbCfg.url+'/jtl/employees/'+code+'.json', {method:'DELETE'}).catch(function(){});
 }
+/* ── Removed-employee block-list (tombstones) ────────────────────
+   A durable list of employees that were deleted, so the cloud sync and the
+   startup seed can never resurrect them. Stored locally AND mirrored to
+   Firebase (/jtl/removedNames) so the block propagates to every device.
+   Keyed by normalized name (a person's PIN/code can differ per device, but
+   the name is stable). */
+function normName(n){ return String(n||'').trim().toLowerCase(); }
+function getRemovedNames(){
+  var a = store.getJ('jtl_removedNames', []);
+  return Array.isArray(a) ? a : [];
+}
+function isRemovedName(name){ return getRemovedNames().indexOf(normName(name)) >= 0; }
+function addRemovedName(name){
+  var nn = normName(name);
+  if (!nn) return;
+  var a = getRemovedNames();
+  if (a.indexOf(nn) < 0) { a.push(nn); store.setJ('jtl_removedNames', a); }
+  if (fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/removedNames/'+encodeURIComponent(nn.replace(/[.#$\[\]\/]/g,'_'))+'.json',
+      {method:'PUT', body:JSON.stringify(nn), headers:{'Content-Type':'application/json'}}).catch(function(){});
+  }
+}
+function filterRemovedEmps(emps){
+  return (emps||[]).filter(function(e){ return e && !isRemovedName(e.name); });
+}
+// Lift a tombstone (when an admin deliberately re-adds a previously removed person).
+function unblockName(name){
+  var nn = normName(name);
+  var a = getRemovedNames();
+  var i = a.indexOf(nn);
+  if (i >= 0) { a.splice(i,1); store.setJ('jtl_removedNames', a); }
+  if (fbCfg.url) {
+    fetch(fbCfg.url+'/jtl/removedNames/'+encodeURIComponent(nn.replace(/[.#$\[\]\/]/g,'_'))+'.json',
+      {method:'DELETE'}).catch(function(){});
+  }
+}
+// Delete every cloud employee record matching a name (codes can differ per device).
+function purgeEmployeeFromCloudByName(name){
+  if (!fbCfg.url) return;
+  var nn = normName(name);
+  fetch(fbCfg.url+'/jtl/employees.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    .then(function(d){
+      if (!d || typeof d !== 'object') return;
+      Object.keys(d).forEach(function(key){
+        var e = d[key];
+        if (e && normName(e.name) === nn) {
+          fetch(fbCfg.url+'/jtl/employees/'+key+'.json',{method:'DELETE'}).catch(function(){});
+        }
+      });
+    });
+}
+
 function syncEmployeesFromCloud(cb) {
+  if (!fbCfg.url) { if(cb) cb(); return; }
+  // Pull the cloud block-list first so a deletion made on any device is honored here.
+  fetch(fbCfg.url+'/jtl/removedNames.json').then(function(r){ return r.json(); }).catch(function(){ return null; })
+    .then(function(rn){
+      if (rn && typeof rn === 'object') {
+        var cloudNames = Object.values(rn).map(normName);
+        var local = getRemovedNames();
+        var changed = false;
+        cloudNames.forEach(function(n){ if (n && local.indexOf(n) < 0) { local.push(n); changed = true; } });
+        if (changed) store.setJ('jtl_removedNames', local);
+      }
+      _syncEmployeesFromCloudInner(cb);
+    });
+}
+function _syncEmployeesFromCloudInner(cb) {
   if (!fbCfg.url) { if(cb) cb(); return; }
   fetch(fbCfg.url+'/jtl/employees.json')
     .then(function(r){ return r.json(); })
@@ -2835,7 +2902,7 @@ function syncEmployeesFromCloud(cb) {
               if (newRate > 0 && existingRate === 0) byName[key] = e;
             }
           });
-          var finalEmps = Object.values(byName);
+          var finalEmps = filterRemovedEmps(Object.values(byName));
           var backupProfiles = store.getJ('jtl_payprofiles', {});
           // Restore from local backup first, then fall back to Firebase payprofiles node
           fetch(fbCfg.url+'/jtl/payprofiles.json')
@@ -2901,6 +2968,7 @@ function addEmployee() {
   } else {
     code=genCode(emps);
   }
+  unblockName(name); // re-adding a previously removed person lifts their tombstone
   var newEmp={name:name,code:code};
   emps.push(newEmp);
   store.setJ(K.employees,emps);
@@ -2915,8 +2983,10 @@ function removeEmployee(code) {
   for(var i=0;i<allEmps.length;i++) if(allEmps[i].code===code){ target=allEmps[i]; break; }
   if (!target) return;
   if (!confirm('Remove "'+target.name+'"?\n\nThis will permanently delete their record and cannot be undone.')) return;
+  addRemovedName(target.name); // tombstone so cloud sync / seed can't resurrect them
   store.setJ(K.employees, allEmps.filter(function(e){ return e.code!==code; }));
   deleteEmployeeFromFirebase(code);
+  purgeEmployeeFromCloudByName(target.name); // remove every cloud record with this name, not just this code
   renderEmployeeList(); toast(target.name+' removed');
 }
 function regenCode(code) {
@@ -6577,10 +6647,9 @@ function clearOldRecords() {
   var emps=store.getJ(K.employees,null);
   var needsSeed=!emps||emps.length===0||typeof emps[0]==='string'||emps.some(function(e){ return !e.code||String(e.code).length!==4; });
   if(needsSeed){
-    var DEFAULT_EMPLOYEES=[
-      {name:'Krys Ellis',code:'1001',role:'phlebotomist'},
-      {name:'Enrique Blanco',code:'1002',role:'phlebotomist'}
-    ];
+    // No hardcoded default employees — the roster is authoritative from Firebase.
+    // (Krys/Enrique used to be seeded here, which is why they kept reappearing.)
+    var DEFAULT_EMPLOYEES=[];
     if(emps&&emps.length>0&&typeof emps[0]==='string'){
       emps=emps.map(function(name,i){ return {name:name,code:String(1001+i)}; });
     } else if(emps&&emps.length>0){
@@ -6593,7 +6662,7 @@ function clearOldRecords() {
         e.payProfile=_savedProfiles[e.name];
       }
     });
-    store.setJ(K.employees,emps);
+    store.setJ(K.employees,filterRemovedEmps(emps));
   }
   // One-time cleanup: remove Hans Duran from local storage
   (function(){
@@ -6606,6 +6675,21 @@ function clearOldRecords() {
   store.del('jtl_supplies');
   store.set(K.adminHash,DEFAULT_HASH);
   injectLogos(); fbInit(); renderFacilityPills();
+  // One-time cleanup: tombstone the employees that were meant to be removed but kept
+  // reappearing (they still lived in the cloud roster). This seeds the block-list so
+  // the cloud sync can never re-add them, and purges their local + cloud records.
+  // "Anntoinette Louie" is intentionally NOT listed — only the empty "Anntoinette" dupe.
+  (function removedEmpMigration(){
+    if (store.getJ('jtl_removed_migration_v2', false)) return;
+    store.setJ('jtl_removed_migration_v2', true);
+    ['Anntoinette','test','Krys Ellis','Enrique Blanco',
+     'Hans Arturo Duran Rodriguez','Hans Duran'].forEach(function(nm){
+      addRemovedName(nm);          // local + cloud block-list
+      purgeEmployeeFromCloudByName(nm); // delete every matching cloud record
+    });
+    store.setJ(K.employees, filterRemovedEmps(store.getJ(K.employees, [])));
+    renderEmployeeList();
+  })();
   // Auto-sync employee codes from Firebase on every page load so regenerated PINs
   // work immediately on the kiosk without needing to reshare the staff URL.
   setTimeout(function() {
