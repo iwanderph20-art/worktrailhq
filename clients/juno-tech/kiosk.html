@@ -77,6 +77,13 @@ video{object-fit:cover;transform:scaleX(-1);}
 .sched-cov.cov-both{background:#ccfbf1;color:#0f766e;}
 .sched-cov.cov-medicare{background:#dbeafe;color:#1d4ed8;}
 .sched-cov.cov-medical{background:#f3e8ff;color:#7e22ce;}
+.sched-row.past{background:#f9fafb;border-color:#e5e7eb;border-left-color:#cbd5e1;opacity:.7;}
+.sched-row.past .sched-time{color:#9ca3af;}
+.sched-row.past .sched-fac{color:#6b7280;}
+.sched-row.past .sched-tests{color:#9ca3af;}
+.sched-row.past .sched-tests-lbl{color:#9ca3af;}
+.sched-row.past .sched-cov{background:#f3f4f6 !important;color:#9ca3af !important;}
+.sched-done{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap;background:#e5e7eb;color:#6b7280;}
 .sched-actions{display:flex;align-items:center;gap:2px;flex-shrink:0;}
 .sched-edit{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;line-height:1;padding:4px 6px;border-radius:8px;}
 .sched-edit:hover{color:#0d9488;background:#ccfbf1;}
@@ -5422,14 +5429,17 @@ function syncScheduleFromCloud(cb) {
 // caller's view refreshes after a delete (the day modal passes its date; the
 // Collections tab passes '' since it re-renders itself).
 function _collectionRowHtml(c, reopenDateStr) {
-  var t = new Date(c.datetime).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+  var dt = new Date(c.datetime);
+  var t = dt.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
   var cov = _coverageInfo(c.coverage);
+  var isPast = !isNaN(dt) && dt.getTime() < Date.now(); // collection time already passed
   var testsHtml = c.tests ? '<div class="sched-tests"><span class="sched-tests-lbl">&#129514; Tests:</span> ' + _esc(c.tests) + '</div>' : '';
-  return '<div class="sched-row">'
+  return '<div class="sched-row' + (isPast ? ' past' : '') + '">'
     + '<div class="sched-main">'
     + '<div class="sched-top">'
     + '<span class="sched-time">' + t + '</span>'
     + '<span class="sched-fac">' + _esc(c.facility) + '</span>'
+    + (isPast ? '<span class="sched-done" title="This collection date has passed">&#10003; Done</span>' : '')
     + '<span class="sched-cov ' + cov.cls + '" title="' + _esc(cov.full) + '">' + _esc(cov.abbr) + '</span>'
     + '</div>'
     + testsHtml
