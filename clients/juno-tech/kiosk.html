@@ -402,30 +402,20 @@ video{object-fit:cover;transform:scaleX(-1);}
 
     <!-- Clock-In Form (shown FIRST — facility + note, then photo) -->
     <div id="clockInQuestionsCard" class="glass rounded-3xl px-6 py-6 space-y-4" style="display:none;">
-      <p class="text-lg font-bold" style="color:#111827;">Where are you working today?</p>
-      <!-- Facility dropdown -->
-      <div style="position:relative;">
-        <button id="qFacDropdownBtn" onclick="toggleQFacDropdown()" class="tap w-full" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-radius:14px;border:1.5px solid #e5e7eb;background:#f9fafb;cursor:pointer;text-align:left;">
-          <span id="qFacDropdownLabel" style="font-size:13px;color:#9ca3af;">Select facility…</span>
-          <svg id="qFacDropdownArrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" stroke-width="2.5" style="flex-shrink:0;transition:transform .2s;">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-          </svg>
-        </button>
-        <div id="qFacDropdownList" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;background:#fff;border-radius:14px;border:1.5px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.12);overflow:hidden;max-height:260px;overflow-y:auto;">
-          <button onclick="closeQFacDropdown();event.stopPropagation();" style="display:flex;align-items:center;justify-content:center;width:100%;padding:12px 16px;border:none;border-top:2px solid #e5e7eb;background:#f9fafb;cursor:pointer;font-size:13px;font-weight:700;color:#1a2b8c;gap:6px;position:sticky;bottom:0;">
-            &#10003; Done
-          </button>
-        </div>
+      <!-- Schedule-driven facility question (built by renderClockInFacilityPrompt) -->
+      <div id="qFacPrompt"></div>
+      <!-- Fallback picker — revealed only if the employee is NOT at the scheduled facility -->
+      <div id="qFacFallback" style="display:none;">
+        <p class="text-xs font-semibold block mb-2" style="color:#6b7280;">Select where you&rsquo;re working:</p>
+        <div id="qFacFallbackList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <input id="qFacOther" type="text" placeholder="Describe other location…" class="inp" style="font-size:13px;display:none;margin-top:8px;">
+        <button id="qOtherContinueBtn" onclick="proceedToClockInPhoto()" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="display:none;margin-top:8px;background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;">Continue to Photo &rarr;</button>
       </div>
-      <div id="qFacChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-      <input id="qFacOther" type="text" placeholder="Describe other location…" class="inp" style="font-size:13px;display:none;">
       <!-- Note -->
       <div>
         <label class="text-xs font-medium block mb-1" style="color:#6b7280;">Note <span style="color:#d1d5db;">(optional)</span></label>
         <input id="qNote" type="text" placeholder="e.g. Starting early, working remote…" class="inp">
       </div>
-      <button onclick="proceedToClockInPhoto()" id="qNextBtn" class="tap w-full py-4 rounded-2xl font-bold text-base"
-        style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;opacity:.4;pointer-events:none;box-shadow:0 4px 16px rgba(26,43,140,.3);">Continue to Photo →</button>
       <button onclick="cancelCapture()" class="text-sm text-center w-full" style="color:#9ca3af;background:none;border:none;cursor:pointer;">Cancel</button>
     </div>
 
@@ -1767,12 +1757,9 @@ function _openPreClockForm() {
   if (pendingAction === 'in') {
     qSelectedFacs = []; qDroveMode = null;
     document.getElementById('qNote').value = '';
-    document.getElementById('qFacOther').value = '';
-    document.getElementById('qFacOther').style.display = 'none';
-    closeQFacDropdown();
-    renderQFacGrid();
-    var nb = document.getElementById('qNextBtn');
-    if (nb) { nb.style.opacity='.4'; nb.style.pointerEvents='none'; }
+    var qfo=document.getElementById('qFacOther'); if(qfo){ qfo.value=''; qfo.style.display='none'; }
+    var qoc=document.getElementById('qOtherContinueBtn'); if(qoc) qoc.style.display='none';
+    renderClockInFacilityPrompt();
     var card = document.getElementById('clockInQuestionsCard');
     card.style.display='flex'; card.style.flexDirection='column';
   } else {
@@ -1872,6 +1859,85 @@ function capturePhoto() {
     submitClockOut();
   }
 }
+// Escape a string for safe use inside a single-quoted inline onclick handler.
+function _jsStr(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+// Distinct facilities scheduled for a collection today, in time order.
+function _todayScheduledFacilities(){
+  var facs = _collectionsForDay(new Date().toDateString()).map(function(c){ return c.facility; });
+  var seen = {}, out = [];
+  facs.forEach(function(f){ if(f && !seen[f]){ seen[f]=1; out.push(f); } });
+  return out;
+}
+// Build the clock-in facility question from today's collection schedule:
+//  · exactly one facility  → "Are you working at <X>?"  (Yes → straight to photo)
+//  · multiple facilities   → pick which scheduled facility
+//  · none scheduled        → fall back to the full facility picker
+function renderClockInFacilityPrompt(){
+  qSelectedFacs = [];
+  var prompt = document.getElementById('qFacPrompt');
+  var fb = document.getElementById('qFacFallback');
+  if (fb) fb.style.display = 'none';
+  var qoc=document.getElementById('qOtherContinueBtn'); if(qoc) qoc.style.display='none';
+  _renderFacilityFallbackList();
+  var facs = _todayScheduledFacilities();
+  if (!prompt) return;
+  if (facs.length === 1){
+    prompt.innerHTML =
+        '<p class="text-lg font-bold" style="color:#111827;margin:0;">Are you working at</p>'
+      + '<p style="font-size:22px;font-weight:800;color:#1a2b8c;line-height:1.15;margin:2px 0 14px;">' + _esc(facs[0]) + '?</p>'
+      + '<button onclick="confirmScheduledFacility(\'' + _jsStr(facs[0]) + '\')" class="tap w-full py-4 rounded-2xl font-bold text-base" style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(26,43,140,.3);">&#10003; Yes &mdash; continue to photo</button>'
+      + '<button onclick="showFacilityFallback()" class="text-sm w-full" style="margin-top:10px;color:#6b7280;background:none;border:none;cursor:pointer;">No &mdash; I&rsquo;m somewhere else</button>';
+  } else if (facs.length > 1){
+    prompt.innerHTML =
+        '<p class="text-lg font-bold" style="color:#111827;margin:0 0 12px;">Which facility are you working at today?</p>'
+      + facs.map(function(f){
+          return '<button onclick="confirmScheduledFacility(\'' + _jsStr(f) + '\')" class="tap w-full" style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;border:1.5px solid #c7d2fe;background:#eef2ff;cursor:pointer;text-align:left;margin-bottom:8px;">'
+            + '<span style="font-size:18px;line-height:1;">&#127968;</span>'
+            + '<span style="flex:1;font-size:15px;font-weight:700;color:#1a2b8c;">' + _esc(f) + '</span>'
+            + '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#1a2b8c" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>'
+            + '</button>';
+        }).join('')
+      + '<button onclick="showFacilityFallback()" class="text-sm w-full" style="margin-top:2px;color:#6b7280;background:none;border:none;cursor:pointer;">Somewhere else</button>';
+  } else {
+    prompt.innerHTML =
+        '<p class="text-lg font-bold" style="color:#111827;margin:0 0 2px;">Where are you working today?</p>'
+      + '<p class="text-xs" style="color:#9ca3af;margin:0;">No collection is scheduled for today &mdash; pick your location below.</p>';
+    showFacilityFallback();
+  }
+}
+function confirmScheduledFacility(f){
+  qSelectedFacs = [f];
+  proceedToClockInPhoto();
+}
+function showFacilityFallback(){
+  qSelectedFacs = [];
+  var fb = document.getElementById('qFacFallback');
+  if (fb) fb.style.display = '';
+  var qfo=document.getElementById('qFacOther'); if(qfo) qfo.style.display='none';
+  var qoc=document.getElementById('qOtherContinueBtn'); if(qoc) qoc.style.display='none';
+}
+function _renderFacilityFallbackList(){
+  var list = document.getElementById('qFacFallbackList');
+  if (!list) return;
+  list.innerHTML = FACILITIES.map(function(f){
+    var isLab = (f==='Juno Tech Lab'||f==='SDI Lab');
+    var icon  = isLab ? '&#128300;' : (f==='Others' ? '&#128205;' : '&#127968;');
+    return '<button onclick="pickFallbackFacility(\'' + _jsStr(f) + '\')" class="tap w-full" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;text-align:left;">'
+      + '<span style="font-size:16px;line-height:1;">' + icon + '</span>'
+      + '<span style="flex:1;font-size:14px;font-weight:600;color:#111827;">' + _esc(f) + '</span>'
+      + '</button>';
+  }).join('');
+}
+function pickFallbackFacility(f){
+  if (f === 'Others'){
+    qSelectedFacs = ['Others'];
+    var qfo=document.getElementById('qFacOther'); if(qfo){ qfo.style.display=''; qfo.focus(); }
+    var qoc=document.getElementById('qOtherContinueBtn'); if(qoc) qoc.style.display='';
+    return;
+  }
+  confirmScheduledFacility(f);
+}
+// ── Legacy dropdown helpers (kept as harmless no-ops for any old references) ──
 function renderQFacGrid() {
   // Dropdown list items
   var list = document.getElementById('qFacDropdownList');
