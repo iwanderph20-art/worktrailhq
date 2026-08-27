@@ -873,6 +873,10 @@ video{object-fit:cover;transform:scaleX(-1);}
           <button onclick="runMilesOnly()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
             style="background:#7c3aed;color:#fff;border:none;cursor:pointer;flex-shrink:0;">&#128663; Miles Only</button>
         </div>
+        <label class="flex items-start gap-2" style="cursor:pointer;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:12px;padding:10px 12px;">
+          <input type="checkbox" id="omitMileageChk" onchange="saveOmitMileage()" style="margin-top:2px;width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0;">
+          <span class="text-xs" style="color:#5b21b6;"><strong>Omit mileage from this biweekly paystub</strong> &mdash; miles are paid separately each week via the <strong>&#128663; Miles Only</strong> button. Leave checked so mileage isn&rsquo;t paid twice.</span>
+        </label>
         <p class="text-xs" style="color:#9ca3af;"><strong>Biweekly wages</strong>: paid <strong>every other Friday</strong>, starting <strong>Aug 14, 2026</strong>. Each pay date covers the 14-day period ending two weeks earlier &mdash; e.g. the <strong>Aug 14</strong> pay covers <strong>Jul 18&ndash;Jul 31</strong>, and the <strong>Aug 28</strong> pay covers <strong>Aug 1&ndash;Aug 14</strong>. Pick a pay date above to auto-fill its coverage window. <strong>Mileage is paid weekly</strong> &mdash; use the purple <strong>&#128663; Miles Only</strong> button to calculate just the mileage reimbursement for a week (pick that week in the Period 1 fields). Mileage reimbursement uses IRS 2026 rate: $0.76/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
       </div>
 
@@ -2759,7 +2763,7 @@ function switchTab(name) {
     else { renderCollections(); }
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
-  if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); }
+  if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); syncOmitMileageChk(); }
   if (name==='facilitymap') {
     // Break out of max-w-4xl for full-bleed map
     var wrap = document.getElementById('adminPaneWrap');
@@ -7416,9 +7420,16 @@ function runPayroll() {
   var allResults = [];
   var empCards = '';
 
+  var omitMiles = omitMileageFromPayroll();
   emps.forEach(function(emp) {
     var stats = buildSessMap(emp.name);
-    var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays, stats, stats.totalTravelHours, stats.totalDrawHours, stats.hasSplit);
+    // When mileage is paid weekly (Miles Only), leave it off the biweekly paystub
+    // so it isn't reimbursed twice. Miles are zeroed only for the wage calc.
+    // Couriers are exempt — their pay IS the mileage log, not a wage add-on.
+    var omitThis  = omitMiles && (emp.role || 'phlebotomist') !== 'courier';
+    var payMiles  = omitThis ? 0 : stats.totalMiles;
+    var payReimb  = omitThis ? 0 : stats.totalMileageReimb;
+    var result = calcPaycheck(emp, stats.totalHours, payMiles, payReimb, periodDays, stats, stats.totalTravelHours, stats.totalDrawHours, stats.hasSplit);
     if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
     allResults.push(result);
     empCards += renderPaycheck(result, periodLabel, '');
@@ -7507,6 +7518,23 @@ function runPayroll() {
 // for whatever period is selected — no wages, hours, or tax withholdings.
 var _milesPrintData = null;
 var _payrollMode = 'full'; // 'full' | 'miles' — controls which printer the Print button uses
+
+// Whether the biweekly paystub should leave mileage out (miles paid weekly instead).
+// Defaults to ON — the new policy pays miles separately via the Miles Only button.
+function omitMileageFromPayroll() {
+  try {
+    var v = localStorage.getItem('jtl_omitMileage');
+    return v === null ? true : v === '1';
+  } catch (e) { return true; }
+}
+function saveOmitMileage() {
+  var chk = document.getElementById('omitMileageChk');
+  try { localStorage.setItem('jtl_omitMileage', chk && chk.checked ? '1' : '0'); } catch (e) {}
+}
+function syncOmitMileageChk() {
+  var chk = document.getElementById('omitMileageChk');
+  if (chk) chk.checked = omitMileageFromPayroll();
+}
 
 // Pair clock-in/out sessions for one employee within the given date ranges and
 // return the mileage detail + totals. Mirrors buildSessMap's mileage handling:
