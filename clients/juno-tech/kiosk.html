@@ -5173,11 +5173,23 @@ function fbFetchAll(path, cb) {
 /* ── Admin password cloud sync ───────────────────────────
  * The admin password is shared across every device via /jtl/adminPass, stored as
  * the one-way hashPwdCloud value. Once set, it is authoritative everywhere. */
-function pushAdminPassToCloud(pwdPlain) {
-  if (!fbCfg.url) return;
+// Writes the new password hash to the cloud and CONFIRMS it landed by reading it
+// back. Resolves true only when the cloud copy actually equals the new hash, so a
+// silently-failed PUT can no longer leave the old shared password in place while
+// telling the admin it was "updated on all devices". cb(ok).
+function pushAdminPassToCloud(pwdPlain, cb) {
+  cb = cb || function(){};
+  if (!fbCfg.url) { cb(false); return; }
+  var wanted = hashPwdCloud(pwdPlain);
   fetch(fbCfg.url+'/jtl/adminPass.json', {
-    method:'PUT', body:JSON.stringify(hashPwdCloud(pwdPlain)), headers:{'Content-Type':'application/json'}
-  }).catch(function(){});
+    method:'PUT', body:JSON.stringify(wanted), headers:{'Content-Type':'application/json'}
+  }).then(function(r){
+    if (!r.ok) throw new Error('write failed');
+    // Read back to be certain the cloud now holds the new password.
+    return fetch(fbCfg.url+'/jtl/adminPass.json').then(function(r2){ return r2.json(); });
+  }).then(function(v){
+    cb(v === wanted);
+  }).catch(function(){ cb(false); });
 }
 // cb(err, cloudHash): err is null on a successful read (cloudHash may still be null
 // when no password has been set), 'neterr' when the network read failed, or
@@ -5847,10 +5859,23 @@ function changePassword() {
   if(!p1){ toast('Enter a new password'); return; }
   if(p1!==p2){ toast('Passwords do not match'); return; }
   if(p1.length<4){ toast('Minimum 4 characters'); return; }
-  store.set(K.adminHash,hashPwd(p1));
-  pushAdminPassToCloud(p1); // share the new password with every other device
+  store.set(K.adminHash,hashPwd(p1)); // always cache locally so this device is updated
   document.getElementById('newPass1').value=''; document.getElementById('newPass2').value='';
-  toast(fbCfg.url ? 'Password updated on all devices!' : 'Password updated!');
+  if (!fbCfg.url) { toast('Password updated!'); return; }
+  // Cloud sync is on and the cloud copy is authoritative at login, so we MUST
+  // confirm the write actually landed — otherwise the old shared password would
+  // keep working on every device while the admin thinks it changed.
+  var btn = document.querySelector('button[onclick="changePassword()"]');
+  var oldTxt = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  pushAdminPassToCloud(p1, function(ok){
+    if (btn) { btn.disabled = false; btn.textContent = oldTxt; }
+    if (ok) {
+      toast('Password updated on all devices!');
+    } else {
+      toast('⚠ Could not sync to other devices — check connection and try again.');
+    }
+  });
 }
 function clearAllData() {
   if(!confirm('Delete ALL data? This cannot be undone.')) return;
@@ -7600,10 +7625,12 @@ function renderPaycheck(result, fromStr, toStr) {
       if (!s.inTs || !s.outTs) return;
       var dt = new Date(s.inTs);
       var hrs = (new Date(s.outTs) - new Date(s.inTs)) / 3600000;
+      var _mi = parseFloat(s.mileage) || 0;
+      var _miTag = _mi > 0 ? ' &nbsp;&middot;&nbsp;<span style="color:#7c3aed;font-weight:700;">&#128663; '+_mi.toFixed(1)+' mi</span>' : '';
       _rows += '<div style="display:flex;justify-content:space-between;font-size:11px;color:#374151;padding:2px 0;border-bottom:1px solid #f3f4f6;">'
         +'<span>'+_mos[dt.getMonth()]+' '+dt.getDate()
         +' &nbsp;'+new Date(s.inTs).toLocaleTimeString('en-US',_tf)
-        +' → '+new Date(s.outTs).toLocaleTimeString('en-US',_tf)+'</span>'
+        +' → '+new Date(s.outTs).toLocaleTimeString('en-US',_tf)+_miTag+'</span>'
         +'<span style="font-weight:600;">'+fmtHrs(hrs)+'</span>'
         +'</div>';
     });
