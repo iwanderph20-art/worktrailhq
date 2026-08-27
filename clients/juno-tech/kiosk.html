@@ -6966,7 +6966,10 @@ function clearOldRecords() {
   })();
   // One-time cleanup: remove the retired supply-log data from local storage
   store.del('jtl_supplies');
-  store.set(K.adminHash,DEFAULT_HASH);
+  // NOTE: do NOT reset K.adminHash here. init() runs on every page load, so
+  // unconditionally writing DEFAULT_HASH wiped any custom admin password back to
+  // "admin" on the next reload. The login check already falls back to DEFAULT_HASH
+  // when no hash is stored, so a fresh device still accepts the default password.
   injectLogos(); fbInit(); renderFacilityPills();
   // One-time cleanup: tombstone the employees that were meant to be removed but kept
   // reappearing (they still lived in the cloud roster). This seeds the block-list so
