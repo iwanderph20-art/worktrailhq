@@ -1405,6 +1405,21 @@ function hashPwd(str) {
   catch(e) { return base; }
 }
 var DEFAULT_HASH = hashPwd('admin');
+// One-way hash used for the CLOUD copy of the admin password. Unlike hashPwd
+// (which embeds a reversible base64 of the plaintext, fine for a device-local
+// value), this derives two independent 32-bit rolls and stores no plaintext, so
+// publishing it to the shared Firebase DB does not expose the password itself.
+function hashPwdCloud(str) {
+  var s = String(str) + ':jtl-kiosk-cloud';
+  var h1 = 5381, h2 = 52711;
+  for (var i=0;i<s.length;i++) {
+    var c = s.charCodeAt(i);
+    h1 = (Math.imul(33, h1) ^ c) >>> 0;
+    h2 = (Math.imul(31, h2) + c) >>> 0;
+  }
+  function hx(n){ return ('00000000' + (n>>>0).toString(16)).slice(-8); }
+  return hx(h1) + hx(h2);
+}
 
 /* ── 4-digit code generator ─────────────── */
 function genCode(existing) {
@@ -2813,29 +2828,58 @@ function openAdminLogin() {
 }
 function closeAdminLogin() { document.getElementById('adminLoginWrap').classList.remove('open'); }
 
-document.getElementById('adminLoginBtn').addEventListener('click', function() {
-  var input  = document.getElementById('adminPassInput').value;
-  var stored = store.get(K.adminHash) || DEFAULT_HASH;
-  if (hashPwd(input)===stored) {
-    closeAdminLogin(); show('adminView');
-    purgeOldRecords();    // silently remove records >90 days old
-    checkPurgeWarning();  // email admin if any records expire within 7 days
-    renderTables(); // immediate render from localStorage so screen isn't blank
-    renderKioskUrl(); updateStorageUsage();
-    if (fbCfg.url) {
-      // Sync employees bidirectionally
-      pushAllEmployeesToCloud();
-      syncEmployeesFromCloud(function(){ renderEmployeeList(); });
-      // Sync timesheet from cloud immediately on login so deleted/edited entries
-      // on other devices are visible right away (don't wait for a tab switch)
-      syncFromCloud(function(){ renderTables(); renderAdminLog(); });
-      startRecordsAutoRefresh(); // start 30-second polling while admin is open
-    } else {
-      renderEmployeeList();
-    }
+function adminLoginSuccess() {
+  closeAdminLogin(); show('adminView');
+  purgeOldRecords();    // silently remove records >90 days old
+  checkPurgeWarning();  // email admin if any records expire within 7 days
+  renderTables(); // immediate render from localStorage so screen isn't blank
+  renderKioskUrl(); updateStorageUsage();
+  if (fbCfg.url) {
+    // Sync employees bidirectionally
+    pushAllEmployeesToCloud();
+    syncEmployeesFromCloud(function(){ renderEmployeeList(); });
+    // Sync timesheet from cloud immediately on login so deleted/edited entries
+    // on other devices are visible right away (don't wait for a tab switch)
+    syncFromCloud(function(){ renderTables(); renderAdminLog(); });
+    startRecordsAutoRefresh(); // start 30-second polling while admin is open
   } else {
-    document.getElementById('loginErr').style.display='block';
+    renderEmployeeList();
   }
+}
+// True when the typed password matches this device's local hash (or the built-in
+// default when no password has ever been set here). Used for the offline path.
+function _adminLocalMatch(input) {
+  return hashPwd(input) === (store.get(K.adminHash) || DEFAULT_HASH);
+}
+document.getElementById('adminLoginBtn').addEventListener('click', function() {
+  var input = document.getElementById('adminPassInput').value;
+  var errEl = document.getElementById('loginErr');
+  if (errEl) errEl.style.display='none';
+  // No cloud sync → purely local check (original behaviour).
+  if (!fbCfg.url) {
+    if (_adminLocalMatch(input)) adminLoginSuccess();
+    else if (errEl) errEl.style.display='block';
+    return;
+  }
+  // Cloud sync on: the password is shared across devices, so the cloud copy is
+  // authoritative once set. Read it, but fall back to the local check if the
+  // network read fails so the admin is never locked out offline.
+  var btn = this, oldTxt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Checking…';
+  fetchAdminPassFromCloud(function(err, cloudHash) {
+    btn.disabled = false; btn.textContent = oldTxt;
+    var ok;
+    if (err === 'neterr') {
+      ok = _adminLocalMatch(input);            // offline: trust the local copy
+    } else if (cloudHash) {
+      ok = (hashPwdCloud(input) === cloudHash); // a shared password is set → it wins
+      if (ok) store.set(K.adminHash, hashPwd(input)); // cache locally for offline use
+    } else {
+      ok = _adminLocalMatch(input);            // no shared password yet → local/default
+    }
+    if (ok) adminLoginSuccess();
+    else if (errEl) errEl.style.display='block';
+  });
 });
 document.getElementById('adminPassInput').addEventListener('keydown', function(e) {
   if (e.key==='Enter') document.getElementById('adminLoginBtn').click();
@@ -5126,6 +5170,25 @@ function fbFetchAll(path, cb) {
   if (!fbCfg.url) { cb(null); return; }
   fetch(fbCfg.url+'/jtl/'+path+'.json').then(function(r){ return r.json(); }).then(function(data){ cb(data); }).catch(function(){ cb(null); });
 }
+/* ── Admin password cloud sync ───────────────────────────
+ * The admin password is shared across every device via /jtl/adminPass, stored as
+ * the one-way hashPwdCloud value. Once set, it is authoritative everywhere. */
+function pushAdminPassToCloud(pwdPlain) {
+  if (!fbCfg.url) return;
+  fetch(fbCfg.url+'/jtl/adminPass.json', {
+    method:'PUT', body:JSON.stringify(hashPwdCloud(pwdPlain)), headers:{'Content-Type':'application/json'}
+  }).catch(function(){});
+}
+// cb(err, cloudHash): err is null on a successful read (cloudHash may still be null
+// when no password has been set), 'neterr' when the network read failed, or
+// 'nocloud' when cloud sync isn't configured.
+function fetchAdminPassFromCloud(cb) {
+  if (!fbCfg.url) { cb('nocloud', null); return; }
+  fetch(fbCfg.url+'/jtl/adminPass.json')
+    .then(function(r){ return r.json(); })
+    .then(function(v){ cb(null, typeof v === 'string' ? v : null); })
+    .catch(function(){ cb('neterr', null); });
+}
 /* ── Employee state sync helpers ─────────────────────── */
 /* Safe Firebase key from employee name */
 function empKey(name) {
@@ -5785,8 +5848,9 @@ function changePassword() {
   if(p1!==p2){ toast('Passwords do not match'); return; }
   if(p1.length<4){ toast('Minimum 4 characters'); return; }
   store.set(K.adminHash,hashPwd(p1));
+  pushAdminPassToCloud(p1); // share the new password with every other device
   document.getElementById('newPass1').value=''; document.getElementById('newPass2').value='';
-  toast('Password updated!');
+  toast(fbCfg.url ? 'Password updated on all devices!' : 'Password updated!');
 }
 function clearAllData() {
   if(!confirm('Delete ALL data? This cannot be undone.')) return;
