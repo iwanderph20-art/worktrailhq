@@ -358,7 +358,7 @@ video{object-fit:cover;transform:scaleX(-1);}
         <div><p id="sumTotal"   class="text-base font-semibold" style="color:#111827;">&#8212;</p><p class="text-xs" style="color:#9ca3af;">Hours So Far</p></div>
       </div>
     </div>
-    <button onclick="openEmpLogs()" class="tap w-full rounded-3xl px-6 py-5 flex items-center gap-4"
+    <button id="myLogsBtn" onclick="openEmpLogs()" class="tap w-full rounded-3xl px-6 py-5 flex items-center gap-4"
       style="border:none;cursor:pointer;text-align:left;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.07);border:1px solid rgba(0,0,0,.06);">
       <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#15803d" stroke-width="2">
@@ -1662,6 +1662,8 @@ function renderEmpState() {
   // Hide all first
   [mainCard,breakCard,camWrap,pendingCard,approvedNotice].forEach(function(el){ if(el) el.style.display='none'; });
   since.style.display='none'; breakBtns.style.display='none';
+  // Restore the My Logs card (hidden during the clock-in/out flow)
+  var _ml=document.getElementById('myLogsBtn'); if(_ml) _ml.style.display='';
   var mp2=document.getElementById('mileagePill'); if(mp2) mp2.style.display='none';
 
   if (clockState==='out') {
@@ -1715,8 +1717,17 @@ function handleClock() {
   if (!currentLocation) { openLocationModal(); return; }
   _openPreClockForm();
 }
+// While clocking in/out, hide the cards that sit below the button (Today's Summary,
+// My Logs) and jump to the top so the facility form + camera appear right under the
+// welcome card — the employee never has to scroll down to finish clocking in.
+function _enterClockFlowLayout() {
+  var ts=document.getElementById('todaySummary'); if(ts) ts.style.display='none';
+  var ml=document.getElementById('myLogsBtn');    if(ml) ml.style.display='none';
+  window.scrollTo(0,0);
+}
 function _openPreClockForm() {
   document.getElementById('mainCard').style.display='none';
+  _enterClockFlowLayout();
   if (pendingAction === 'in') {
     qSelectedFacs = []; qDroveMode = null;
     document.getElementById('qNote').value = '';
@@ -1744,6 +1755,7 @@ function _openCameraForClock() {
   document.getElementById('mainCard').style.display='none';
   document.getElementById('camTitle').textContent = pendingAction==='in'
     ? 'Clock In — Show your work area' : 'Clock Out — Show your work area';
+  _enterClockFlowLayout();
   var cw = document.getElementById('camWrap');
   cw.style.display='flex'; cw.style.flexDirection='column';
   startCamera();
@@ -1802,6 +1814,7 @@ function cancelCapture() {
   document.getElementById('clockInQuestionsCard').style.display='none';
   document.getElementById('clockOutNoteCard').style.display='none';
   renderEmpState();
+  updateTodaySummary(); // restore Today's Summary hidden during the flow
 }
 /* ── Gamified Clock-In Flow ─────────────────── */
 function capturePhoto() {
@@ -2864,6 +2877,18 @@ function _syncEmployeesFromCloudInner(cb) {
         var cloudEmps = Array.isArray(data) ? data : Object.values(data);
         cloudEmps = cloudEmps.filter(function(e){ return e && e.name && e.code; });
         if (cloudEmps.length > 0) {
+          // Lift stale tombstones: an employee that is actively present in the cloud
+          // roster must never be filtered out by a local block-list entry left over
+          // from an earlier removal. Without this, re-adding a previously removed
+          // person (e.g. "test") never lets them log in on a device that had cached
+          // the tombstone, because the block-list merge above only ever ADDS names.
+          var _removed = getRemovedNames();
+          if (_removed.length) {
+            var _cloudNameSet = {};
+            cloudEmps.forEach(function(e){ _cloudNameSet[normName(e.name)] = true; });
+            var _kept = _removed.filter(function(n){ return !_cloudNameSet[n]; });
+            if (_kept.length !== _removed.length) store.setJ('jtl_removedNames', _kept);
+          }
           var localEmps = store.getJ(K.employees, []);
           var merged = {};
           localEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
