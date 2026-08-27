@@ -2642,7 +2642,7 @@ function renderEmpLogs() {
       var fac     = (sess.facilities&&sess.facilities.length)?sess.facilities.join(', '):'Not specified';
       var breakSummary = '';
       if (sess.breaks&&sess.breaks.length) breakSummary = sess.breaks.map(function(b){ return (b.btype==='meal'?'&#127859;':'&#9749;')+' '+Math.round(b.durationMs/60000)+'min '+(b.btype==='meal'?'meal':'rest'); }).join(' &nbsp; ');
-      if (sess.waivers&&sess.waivers.length) breakSummary += (breakSummary?' &nbsp; ':'')+'&#9989; meal waived';
+      if (sess.waivers&&sess.waivers.length) breakSummary += (breakSummary?' &nbsp; ':'')+'&#9989; Employee waived 30-min unpaid meal break';
       if (!breakSummary) breakSummary = '<span style="color:#9ca3af;">No breaks</span>';
       if (si > 0) html += '<div style="border-top:1px solid #f3f4f6;margin:8px 0;"></div>';
       html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;">'
@@ -3380,9 +3380,16 @@ function _renderTablesImpl() {
         var deleteDayBtn='';
 
         // Break summary text
+        var mealWaivedCount = sess ? (sess.mealWaivedCount||0) : 0;
         var breakSummaryText = breakCount
           ? breakCount+' break'+(breakCount!==1?'s':'')+(mealCount?' ('+mealCount+' meal)':'')
-          : 'None';
+          : (mealWaivedCount>0 ? '' : 'None');
+        if (mealWaivedCount>0) {
+          breakSummaryText += (breakSummaryText?' &middot; ':'')
+            + (mealWaivedCount>1
+                ? mealWaivedCount+' meal breaks waived by employee (30-min unpaid each)'
+                : 'Employee waived 30-min unpaid meal break');
+        }
 
         accHtml += '<div style="background:'+cardBg2+';border-radius:14px;border:1px solid rgba(0,0,0,.08);border-left:4px solid '+accentColor+';margin-bottom:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06);">'
 
@@ -4410,7 +4417,14 @@ function showCalDay(dateStr, empFilter){
     var safeName4log2=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     var editBtns=manualInfo+'<button onclick="openEditDayLog(\''+safeName4log2+'\',\''+logDayStr2+'\')" style="font-size:10px;padding:3px 12px;border-radius:5px;background:#eef2ff;color:#1a2b8c;border:1px solid #c7d2fe;cursor:pointer;font-weight:700;">&#9999; Edit Log</button>';
     var deleteDayBtn='';
-    var breakSummaryText=breakCount?breakCount+' break'+(breakCount!==1?'s':'')+(mealCount?' ('+mealCount+' meal)':''):'None';
+    var mealWaivedCount=sess?(sess.mealWaivedCount||0):0;
+    var breakSummaryText=breakCount?breakCount+' break'+(breakCount!==1?'s':'')+(mealCount?' ('+mealCount+' meal)':''):(mealWaivedCount>0?'':'None');
+    if(mealWaivedCount>0){
+      breakSummaryText+=(breakSummaryText?' &middot; ':'')
+        +(mealWaivedCount>1
+            ? mealWaivedCount+' meal breaks waived by employee (30-min unpaid each)'
+            : 'Employee waived 30-min unpaid meal break');
+    }
 
     cardsHtml+='<div style="background:'+cardBg+';border-radius:14px;border:1px solid rgba(0,0,0,.08);border-left:4px solid '+accentColor+';margin-bottom:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06);">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px 10px;">'
@@ -4818,7 +4832,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
         if(sess.breaks&&sess.breaks.length){
           breakSummary=sess.breaks.map(function(b){ return (b.btype==='meal'?'&#127859;':'&#9749;')+' '+Math.round(b.durationMs/60000)+'min '+(b.btype==='meal'?'meal(unpaid)':'rest(paid)'); }).join(' &nbsp; ');
         }
-        if(sess.waivers&&sess.waivers.length) breakSummary+=(breakSummary?' &nbsp; ':'')+'&#9989; meal waived';
+        if(sess.waivers&&sess.waivers.length) breakSummary+=(breakSummary?' &nbsp; ':'')+'&#9989; Employee waived 30-min unpaid meal break';
         if(!breakSummary) breakSummary='<span style="color:#9ca3af;">No breaks taken</span>';
         // Photo buttons (load from IndexedDB on click)
         var photoHtml='';
