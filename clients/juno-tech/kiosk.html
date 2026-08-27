@@ -611,6 +611,34 @@ video{object-fit:cover;transform:scaleX(-1);}
       </div>
     </div>
 
+    <!-- Collections Report — options modal (this month vs custom range) -->
+    <div id="colReportModalWrap" style="display:none;position:fixed;inset:0;z-index:160;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
+      <div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:400px;border-top:5px solid #0d9488;">
+        <div class="flex items-center justify-between mb-1">
+          <p style="font-size:16px;font-weight:800;color:#0f766e;margin:0;">&#128196; Collections Report</p>
+          <button onclick="closeColReportModal()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;line-height:1;">&times;</button>
+        </div>
+        <p style="font-size:12px;color:#5e9a94;margin:0 0 14px;">Generate a printable report (Print / Save as PDF).</p>
+        <button onclick="_genColReportMonth()" class="tap" style="width:100%;background:#0d9488;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;">This month (<span id="colReportMonthName"></span>)</button>
+        <div style="display:flex;align-items:center;gap:10px;margin:14px 0;">
+          <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+          <span style="font-size:11px;color:#9ca3af;font-weight:600;">OR CUSTOM RANGE</span>
+          <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:3px;">From</label>
+            <input id="colReportFrom" type="date" style="width:100%;padding:9px 10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;color:#111827;">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:3px;">To</label>
+            <input id="colReportTo" type="date" style="width:100%;padding:9px 10px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;color:#111827;">
+          </div>
+        </div>
+        <button onclick="_genColReportRange()" class="tap" style="width:100%;margin-top:12px;background:#fff;color:#0d9488;border:1.5px solid #0d9488;border-radius:12px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">Generate range report</button>
+      </div>
+    </div>
+
     <!-- Facility Collection Schedule — add modal (opened from the Records header) -->
     <div id="schedModalWrap" style="display:none;position:fixed;inset:0;z-index:160;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
       <div style="background:#fff;border-radius:18px;padding:20px;width:100%;max-width:400px;border-top:5px solid #0d9488;">
@@ -5522,10 +5550,56 @@ function renderCollections() {
 // Printable, organized report of the selected month's collections:
 // date/time · facility · coverage · tests · status. Renders into #printArea
 // and opens the browser print dialog (Print / Save as PDF).
+
+// Report options modal: choose the current month or a custom date range.
 function generateCollectionsReport() {
+  var mn = document.getElementById('colReportMonthName');
+  if (mn) mn.textContent = COL_MONTHS[_colMonth] + ' ' + _colYear;
+  // Prefill the custom range with the currently-viewed month
+  var first = new Date(_colYear, _colMonth, 1);
+  var last  = new Date(_colYear, _colMonth + 1, 0);
+  var iso = function(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  var fromEl = document.getElementById('colReportFrom');
+  var toEl   = document.getElementById('colReportTo');
+  if (fromEl) fromEl.value = iso(first);
+  if (toEl)   toEl.value   = iso(last);
+  document.getElementById('colReportModalWrap').style.display = 'flex';
+}
+function closeColReportModal() {
+  var w = document.getElementById('colReportModalWrap'); if (w) w.style.display = 'none';
+}
+function _genColReportMonth() {
   var items = _collectionsForMonth();
   var monthLabel = COL_MONTHS[_colMonth] + ' ' + _colYear;
   if (!items.length) { toast('No collections scheduled for ' + monthLabel + '.'); return; }
+  closeColReportModal();
+  _buildCollectionsReport(items, monthLabel);
+}
+function _genColReportRange() {
+  var fromVal = (document.getElementById('colReportFrom')||{}).value;
+  var toVal   = (document.getElementById('colReportTo')||{}).value;
+  if (!fromVal || !toVal) { toast('Pick both a From and To date.'); return; }
+  var from = new Date(fromVal + 'T00:00:00');
+  var to   = new Date(toVal   + 'T23:59:59');
+  if (isNaN(from) || isNaN(to)) { toast('Invalid dates.'); return; }
+  if (from > to) { toast('“From” date must be on or before “To” date.'); return; }
+  var items = store.getJ(K.collections, []).slice()
+    .filter(function(c){
+      if (!c || !c.facility || !c.datetime) return false;
+      var d = new Date(c.datetime);
+      return !isNaN(d) && d >= from && d <= to;
+    })
+    .sort(function(a,b){ return new Date(a.datetime) - new Date(b.datetime); });
+  var mos = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var fmt = function(d){ return mos[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear(); };
+  var rangeLabel = fmt(from) + ' – ' + fmt(to);
+  if (!items.length) { toast('No collections scheduled for ' + rangeLabel + '.'); return; }
+  closeColReportModal();
+  _buildCollectionsReport(items, rangeLabel);
+}
+
+// Shared renderer: builds the printable report for a set of collections.
+function _buildCollectionsReport(items, monthLabel) {
   var now = Date.now();
 
   // Group by day (items are already sorted by datetime)
