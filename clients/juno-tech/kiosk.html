@@ -8236,8 +8236,10 @@ function printPayroll() {
           var inStr=new Date(s.inTs).toLocaleTimeString('en-US',_tf);
           var outStr=new Date(s.outTs).toLocaleTimeString('en-US',_tf);
           var hrs=(new Date(s.outTs)-new Date(s.inTs))/3600000;
+          var _mi=parseFloat(s.mileage)||0;
+          var _miTag=_mi>0?' &nbsp;&middot;&nbsp;<span style="color:#7c3aed;font-weight:700;">&#128663; '+_mi.toFixed(1)+' mi</span>':'';
           rows+='<tr>'
-            +'<td style="padding:4px 14px 4px 22px;font-size:11px;color:#374151;border-bottom:1px solid #f3f4f6;">'+dateStr+'&nbsp;&nbsp;'+inStr+' → '+outStr+'</td>'
+            +'<td style="padding:4px 14px 4px 22px;font-size:11px;color:#374151;border-bottom:1px solid #f3f4f6;">'+dateStr+'&nbsp;&nbsp;'+inStr+' → '+outStr+_miTag+'</td>'
             +'<td style="padding:4px 14px;font-size:11px;font-weight:600;color:#374151;text-align:right;border-bottom:1px solid #f3f4f6;">'+fmtHrs(hrs)+'</td>'
             +'</tr>';
         });
