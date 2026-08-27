@@ -1,0 +1,280 @@
+<title>Before You Leave the Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+  :root {
+    --ground: #f6f4ef;
+    --surface: #ffffff;
+    --ink: #1c1f24;
+    --ink-soft: #45505c;
+    --line: #d3cdc2;
+    --box-line: #4a5560;
+    --accent: #0e6b73;      /* clinical teal */
+    --accent-soft: #e3f0f0;
+    --warn: #a3341f;        /* biohazard red-clay */
+    --warn-soft: #f6e6e1;
+    --shadow: rgba(28, 31, 36, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14171a;
+      --surface: #1f2429;
+      --ink: #f2efe9;
+      --ink-soft: #b9c2cb;
+      --line: #3a4148;
+      --box-line: #8b97a2;
+      --accent: #4fc7cf;
+      --accent-soft: #123033;
+      --warn: #e88a72;
+      --warn-soft: #3a201a;
+      --shadow: rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14171a;
+    --surface: #1f2429;
+    --ink: #f2efe9;
+    --ink-soft: #b9c2cb;
+    --line: #3a4148;
+    --box-line: #8b97a2;
+    --accent: #4fc7cf;
+    --accent-soft: #123033;
+    --warn: #e88a72;
+    --warn-soft: #3a201a;
+    --shadow: rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+    font-size: 22px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 44px;
+    line-height: 1.12;
+    font-weight: 700;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  .subhead {
+    font-size: 22px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .section {
+    background: var(--surface);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 8px 28px 20px;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 14px var(--shadow);
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 0 16px;
+    border-bottom: 3px solid var(--accent);
+    margin-bottom: 8px;
+  }
+  .section.warn .section-head { border-bottom-color: var(--warn); }
+
+  .num {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .section.warn .num { background: var(--warn-soft); color: var(--warn); }
+
+  h2 {
+    font-size: 30px;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 24px;
+    cursor: pointer;
+  }
+  li:last-child { border-bottom: none; }
+
+  .box {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    margin-top: 2px;
+    border: 3px solid var(--box-line);
+    border-radius: 8px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .box svg { width: 26px; height: 26px; opacity: 0; transition: opacity 0.12s ease; }
+  li.checked .box { background: var(--accent); border-color: var(--accent); }
+  .section.warn li.checked .box { background: var(--warn); border-color: var(--warn); }
+  li.checked .box svg { opacity: 1; }
+  li.checked .label { color: var(--ink-soft); text-decoration: line-through; text-decoration-thickness: 2px; }
+
+  .label { flex: 1; }
+  .label b { font-weight: 700; }
+  .note {
+    display: block;
+    font-size: 19px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 19px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+  }
+
+  li:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .box, .box svg { transition: none; }
+  }
+
+  @media (max-width: 520px) {
+    body { font-size: 20px; }
+    h1 { font-size: 34px; }
+    h2 { font-size: 25px; }
+    li { font-size: 21px; }
+    .page { padding: 28px 16px 48px; }
+  }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">Mobile Phlebotomy &middot; Juno Tech Laboratory</p>
+    <h1>Before You Leave the Lab</h1>
+    <p class="subhead">Tap each box to check it off. Do not leave until every box is checked.</p>
+  </header>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="num">1</span>
+      <h2>Draw Supplies</h2>
+    </div>
+    <ul data-list></ul>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="num">2</span>
+      <h2>Transport &amp; Cold Chain</h2>
+    </div>
+    <ul data-list></ul>
+  </section>
+
+  <section class="section warn">
+    <div class="section-head">
+      <span class="num">3</span>
+      <h2>Safety &amp; Compliance</h2>
+    </div>
+    <ul data-list></ul>
+  </section>
+
+  <footer>Juno Tech Laboratory &middot; Pre-departure check</footer>
+</div>
+
+<script>
+  const data = [
+    [
+      ["Tubes for every test today", "Bring the full set — red/gold (SST), lavender (EDTA), light blue (citrate) — plus spares"],
+      ["Needles and holders", "A few gauges, so you are ready for any patient"],
+      ["Butterfly (winged) sets", "For small or hard-to-find veins"],
+      ["Tourniquets", ""],
+      ["Alcohol prep pads", ""],
+      ["Chlorhexidine or betadine", "Needed for blood cultures"],
+      ["Gauze, cotton balls, bandages, and tape", ""],
+      ["Gloves — more than one size", ""],
+      ["Transfer devices or syringes", "Backup in case the vein is difficult"],
+    ],
+    [
+      ["Biohazard specimen transport bags", ""],
+      ["Cooler or insulated bag with ice packs", "Use frozen packs for tests that must stay cold"],
+      ["Tube rack", "Keeps tubes upright and safe while you drive"],
+      ["Know your spin plan", "Which tubes must be centrifuged, and by when"],
+    ],
+    [
+      ["Portable sharps container", ""],
+      ["Spill kit and biohazard cleanup supplies", ""],
+      ["Hand sanitizer", ""],
+      ["Extra PPE", "Masks, and a face shield or gown if the visit needs one"],
+      ["First-aid supplies for yourself", ""],
+    ],
+  ];
+
+  const check = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12.5l4.5 4.5L19 6.5" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  document.querySelectorAll('[data-list]').forEach((ul, s) => {
+    data[s].forEach(([label, note]) => {
+      const li = document.createElement('li');
+      li.tabIndex = 0;
+      li.setAttribute('role', 'checkbox');
+      li.setAttribute('aria-checked', 'false');
+      li.innerHTML =
+        '<span class="box">' + check + '</span>' +
+        '<span class="label"><b>' + label + '</b>' +
+        (note ? '<span class="note">' + note + '</span>' : '') + '</span>';
+      const toggle = () => {
+        const on = li.classList.toggle('checked');
+        li.setAttribute('aria-checked', on ? 'true' : 'false');
+      };
+      li.addEventListener('click', toggle);
+      li.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
+      });
+      ul.appendChild(li);
+    });
+  });
+</script>
