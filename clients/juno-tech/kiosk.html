@@ -870,8 +870,10 @@ video{object-fit:cover;transform:scaleX(-1);}
           </select>
           <button onclick="runPayroll()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
             style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex-shrink:0;">Calculate Payroll</button>
+          <button onclick="runMilesOnly()" class="tap px-5 py-3 rounded-xl font-semibold text-sm"
+            style="background:#7c3aed;color:#fff;border:none;cursor:pointer;flex-shrink:0;">&#128663; Miles Only</button>
         </div>
-        <p class="text-xs" style="color:#9ca3af;">Biweekly pay: paid <strong>every other Friday</strong>, starting <strong>Aug 14, 2026</strong>. Each pay date covers the 14-day period ending two weeks earlier &mdash; e.g. the <strong>Aug 14</strong> pay covers <strong>Jul 18&ndash;Jul 31</strong>, and the <strong>Aug 28</strong> pay covers <strong>Aug 1&ndash;Aug 14</strong>. Pick a pay date above to auto-fill its coverage window. Mileage reimbursement uses IRS 2026 rate: $0.76/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
+        <p class="text-xs" style="color:#9ca3af;"><strong>Biweekly wages</strong>: paid <strong>every other Friday</strong>, starting <strong>Aug 14, 2026</strong>. Each pay date covers the 14-day period ending two weeks earlier &mdash; e.g. the <strong>Aug 14</strong> pay covers <strong>Jul 18&ndash;Jul 31</strong>, and the <strong>Aug 28</strong> pay covers <strong>Aug 1&ndash;Aug 14</strong>. Pick a pay date above to auto-fill its coverage window. <strong>Mileage is paid weekly</strong> &mdash; use the purple <strong>&#128663; Miles Only</strong> button to calculate just the mileage reimbursement for a week (pick that week in the Period 1 fields). Mileage reimbursement uses IRS 2026 rate: $0.76/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
       </div>
 
       <div class="rcard space-y-2">
@@ -7491,6 +7493,7 @@ function runPayroll() {
   out.style.display = '';
   out.innerHTML = html;
   _printPayrollData = { results: allResults, fromVal: periodLabel, toVal: '' };
+  _payrollMode = 'full';
   document.getElementById('payrollPrintBtn').style.display = '';
   logAdminAction('payroll_run', 'Period: '+periodLabel+(empFilter?' ('+empFilter+')':''));
   } // end _compute
@@ -7498,9 +7501,233 @@ function runPayroll() {
   if (fbCfg.url) { syncFromCloud(_compute); } else { _compute(); }
 }
 
+// ── Miles-only run ───────────────────────────────────────────────
+// Mileage is reimbursed WEEKLY, separately from the biweekly wage payroll.
+// This produces a mileage-only report (per-employee trip log + reimbursement)
+// for whatever period is selected — no wages, hours, or tax withholdings.
+var _milesPrintData = null;
+var _payrollMode = 'full'; // 'full' | 'miles' — controls which printer the Print button uses
+
+// Pair clock-in/out sessions for one employee within the given date ranges and
+// return the mileage detail + totals. Mirrors buildSessMap's mileage handling:
+// mileage comes from the clock-in entry, overridden by the clock-out entry when
+// it explicitly carries a mileage value (a number, or null when admin cleared it).
+function buildMileageForEmp(ts, empName, fromDate, toDate, fromDate2, toDate2) {
+  var raw = ts.filter(function(e){ return e.name === empName; })
+    .filter(function(e){
+      var d = new Date(e.ts);
+      var inP1 = d >= fromDate && d <= toDate;
+      var inP2 = fromDate2 && toDate2 && d >= fromDate2 && d <= toDate2;
+      return inP1 || inP2;
+    })
+    .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+  // Deduplicate ghost entries (same type within a 2-min bucket)
+  var seen = {}, entries = [];
+  raw.forEach(function(e) {
+    var bucket = e.type + '_' + Math.floor(new Date(e.ts)/120000);
+    if (!seen[bucket]) { seen[bucket] = true; entries.push(e); }
+  });
+
+  var sessions = [], cur = null;
+  entries.forEach(function(e) {
+    if (e.type === 'in') {
+      var facs = e.facilities || [];
+      var nonLab = facs.filter(function(f){ return f !== 'Juno Tech Lab'; });
+      cur = { inTs: new Date(e.ts), mileage: e.mileage || 0, isMultiStop: nonLab.length > 1 };
+      sessions.push(cur);
+    } else if (e.type === 'out' && cur) {
+      if ('mileage' in e) cur.mileage = e.mileage; // number or null (cleared)
+      cur = null;
+    }
+  });
+
+  var totalMiles = 0, totalReimb = 0, details = [];
+  sessions.forEach(function(s) {
+    var mi = parseFloat(s.mileage) || 0;
+    if (mi <= 0) return;
+    var cms = calcCMSMileage(mi, s.isMultiStop);
+    totalMiles += mi;
+    totalReimb += cms.total;
+    details.push({ date: s.inTs, miles: mi, isMultiStop: s.isMultiStop, total: cms.total });
+  });
+  return { totalMiles: totalMiles, totalReimb: totalReimb, details: details };
+}
+
+function runMilesOnly() {
+  var fromVal = document.getElementById('payFrom').value;
+  var toVal   = document.getElementById('payTo').value;
+  var empFilter = document.getElementById('payEmpFilter').value;
+  var out = document.getElementById('payrollOut');
+
+  if (!fromVal || !toVal) { toast('Select a period first'); return; }
+
+  out.style.display = '';
+  out.innerHTML = '<p style="text-align:center;color:#6b7280;padding:24px;font-size:13px;">&#8635; Syncing latest mileage data…</p>';
+
+  function _compute() {
+    var fromVal2 = document.getElementById('payFrom2').value;
+    var toVal2   = document.getElementById('payTo2').value;
+    var fromDate = new Date(fromVal+'T00:00:00');
+    var toDate   = new Date(toVal+'T23:59:59');
+    var fromDate2 = fromVal2 ? new Date(fromVal2+'T00:00:00') : null;
+    var toDate2   = toVal2   ? new Date(toVal2+'T23:59:59')   : null;
+    var periodLabel = fromVal2 && toVal2
+      ? fromVal+' – '+toVal+' &amp; '+fromVal2+' – '+toVal2
+      : fromVal+' – '+toVal;
+
+    var ts   = store.getJ(K.timesheet, []);
+    var emps = store.getJ(K.employees, []);
+    var payExcluded = getPayrollExcluded();
+    emps = emps.filter(function(e){ return e.name !== 'Enrique Blanco'; });
+    if (empFilter) emps = emps.filter(function(e){ return e.name === empFilter; });
+    if (payExcluded.length) emps = emps.filter(function(e){ return payExcluded.indexOf(e.name) < 0; });
+
+    // Include anyone with timesheet entries in the period, even if off the roster
+    var names = {};
+    emps.forEach(function(e){ names[e.name] = true; });
+    ts.filter(function(e){
+      var d = new Date(e.ts);
+      var inP1 = d >= fromDate && d <= toDate;
+      var inP2 = fromDate2 && toDate2 && d >= fromDate2 && d <= toDate2;
+      return inP1 || inP2;
+    }).forEach(function(e){
+      if (e.name === 'Enrique Blanco' || e.name === 'Hans Duran') return;
+      if (empFilter && e.name !== empFilter) return;
+      if (payExcluded.indexOf(e.name) >= 0) return;
+      names[e.name] = true;
+    });
+
+    var results = [];
+    Object.keys(names).sort().forEach(function(name) {
+      var m = buildMileageForEmp(ts, name, fromDate, toDate, fromDate2, toDate2);
+      if (m.totalMiles <= 0) return; // only show employees with miles this period
+      results.push({ empName: name, totalMiles: m.totalMiles, totalReimb: m.totalReimb, details: m.details });
+    });
+
+    var _mos = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var fmtDate = function(dt){ dt = new Date(dt); return _mos[dt.getMonth()]+' '+dt.getDate()+', '+dt.getFullYear(); };
+
+    var grandMiles = results.reduce(function(s,r){ return s+r.totalMiles; }, 0);
+    var grandReimb = results.reduce(function(s,r){ return s+r.totalReimb; }, 0);
+
+    var html = '';
+    // Summary block
+    html += '<div class="rcard" style="background:#7c3aed;color:#fff;padding:18px 20px;margin-bottom:4px;">'
+      +'<p class="text-xs font-bold mb-1" style="opacity:.7;text-transform:uppercase;letter-spacing:.08em;">&#128663; Weekly Mileage Payout</p>'
+      +'<p class="text-xs mb-3" style="opacity:.6;">'+periodLabel+' &nbsp;·&nbsp; '+results.length+' employee'+(results.length!==1?'s':'')+' &nbsp;·&nbsp; IRS 2026 rate $'+IRS_MILEAGE_2026.toFixed(2)+'/mi</p>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;"><span style="opacity:.85;">Total Miles</span><span style="font-weight:700;">'+grandMiles.toFixed(1)+' mi</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-size:18px;font-weight:900;border-top:1px solid rgba(255,255,255,.25);padding-top:12px;margin-top:6px;"><span>Total Mileage to Pay</span><span>'+fmt$(grandReimb)+'</span></div>'
+      +'</div>';
+
+    if (!results.length) {
+      html += '<div class="rcard" style="text-align:center;padding:24px;"><p class="text-sm" style="color:#9ca3af;">No mileage recorded for anyone in this period.</p></div>';
+    }
+
+    // Per-employee cards
+    results.forEach(function(r) {
+      var rows = '';
+      r.details.forEach(function(d) {
+        rows += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:13px;">'
+          +'<span style="color:#374151;">'+fmtDate(d.date)+(d.isMultiStop?' &nbsp;<span style="font-size:10px;color:#7c3aed;font-weight:700;">MULTI-STOP</span>':'')+'</span>'
+          +'<span style="color:#374151;"><span style="font-weight:700;color:#7c3aed;">'+d.miles.toFixed(1)+' mi</span> &nbsp;·&nbsp; '+fmt$(d.total)+'</span>'
+          +'</div>';
+      });
+      html += '<div class="rcard" style="border-left:4px solid #7c3aed;margin-top:12px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">'
+        +'<p class="font-bold text-base" style="color:#111827;">'+r.empName+'</p>'
+        +'<p class="text-xs" style="color:#7c3aed;font-weight:700;">'+r.totalMiles.toFixed(1)+' mi</p>'
+        +'</div>'
+        + rows
+        +'<div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;margin-top:4px;border-top:2px solid #7c3aed;font-size:15px;font-weight:800;color:#5b21b6;">'
+        +'<span>Mileage Reimbursement</span><span>'+fmt$(r.totalReimb)+'</span></div>'
+        +'</div>';
+    });
+
+    out.style.display = '';
+    out.innerHTML = html;
+    _milesPrintData = { results: results, periodLabel: periodLabel, grandMiles: grandMiles, grandReimb: grandReimb };
+    _payrollMode = 'miles';
+    document.getElementById('payrollPrintBtn').style.display = '';
+    logAdminAction('miles_only_run', 'Period: '+periodLabel+(empFilter?' ('+empFilter+')':''));
+  }
+
+  if (fbCfg.url) { syncFromCloud(_compute); } else { _compute(); }
+}
+
+function printMilesOnly() {
+  if (!_milesPrintData) { toast('Generate a mileage report first.'); return; }
+  var d = _milesPrintData;
+  var pa = document.getElementById('printArea');
+  var _mos = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var fmtDate = function(dt){ dt = new Date(dt); return _mos[dt.getMonth()]+' '+dt.getDate()+', '+dt.getFullYear(); };
+
+  var cards = '';
+  d.results.forEach(function(r) {
+    var rows = '';
+    r.details.forEach(function(x) {
+      rows += '<tr>'
+        +'<td style="padding:5px 14px;font-size:11px;color:#374151;border-bottom:1px solid #f3f4f6;">'+fmtDate(x.date)+(x.isMultiStop?' &nbsp;(multi-stop)':'')+'</td>'
+        +'<td style="padding:5px 14px;font-size:11px;color:#374151;text-align:right;border-bottom:1px solid #f3f4f6;">'+x.miles.toFixed(1)+' mi</td>'
+        +'<td style="padding:5px 14px;font-size:11px;font-weight:600;color:#374151;text-align:right;border-bottom:1px solid #f3f4f6;">'+fmt$(x.total)+'</td>'
+        +'</tr>';
+    });
+    cards += '<div style="border:1.5px solid #d1d5db;border-radius:10px;overflow:hidden;margin-bottom:18px;page-break-inside:avoid;">'
+      +'<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#7c3aed;padding:12px 18px;">'
+      +'<p style="margin:0 0 2px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#e9d5ff;font-weight:600;">JUNO TECH LABORATORY &nbsp;·&nbsp; MILEAGE</p>'
+      +'<p style="margin:0;font-size:17px;font-weight:800;color:#fff;">'+r.empName+'</p>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;">'
+      + rows
+      +'<tr style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f5f3ff;">'
+      +'<td style="padding:10px 14px;font-size:13px;font-weight:800;color:#5b21b6;">TOTAL ('+r.totalMiles.toFixed(1)+' mi)</td>'
+      +'<td></td>'
+      +'<td style="padding:10px 14px;font-size:13px;font-weight:800;color:#5b21b6;text-align:right;">'+fmt$(r.totalReimb)+'</td>'
+      +'</tr>'
+      +'</table>'
+      +'</div>';
+  });
+
+  var totalsBlock = '';
+  if (d.results.length > 1) {
+    var rows = '';
+    d.results.forEach(function(r){
+      rows += '<tr style="border-bottom:1px solid #f3f4f6;">'
+        +'<td style="padding:9px 14px;font-size:12px;font-weight:600;color:#111827;">'+r.empName+'</td>'
+        +'<td style="padding:9px 14px;font-size:12px;color:#374151;text-align:right;">'+r.totalMiles.toFixed(1)+' mi</td>'
+        +'<td style="padding:9px 14px;font-size:13px;font-weight:800;color:#5b21b6;text-align:right;">'+fmt$(r.totalReimb)+'</td>'
+        +'</tr>';
+    });
+    totalsBlock = '<table style="width:100%;border-collapse:collapse;margin-top:8px;border:2px solid #7c3aed;border-radius:10px;overflow:hidden;">'
+      +'<tr style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f5f3ff;"><th style="padding:8px 14px;font-size:10px;font-weight:700;color:#6b7280;text-align:left;letter-spacing:.07em;text-transform:uppercase;">Employee</th><th style="padding:8px 14px;font-size:10px;font-weight:700;color:#6b7280;text-align:right;letter-spacing:.07em;text-transform:uppercase;">Miles</th><th style="padding:8px 14px;font-size:10px;font-weight:700;color:#6b7280;text-align:right;letter-spacing:.07em;text-transform:uppercase;">Reimbursement</th></tr>'
+      + rows
+      +'<tr style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#7c3aed;">'
+      +'<td style="padding:14px 18px;font-size:15px;font-weight:900;color:#fff;">TOTAL MILEAGE TO PAY</td>'
+      +'<td style="padding:14px 18px;font-size:15px;font-weight:900;color:#fff;text-align:right;">'+d.grandMiles.toFixed(1)+' mi</td>'
+      +'<td style="padding:14px 18px;font-size:15px;font-weight:900;color:#fff;text-align:right;">'+fmt$(d.grandReimb)+'</td>'
+      +'</tr>'
+      +'</table>';
+  }
+
+  pa.innerHTML = '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px;max-width:680px;margin:0 auto;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #7c3aed;">'
+    +'<div>'
+    +'<p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#7c3aed;letter-spacing:.1em;text-transform:uppercase;">Juno Tech Laboratory</p>'
+    +'<h1 style="margin:0 0 4px;font-size:20px;font-weight:800;color:#111827;">Weekly Mileage Payout</h1>'
+    +'<p style="margin:0;font-size:12px;color:#6b7280;">Period: '+d.periodLabel+' &nbsp;·&nbsp; IRS 2026 rate $'+IRS_MILEAGE_2026.toFixed(2)+'/mi</p>'
+    +'</div>'
+    +'<p style="margin:0;font-size:11px;color:#9ca3af;">Generated: '+new Date().toLocaleDateString()+'</p>'
+    +'</div>'
+    + cards
+    + totalsBlock
+    +'</div>';
+
+  window.print();
+}
+
 var _printPayrollData = null;
 
 function printPayroll() {
+  if (_payrollMode === 'miles') { printMilesOnly(); return; }
   if (!_printPayrollData) { toast('Generate a payroll report first.'); return; }
   var d = _printPayrollData;
   var pa = document.getElementById('printArea');
