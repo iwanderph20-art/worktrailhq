@@ -1426,6 +1426,7 @@ var pendingEntryTs = null;
 var camStream = null;
 var pendingPhoto  = null;   // DataURL captured in camWrap, held until submission
 var qSelectedFacs = [];     // multi-select facility array (step 1)
+var _scheduledFacsToday = []; // facilities scheduled today, for the clock-in confirmation
 var qDroveMode    = null;   // true/false — GPS mileage tracking opted-in
 var qTripType     = null;   // 'ONE_WAY' or 'ROUND_TRIP'
 // Mileage GPS tracking
@@ -1880,6 +1881,7 @@ function renderClockInFacilityPrompt(){
   var qoc=document.getElementById('qOtherContinueBtn'); if(qoc) qoc.style.display='none';
   _renderFacilityFallbackList();
   var facs = _todayScheduledFacilities();
+  _scheduledFacsToday = facs.slice();
   if (!prompt) return;
   if (facs.length === 1){
     prompt.innerHTML =
@@ -1888,13 +1890,18 @@ function renderClockInFacilityPrompt(){
       + '<button onclick="confirmScheduledFacility(\'' + _jsStr(facs[0]) + '\')" class="tap w-full py-4 rounded-2xl font-bold text-base" style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(26,43,140,.3);">&#10003; Yes &mdash; continue to photo</button>'
       + '<button onclick="showFacilityFallback()" class="text-sm w-full" style="margin-top:10px;color:#6b7280;background:none;border:none;cursor:pointer;">No &mdash; I&rsquo;m somewhere else</button>';
   } else if (facs.length > 1){
+    // Multiple facilities scheduled the same day — phleb usually covers them ALL,
+    // so default to "both/all" in one tap, but allow picking just one.
+    var allWord = facs.length === 2 ? 'both' : 'all ' + facs.length;
     prompt.innerHTML =
-        '<p class="text-lg font-bold" style="color:#111827;margin:0 0 12px;">Which facility are you working at today?</p>'
+        '<p class="text-lg font-bold" style="color:#111827;margin:0;">Are you working at</p>'
+      + '<p style="font-size:20px;font-weight:800;color:#1a2b8c;line-height:1.2;margin:2px 0 14px;">' + facs.map(_esc).join(' + ') + '?</p>'
+      + '<button onclick="confirmAllScheduledFacilities()" class="tap w-full py-4 rounded-2xl font-bold text-base" style="background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(26,43,140,.3);">&#10003; Yes, ' + allWord + ' &mdash; continue to photo</button>'
+      + '<p class="text-xs" style="color:#9ca3af;margin:12px 0 6px;text-align:center;">Working at just one? Tap it:</p>'
       + facs.map(function(f){
-          return '<button onclick="confirmScheduledFacility(\'' + _jsStr(f) + '\')" class="tap w-full" style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;border:1.5px solid #c7d2fe;background:#eef2ff;cursor:pointer;text-align:left;margin-bottom:8px;">'
-            + '<span style="font-size:18px;line-height:1;">&#127968;</span>'
-            + '<span style="flex:1;font-size:15px;font-weight:700;color:#1a2b8c;">' + _esc(f) + '</span>'
-            + '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#1a2b8c" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>'
+          return '<button onclick="confirmScheduledFacility(\'' + _jsStr(f) + '\')" class="tap w-full" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;text-align:left;margin-bottom:6px;">'
+            + '<span style="font-size:16px;line-height:1;">&#127968;</span>'
+            + '<span style="flex:1;font-size:14px;font-weight:600;color:#111827;">' + _esc(f) + '</span>'
             + '</button>';
         }).join('')
       + '<button onclick="showFacilityFallback()" class="text-sm w-full" style="margin-top:2px;color:#6b7280;background:none;border:none;cursor:pointer;">Somewhere else</button>';
@@ -1907,6 +1914,12 @@ function renderClockInFacilityPrompt(){
 }
 function confirmScheduledFacility(f){
   qSelectedFacs = [f];
+  proceedToClockInPhoto();
+}
+// Confirm the phleb is covering EVERY facility scheduled today (the common case).
+function confirmAllScheduledFacilities(){
+  if (!_scheduledFacsToday || !_scheduledFacsToday.length){ showFacilityFallback(); return; }
+  qSelectedFacs = _scheduledFacsToday.slice();
   proceedToClockInPhoto();
 }
 function showFacilityFallback(){
