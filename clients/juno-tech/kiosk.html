@@ -1873,7 +1873,22 @@ function _todayScheduledFacilities(){
 //  · exactly one facility  → "Are you working at <X>?"  (Yes → straight to photo)
 //  · multiple facilities   → pick which scheduled facility
 //  · none scheduled        → fall back to the full facility picker
-function renderClockInFacilityPrompt(){
+function renderClockInFacilityPrompt(_synced){
+  // The employee's phone holds only its own local copy of the schedule, which the
+  // admin edits on a different device. Pull today's collections from the cloud once
+  // (self-healing) so a facility scheduled elsewhere — e.g. Gilmar Manor — actually
+  // shows up here instead of falling through to "No collection is scheduled today."
+  if (!_synced && fbCfg.url && typeof syncScheduleFromCloud === 'function') {
+    syncScheduleFromCloud(function(){
+      // Only re-render if the employee is still on the facility question and hasn't
+      // picked yet — never yank them back from the camera or a selection in progress.
+      var card = document.getElementById('clockInQuestionsCard');
+      if (pendingAction === 'in' && card && card.style.display !== 'none' && !qSelectedFacs.length) {
+        renderClockInFacilityPrompt(true);
+      }
+    });
+    // fall through and render from local now so the prompt isn't blank while syncing
+  }
   qSelectedFacs = [];
   var prompt = document.getElementById('qFacPrompt');
   var fb = document.getElementById('qFacFallback');
