@@ -594,6 +594,7 @@ video{object-fit:cover;transform:scaleX(-1);}
           </div>
           <div class="flex items-center gap-2">
             <button onclick="refreshFromCloud()" class="text-xs font-semibold" style="color:#059669;background:none;border:none;cursor:pointer;">&#8635; Sync</button>
+            <button onclick="generateCollectionsReport()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#fff;color:#0d9488;border:1px solid #99f6e4;cursor:pointer;">&#128196; Report</button>
             <button onclick="openSchedModal()" class="tap text-xs font-semibold px-3 py-1.5 rounded-lg" style="background:#0d9488;color:#fff;border:none;cursor:pointer;">&#43; Schedule Collection</button>
           </div>
         </div>
@@ -5516,6 +5517,81 @@ function renderCollections() {
       + '<div class="sched-datehdr">&#128197; ' + hdr + '</div>'
       + rows + '</div>';
   }).join('');
+}
+
+// Printable, organized report of the selected month's collections:
+// date/time · facility · coverage · tests · status. Renders into #printArea
+// and opens the browser print dialog (Print / Save as PDF).
+function generateCollectionsReport() {
+  var items = _collectionsForMonth();
+  var monthLabel = COL_MONTHS[_colMonth] + ' ' + _colYear;
+  if (!items.length) { toast('No collections scheduled for ' + monthLabel + '.'); return; }
+  var now = Date.now();
+
+  // Group by day (items are already sorted by datetime)
+  var days = [], byDay = {};
+  items.forEach(function(c){
+    var ds = new Date(c.datetime).toDateString();
+    if (!byDay[ds]) { byDay[ds] = []; days.push(ds); }
+    byDay[ds].push(c);
+  });
+
+  var facSet = {}, doneCount = 0;
+  items.forEach(function(c){
+    facSet[c.facility] = true;
+    if (new Date(c.datetime).getTime() < now) doneCount++;
+  });
+  var facCount = Object.keys(facSet).length;
+  var upcomingCount = items.length - doneCount;
+
+  var th = 'padding:8px 12px;font-size:9px;font-weight:700;color:#6b7280;text-align:left;letter-spacing:.07em;text-transform:uppercase;border-bottom:2px solid #99f6e4;';
+  var sections = days.map(function(ds){
+    var hdr = new Date(ds).toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+    var rows = byDay[ds].map(function(c){
+      var dt = new Date(c.datetime);
+      var t = dt.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+      var isPast = dt.getTime() < now;
+      var cov = _coverageInfo(c.coverage);
+      var status = isPast
+        ? '<span style="font-size:9px;font-weight:800;text-transform:uppercase;color:#6b7280;">&#10003; Done</span>'
+        : '<span style="font-size:9px;font-weight:800;text-transform:uppercase;color:#0d9488;">Upcoming</span>';
+      var txtColor = isPast ? '#9ca3af' : '#111827';
+      return '<tr style="border-bottom:1px solid #f3f4f6;">'
+        + '<td style="padding:8px 12px;font-size:12px;font-weight:700;color:'+(isPast?'#9ca3af':'#0d9488')+';white-space:nowrap;vertical-align:top;">'+t+'</td>'
+        + '<td style="padding:8px 12px;font-size:12px;font-weight:600;color:'+txtColor+';vertical-align:top;">'+_esc(c.facility)+'</td>'
+        + '<td style="padding:8px 12px;font-size:11px;color:'+(isPast?'#9ca3af':'#374151')+';white-space:nowrap;vertical-align:top;">'+_esc(cov.abbr)+'</td>'
+        + '<td style="padding:8px 12px;font-size:11px;color:'+(isPast?'#9ca3af':'#374151')+';line-height:1.5;vertical-align:top;">'+(c.tests?_esc(c.tests):'&#8212;')+'</td>'
+        + '<td style="padding:8px 12px;text-align:right;white-space:nowrap;vertical-align:top;">'+status+'</td>'
+        + '</tr>';
+    }).join('');
+    return '<div style="margin-bottom:18px;page-break-inside:avoid;">'
+      + '<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#f0fdfa;border-left:4px solid #0d9488;padding:7px 12px;font-size:13px;font-weight:800;color:#0f766e;border-radius:6px;margin-bottom:6px;">'+hdr+'</div>'
+      + '<table style="width:100%;border-collapse:collapse;">'
+      + '<tr><th style="'+th+'">Time</th><th style="'+th+'">Facility</th><th style="'+th+'">Coverage</th><th style="'+th+'">Tests</th><th style="'+th+'text-align:right;">Status</th></tr>'
+      + rows
+      + '</table></div>';
+  }).join('');
+
+  var pa = document.getElementById('printArea');
+  pa.innerHTML = '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px;max-width:760px;margin:0 auto;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #0d9488;">'
+    + '<div>'
+    + '<p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#0d9488;letter-spacing:.1em;text-transform:uppercase;">Juno Tech Laboratory</p>'
+    + '<h1 style="margin:0 0 4px;font-size:20px;font-weight:800;color:#111827;">Scheduled Collections &amp; Tests</h1>'
+    + '<p style="margin:0;font-size:13px;font-weight:600;color:#374151;">'+monthLabel+'</p>'
+    + '</div>'
+    + '<p style="margin:0;font-size:11px;color:#9ca3af;text-align:right;">Generated<br>'+new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true})+'</p>'
+    + '</div>'
+    + '<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">'
+    + '<span style="background:#f0fdfa;color:#0f766e;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;">'+items.length+' collection'+(items.length===1?'':'s')+'</span>'
+    + '<span style="background:#f0fdfa;color:#0f766e;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;">'+facCount+' facilit'+(facCount===1?'y':'ies')+'</span>'
+    + '<span style="background:#f3f4f6;color:#6b7280;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;">'+doneCount+' done</span>'
+    + '<span style="background:#ccfbf1;color:#0d9488;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;">'+upcomingCount+' upcoming</span>'
+    + '</div>'
+    + sections
+    + '<p style="margin:20px 0 0;font-size:10px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;padding-top:12px;">Juno Tech Laboratory &#183; Confidential &#183; '+monthLabel+' collection schedule</p>'
+    + '</div>';
+  window.print();
 }
 
 /* ── renderTables ────────────────────────── */
