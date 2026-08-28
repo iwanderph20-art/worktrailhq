@@ -1091,6 +1091,24 @@ video{object-fit:cover;transform:scaleX(-1);}
   </div>
 </div>
 
+<!-- Edit Facility Modal — quick, focused rename of the facility/location on one log -->
+<div id="editFacilityWrap" style="display:none;position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-1">
+      <p class="font-bold text-base" style="color:#111827;">&#128205; Edit Facility</p>
+      <button onclick="closeEditFacility()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:22px;">&#10005;</button>
+    </div>
+    <p id="editFacSub" class="text-xs" style="color:#9ca3af;margin-bottom:14px;"></p>
+    <label class="text-xs font-semibold" style="color:#6b7280;">Tap to select the facility for this shift</label>
+    <div id="editFacQuickPills" class="flex flex-wrap gap-2 mt-2"></div>
+    <label class="text-xs font-semibold" style="color:#6b7280;display:block;margin-top:14px;">Or type a custom facility name</label>
+    <input id="editFacCustom" type="text" placeholder="e.g. Sunrise Villa ALF" class="inp w-full mt-2" style="font-size:13px;color:#111827;">
+    <p class="text-xs mt-1" style="color:#9ca3af;">Separate multiple locations with commas.</p>
+    <button onclick="saveEditFacility()" class="tap w-full py-3 rounded-xl font-semibold text-sm mt-4"
+      style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save Facility</button>
+  </div>
+</div>
+
 <!-- Edit Day Log Modal — lists every entry for one employee-day; tap one to edit it fully -->
 <div id="editDayLogWrap" style="display:none;position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:20px;padding:22px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;">
@@ -3747,6 +3765,78 @@ function renderEditFacilityPills() {
   var other = document.getElementById('editFacOther');
   if (other) other.style.display = editSelectedFacilities.indexOf('Others') >= 0 ? '' : 'none';
 }
+/* ── Edit Facility — quick, focused rename of the facility on one clock-in ── */
+var _facEditSelected = [];
+var _facEditTs = null;
+function openEditFacility(ts){
+  var records = store.getJ(K.timesheet, []);
+  var entry = null;
+  records.forEach(function(r){ if (String(r.ts) === String(ts)) entry = r; });
+  if (!entry) { toast('Entry not found'); return; }
+  _facEditTs = ts;
+  var stored = entry.facilities || [];
+  var known = stored.filter(function(f){ return FACILITIES.indexOf(f) >= 0 && f !== 'Others'; });
+  var custom = stored.filter(function(f){ return FACILITIES.indexOf(f) < 0; });
+  _facEditSelected = known.slice();
+  var customEl = document.getElementById('editFacCustom');
+  if (customEl) customEl.value = custom.join(', ');
+  document.getElementById('editFacSub').textContent =
+    (entry.name || '') + ' · ' + new Date(ts).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  renderFacEditPills();
+  stopRecordsAutoRefresh(); // pause sync while editing so it can't overwrite mid-edit
+  document.getElementById('editFacilityWrap').style.display = 'flex';
+}
+function renderFacEditPills(){
+  var c = document.getElementById('editFacQuickPills');
+  if (!c) return;
+  c.innerHTML = '';
+  FACILITIES.filter(function(f){ return f !== 'Others'; }).forEach(function(f){
+    var sel = _facEditSelected.indexOf(f) >= 0;
+    var span = document.createElement('span');
+    span.className = 'fac-pill' + (sel ? ' sel' : '');
+    span.textContent = f;
+    span.onclick = (function(name){ return function(){
+      var i = _facEditSelected.indexOf(name);
+      if (i >= 0) { _facEditSelected.splice(i, 1); this.classList.remove('sel'); }
+      else { _facEditSelected.push(name); this.classList.add('sel'); }
+    }; })(f);
+    c.appendChild(span);
+  });
+}
+function closeEditFacility(){
+  _facEditTs = null;
+  document.getElementById('editFacilityWrap').style.display = 'none';
+  if (fbCfg && fbCfg.url) startRecordsAutoRefresh();
+}
+function saveEditFacility(){
+  if (!_facEditTs) { closeEditFacility(); return; }
+  var records = store.getJ(K.timesheet, []);
+  var facList = _facEditSelected.slice();
+  var customEl = document.getElementById('editFacCustom');
+  if (customEl && customEl.value.trim()) {
+    customEl.value.trim().split(',').forEach(function(s){ s = s.trim(); if (s && facList.indexOf(s) < 0) facList.push(s); });
+  }
+  var updated = null, oldFac = '';
+  records.forEach(function(r){
+    if (String(r.ts) === String(_facEditTs)) {
+      oldFac = (r.facilities || []).join(' · ') || '(none)';
+      r.facilities = facList;
+      updated = r;
+    }
+  });
+  if (!updated) { toast('Entry not found'); return; }
+  store.setJ(K.timesheet, records);
+  fbPut('timesheet', updated.ts, updated);
+  logAdminAction('EDIT', (updated.name || '?') + ' facility: ' + oldFac + ' → ' + (facList.join(' · ') || '(none)'));
+  var savedTs = _facEditTs;
+  closeEditFacility();
+  renderTables(); renderCalendar();
+  // Refresh the open day-detail card so the new facility shows immediately
+  var ctx = window._calDayCtx;
+  if (ctx && document.getElementById('calDayModal')) showCalDay(ctx.dateStr, ctx.empFilter);
+  toast('Facility updated');
+  updateStorageUsage();
+}
 /* ── Edit Day Log — one modal listing every entry for an employee-day ── */
 function _localDayStr(ts){ var d=new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function openEditDayLog(name, dayStr){
@@ -4519,6 +4609,7 @@ function renderCalendar(){
 }
 
 function showCalDay(dateStr, empFilter){
+  window._calDayCtx = { dateStr: dateStr, empFilter: empFilter || null };
   var ts=store.getJ(K.timesheet,[]);
   var dayEntries=ts.filter(function(r){return new Date(r.ts).toDateString()===dateStr;}).sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
   if(!dayEntries.length) return;
@@ -4601,6 +4692,7 @@ function showCalDay(dateStr, empFilter){
       _calPhotoLoads.push({ts:'admin_'+clockOutE.ts,id:apid1});
     }
     var safeInTs2=(pendingEntry||clockInE)?String((pendingEntry||clockInE).ts).replace(/'/g,''):'';
+    var safeFacTs=clockInE?String(clockInE.ts).replace(/'/g,''):'';
     var approvalBtns=isPending
       ?'<button onclick="adminApproveEntry(\''+safeInTs2+'\');closeCalModal();" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#dcfce7;color:#15803d;border:1px solid #86efac;cursor:pointer;font-weight:700;">&#10003; Approve</button>'
        +'<button onclick="adminDenyEntry(\''+safeInTs2+'\');closeCalModal();" style="font-size:11px;padding:5px 13px;border-radius:8px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">&#10005; Deny</button>'
@@ -4646,7 +4738,10 @@ function showCalDay(dateStr, empFilter){
       +'</div>'
       +outPhotoBlock
       +'</div>'
-      +(facStr?'<div style="padding:6px 14px;border-bottom:1px solid rgba(0,0,0,.05);"><span style="font-size:12px;color:#6b7280;">&#128205; <strong style="color:#374151;">Location:</strong> '+facStr+'</span></div>':'')
+      +((facStr||clockInE)?'<div style="padding:6px 14px;border-bottom:1px solid rgba(0,0,0,.05);display:flex;align-items:center;gap:8px;">'
+          +'<span style="font-size:12px;color:#6b7280;flex:1;min-width:0;">&#128205; <strong style="color:#374151;">Location:</strong> '+(facStr||'<span style="color:#9ca3af;">Not set</span>')+'</span>'
+          +(clockInE?'<button onclick="openEditFacility(\''+safeFacTs+'\')" title="Edit facility name" style="flex-shrink:0;font-size:10px;padding:3px 10px;border-radius:6px;background:#eef2ff;color:#1a2b8c;border:1px solid #c7d2fe;cursor:pointer;font-weight:700;">&#9999; Edit</button>':'')
+        +'</div>':'')
       +'<div style="padding:12px 14px 10px;text-align:center;background:rgba(0,0,0,.025);border-top:1px solid rgba(0,0,0,.06);">'
       +'<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin:0 0 3px;">Total Hours Worked</p>'
       +'<p style="font-size:28px;font-weight:900;color:#111827;letter-spacing:-.03em;line-height:1;margin:0 0 5px;">'+hoursStr+'</p>'
