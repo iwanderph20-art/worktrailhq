@@ -5200,6 +5200,13 @@ function _doGenerateReport(fromStr,toStr,empFilter){
 // Firebase security rules.) A stored value or a ?fb= link param still overrides it.
 var DEFAULT_FB_URL = 'https://junotech-kiosk-default-rtdb.firebaseio.com';
 var fbCfg = { url: '' };
+// ── App version / self-healing update ──────────────────────────────────────
+// BUMP APP_BUILD on every deploy: format YYYYMMDD + 2-digit same-day sequence.
+// The newest device advertises its build to the cloud (jtl/appBuild); any device
+// running an older build detects the mismatch on load and reloads itself with a
+// cache-busting query so employee phones can't get stuck on a stale cached copy.
+var APP_BUILD = 2026082801;
+var APP_VERSION_LABEL = 'Aug 28, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
   // Auto-configure from ?fb= URL param (staff device opening shared kiosk link or email approval link)
@@ -5264,6 +5271,65 @@ function fbDeleteEntry(path, ts) {
 function fbFetchAll(path, cb) {
   if (!fbCfg.url) { cb(null); return; }
   fetch(fbCfg.url+'/jtl/'+path+'.json').then(function(r){ return r.json(); }).then(function(data){ cb(data); }).catch(function(){ cb(null); });
+}
+// Reload this device with a cache-busting query so a stale cached HTML copy is
+// bypassed and the newest build actually loads (important for iOS home-screen PWAs).
+function forceAppUpdate() {
+  var base = location.href.split('?')[0].split('#')[0];
+  location.replace(base + '?v=' + Date.now());
+}
+// Fixed banner shown when a cache-busting reload didn't clear the staleness, so the
+// employee can trigger a manual refresh instead of the app silently reload-looping.
+function showUpdateBanner() {
+  if (document.getElementById('updateBanner')) return;
+  var b = document.createElement('div');
+  b.id = 'updateBanner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a2b8c;color:#fff;font-size:13px;font-weight:700;text-align:center;padding:11px 14px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.25);';
+  b.innerHTML = '&#128260; A newer version is available &mdash; tap to update';
+  b.onclick = forceAppUpdate;
+  document.body.appendChild(b);
+}
+// Small, unobtrusive build stamp so anyone can read which version a phone is on and
+// tap it to pull the latest — makes "is this phone updated?" verifiable at a glance.
+function injectVersionStamp() {
+  if (document.getElementById('appVersionStamp')) return;
+  var s = document.createElement('div');
+  s.id = 'appVersionStamp';
+  s.textContent = 'v' + APP_VERSION_LABEL;
+  s.title = 'App version — tap to check for updates';
+  s.style.cssText = 'position:fixed;bottom:6px;left:50%;transform:translateX(-50%);z-index:20;font-size:10px;color:#9ca3af;background:rgba(255,255,255,.65);padding:2px 9px;border-radius:99px;cursor:pointer;user-select:none;';
+  s.onclick = function(){ if (confirm('Check for the latest version now? This reloads the app.')) forceAppUpdate(); };
+  document.body.appendChild(s);
+}
+// Compare this device's build against the cloud's advertised build. If we're newest,
+// advertise ourselves; if we're behind, self-heal with one cache-busting reload.
+function publishAndCheckAppVersion() {
+  if (!fbCfg.url) return;
+  fetch(fbCfg.url+'/jtl/appBuild.json')
+    .then(function(r){ return r.json(); }).catch(function(){ return null; })
+    .then(function(cloud){
+      var cloudBuild = (typeof cloud === 'number') ? cloud
+        : (cloud && typeof cloud.build === 'number' ? cloud.build : 0);
+      if (APP_BUILD >= cloudBuild) {
+        // We're at least as new — advertise our build so stale devices know to update.
+        if (APP_BUILD > cloudBuild) {
+          fetch(fbCfg.url+'/jtl/appBuild.json', {
+            method:'PUT', body:JSON.stringify(APP_BUILD), headers:{'Content-Type':'application/json'}
+          }).catch(function(){});
+        }
+        return;
+      }
+      // cloudBuild > APP_BUILD → this device is running an older build than what's live.
+      var guard = 'jtl_reloaded_for_build_' + cloudBuild;
+      if (store.getJ(guard, false)) {
+        // Already tried a cache-busting reload for this build but it's still stale
+        // (server/PWA cache holding on) — offer a manual refresh instead of looping.
+        showUpdateBanner();
+        return;
+      }
+      store.setJ(guard, true);
+      forceAppUpdate();
+    });
 }
 /* ── Admin password cloud sync ───────────────────────────
  * The admin password is shared across every device via /jtl/adminPass, stored as
@@ -7220,6 +7286,10 @@ function clearOldRecords() {
   })();
   initPhotoDB(); // warm up IndexedDB for photos
   updateStorageUsage();
+  // Show the build stamp and, once fbCfg.url is populated, check the cloud for a
+  // newer build so stale employee phones self-heal instead of running old code.
+  injectVersionStamp();
+  setTimeout(publishAndCheckAppVersion, 2000);
 
   // When employee returns to tab after phone lock / screen wake,
   // immediately re-check clock state from Firebase so the approval
