@@ -3086,18 +3086,13 @@ function _syncEmployeesFromCloudInner(cb) {
         var cloudEmps = Array.isArray(data) ? data : Object.values(data);
         cloudEmps = cloudEmps.filter(function(e){ return e && e.name && e.code; });
         if (cloudEmps.length > 0) {
-          // Lift stale tombstones: an employee that is actively present in the cloud
-          // roster must never be filtered out by a local block-list entry left over
-          // from an earlier removal. Without this, re-adding a previously removed
-          // person (e.g. "test") never lets them log in on a device that had cached
-          // the tombstone, because the block-list merge above only ever ADDS names.
-          var _removed = getRemovedNames();
-          if (_removed.length) {
-            var _cloudNameSet = {};
-            cloudEmps.forEach(function(e){ _cloudNameSet[normName(e.name)] = true; });
-            var _kept = _removed.filter(function(n){ return !_cloudNameSet[n]; });
-            if (_kept.length !== _removed.length) store.setJ('jtl_removedNames', _kept);
-          }
+          // Do NOT auto-lift a tombstone just because the name reappears in the cloud
+          // roster. That reappearance isn't proof of a deliberate re-add — a removed
+          // employee's own device can still have the old roster cached and push it
+          // straight back to Firebase (e.g. on next login/sync), unaware they were
+          // removed elsewhere. addEmployee() already calls unblockName() on the one
+          // legitimate re-add path (an admin typing their name in again), so lifting
+          // it here too only reopens the door a removal was meant to close.
           var localEmps = store.getJ(K.employees, []);
           var merged = {};
           localEmps.forEach(function(e){ if(e&&e.code) merged[e.code]=e; });
