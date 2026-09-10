@@ -880,8 +880,8 @@ video{object-fit:cover;transform:scaleX(-1);}
         </div>
         <div class="flex gap-2 flex-wrap items-center">
           <span class="text-xs font-semibold" style="color:#6b7280;min-width:52px;">Period 1</span>
-          <input id="payFrom" type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
-          <input id="payTo"   type="date" class="inp inp-dk" style="flex:1;min-width:120px;">
+          <input id="payFrom" type="date" class="inp inp-dk" style="flex:1;min-width:120px;" onchange="renderPayAdjustments()">
+          <input id="payTo"   type="date" class="inp inp-dk" style="flex:1;min-width:120px;" onchange="renderPayAdjustments()">
         </div>
         <div id="payPeriod2Row" style="display:none;" class="flex gap-2 flex-wrap items-center">
           <span class="text-xs font-semibold" style="color:#6b7280;min-width:52px;">Period 2</span>
@@ -904,6 +904,20 @@ video{object-fit:cover;transform:scaleX(-1);}
           <span class="text-xs" style="color:#5b21b6;"><strong>Omit mileage from this biweekly paystub</strong> &mdash; miles are paid separately each week via the <strong>&#128663; Miles Only</strong> button. Leave checked so mileage isn&rsquo;t paid twice.</span>
         </label>
         <p class="text-xs" style="color:#9ca3af;"><strong>Biweekly wages</strong>: paid <strong>every other Friday</strong>, starting <strong>Aug 14, 2026</strong>. Each pay date covers the 14-day period ending two weeks earlier &mdash; e.g. the <strong>Aug 14</strong> pay covers <strong>Jul 18&ndash;Jul 31</strong>, and the <strong>Aug 28</strong> pay covers <strong>Aug 1&ndash;Aug 14</strong>. Pick a pay date above to auto-fill its coverage window. <strong>Mileage is paid weekly</strong> &mdash; use the purple <strong>&#128663; Miles Only</strong> button to calculate just the mileage reimbursement for a week (pick that week in the Period 1 fields). Mileage reimbursement uses IRS 2026 rate: $0.76/mile. Set each employee's hourly rate and tax profile via the Employees tab → Pay Profile.</p>
+      </div>
+
+      <div class="rcard space-y-2">
+        <p class="text-sm font-semibold" style="color:#374151;">One-Time Pay Adjustments</p>
+        <p class="text-xs" style="color:#6b7280;">Add extra paid hours for this specific pay period only — shown as its own line on that paystub. Does not carry over to future payrolls.</p>
+        <div class="flex gap-2 flex-wrap items-center mt-1">
+          <select id="payAdjEmp" class="inp inp-dk sel" style="flex:1;min-width:140px;">
+            <option value="">Employee…</option>
+          </select>
+          <input id="payAdjHours" type="number" step="0.25" min="0" placeholder="Hours" class="inp inp-dk" style="width:90px;">
+          <input id="payAdjLabel" type="text" placeholder="Label (e.g. LBR work)" class="inp inp-dk" style="flex:1;min-width:140px;">
+          <button onclick="addPayAdjustment()" class="tap px-4 py-2 rounded-xl font-semibold text-xs" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;flex-shrink:0;">+ Add</button>
+        </div>
+        <div id="payAdjList" class="space-y-1 mt-1"></div>
       </div>
 
       <div class="rcard space-y-2">
@@ -2968,7 +2982,10 @@ function switchTab(name) {
     else { renderCollections(); }
   }
   if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
-  if (name==='payroll')   { populatePayEmpFilter(); renderPayrollExcludeList(); syncOmitMileageChk(); }
+  if (name==='payroll')   {
+    populatePayEmpFilter(); populatePayAdjEmpSelect(); renderPayrollExcludeList(); syncOmitMileageChk();
+    if (fbCfg.url) { syncFromCloud(renderPayAdjustments); } else { renderPayAdjustments(); }
+  }
   if (name==='facilitymap') {
     // Break out of max-w-4xl for full-bleed map
     var wrap = document.getElementById('adminPaneWrap');
@@ -7699,7 +7716,7 @@ function calcWithholdings(grossWages, periodDays, profile) {
   };
 }
 
-function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats, totalTravelHours, totalDrawHours, hasSplit) {
+function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDays, extraStats, totalTravelHours, totalDrawHours, hasSplit, adjustments) {
   var profile = emp.payProfile || {};
   // Fall back to the dedicated pay-profile backup key if the main profile was wiped by a sync/re-seed
   if (!profile.hourlyRate && !profile.weeklyRate) {
@@ -7767,7 +7784,15 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
   var drawWages   = r2(drawHrs   * rate);
   var travelWages = r2(travelHrs * travelRate);
   var earnedWages = r2(drawWages + travelWages);
-  var grossWages  = earnedWages;
+
+  // One-time pay adjustments (e.g. extra hours for a specific task) — kept
+  // separate from draw/travel so they show as their own explicit line on
+  // the paystub instead of being folded silently into worked hours.
+  var adjList  = adjustments || [];
+  var adjHours = r2(adjList.reduce(function(s,a){ return s + (parseFloat(a.hours)||0); }, 0));
+  var adjWages = r2(adjHours * rate);
+
+  var grossWages  = r2(earnedWages + adjWages);
 
   // ── Guaranteed weekly minimum (Enrique Blanco contract) ──────────────
   // Per contract, Enrique is paid at least $360/week — whichever is higher
@@ -7803,6 +7828,7 @@ function calcPaycheck(emp, hoursWorked, totalMiles, totalMileageReimb, periodDay
     drawHours: drawHrs, travelHours: travelHrs, hasSplit: !!hasSplit,
     drawWages: drawWages, travelWages: travelWages,
     earnedWages: earnedWages, grossWages: grossWages,
+    adjustments: adjList, adjHours: adjHours, adjWages: adjWages,
     guaranteeApplied: guaranteeApplied, guaranteeMin: guaranteeMin, guaranteeTopUp: guaranteeTopUp,
     guaranteeNonTax: guaranteeNonTax,
     fica: fica, medicare: medicare, fedWith: fedWith, stateWith: stateWith,
@@ -7917,6 +7943,12 @@ function renderPaycheck(result, fromStr, toStr) {
       : '<div class="paycheck-row"><span>Hours Worked</span><span>'+fmtHrs(result.hoursWorked)+' @ '+fmt$(result.hourlyRate)+'/hr</span></div>'
     )
   )
+    +((result.adjustments && result.adjustments.length)
+      ? result.adjustments.map(function(a){
+          var aWages = Math.round(a.hours*result.hourlyRate*100)/100;
+          return '<div class="paycheck-row" style="color:#5b21b6;"><span>+ '+(a.label||'One-time adjustment')+' (this pay period only)</span><span>'+fmtHrs(a.hours)+' @ '+fmt$(result.hourlyRate)+'/hr = + '+fmt$(aWages)+'</span></div>';
+        }).join('')
+      : '')
     +sessBreakdown
     +(result.guaranteeApplied
       ? (result.guaranteeNonTax > 0
@@ -7964,6 +7996,93 @@ function getPayrollExcluded() {
   var boxes = document.querySelectorAll('#payrollExcludeList input[type=checkbox]');
   boxes.forEach(function(cb){ if (cb.checked) excluded.push(cb.value); });
   return excluded;
+}
+
+// ── One-time pay adjustments ─────────────────────────────────────────────
+// Extra paid hours added to a single employee's paycheck for one specific
+// pay period only (e.g. a one-off task outside their normal shifts). Keyed
+// to the exact period dates, so it never carries over to a different payroll
+// run. Shown as its own explicit line on the paystub, not folded silently
+// into "Hours Worked".
+function populatePayAdjEmpSelect() {
+  var sel = document.getElementById('payAdjEmp');
+  if (!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">Employee…</option>';
+  store.getJ(K.employees, []).forEach(function(emp) {
+    var opt = document.createElement('option');
+    opt.value = emp.name; opt.textContent = emp.name;
+    if (emp.name === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+// Adjustments ride on the admin log (K.adminLog) rather than their own Firebase
+// path — the log already syncs across devices via syncFromCloud, and this app's
+// Firebase security rules only allow a fixed set of existing paths, so a brand
+// new top-level path (tried first) came back 401 Permission Denied. An "added"
+// log entry carries the structured fields; a "removed" entry referencing its id
+// retracts it — so removal doesn't require deleting anything from Firebase.
+function getPayAdjustments() {
+  var log = store.getJ(K.adminLog, []);
+  var removedIds = {};
+  log.forEach(function(e){ if (e.action === 'PAY_ADJUSTMENT_REMOVED' && e.refId) removedIds[e.refId] = true; });
+  return log
+    .filter(function(e){ return e.action === 'PAY_ADJUSTMENT_ADDED' && e.id && !removedIds[e.id]; })
+    .map(function(e){ return { id:e.id, empName:e.empName, periodFrom:e.periodFrom, periodTo:e.periodTo, hours:e.hours, label:e.label }; });
+}
+function renderPayAdjustments() {
+  var container = document.getElementById('payAdjList');
+  if (!container) return;
+  var from = document.getElementById('payFrom').value;
+  var to   = document.getElementById('payTo').value;
+  if (!from || !to) { container.innerHTML = ''; return; }
+  var rows = getPayAdjustments().filter(function(a){ return a.periodFrom === from && a.periodTo === to; });
+  if (!rows.length) { container.innerHTML = '<p style="font-size:12px;color:#9ca3af;">No adjustments for this pay period.</p>'; return; }
+  var html = '';
+  rows.forEach(function(a) {
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;">'
+      + '<span style="font-size:12px;font-weight:700;color:#5b21b6;flex:1;">'+a.empName+' — +'+fmtHrs(a.hours)+' <span style="font-weight:400;color:#7c3aed;">('+(a.label||'One-time adjustment')+')</span></span>'
+      + '<button onclick="removePayAdjustmentRow(\''+a.id+'\')" style="font-size:11px;padding:2px 9px;border-radius:6px;background:#fee2e2;color:#dc2626;border:none;cursor:pointer;font-weight:700;">Remove</button>'
+      + '</div>';
+  });
+  container.innerHTML = html;
+}
+function addPayAdjustment() {
+  var from = document.getElementById('payFrom').value;
+  var to   = document.getElementById('payTo').value;
+  if (!from || !to) { toast('Select a pay period first'); return; }
+  var empName = document.getElementById('payAdjEmp').value;
+  if (!empName) { toast('Select an employee'); return; }
+  var hours = parseFloat(document.getElementById('payAdjHours').value);
+  if (!(hours > 0)) { toast('Enter hours greater than 0'); return; }
+  var label = document.getElementById('payAdjLabel').value.trim() || 'One-time adjustment';
+  var id = 'padj_'+Date.now()+'_'+Math.floor(Math.random()*1000);
+  var entry = { action: 'PAY_ADJUSTMENT_ADDED', ts: new Date().toISOString(),
+    id: id, empName: empName, periodFrom: from, periodTo: to, hours: hours, label: label,
+    details: empName+' — +'+fmtHrs(hours)+' ('+label+') for pay period '+from+' – '+to+' only.' };
+  _pushAdminLogEntry(entry);
+  document.getElementById('payAdjHours').value = '';
+  document.getElementById('payAdjLabel').value = '';
+  renderPayAdjustments();
+  toast('Adjustment added — recalculate payroll to see it on the paystub');
+}
+function removePayAdjustmentRow(id) {
+  var target = null;
+  getPayAdjustments().forEach(function(a){ if (a.id === id) target = a; });
+  if (!target) return;
+  if (!confirm('Remove the +'+fmtHrs(target.hours)+' ('+target.label+') adjustment for '+target.empName+'?')) return;
+  _pushAdminLogEntry({ action: 'PAY_ADJUSTMENT_REMOVED', ts: new Date().toISOString(), refId: id,
+    details: target.empName+' — removed +'+fmtHrs(target.hours)+' ('+target.label+') for pay period '+target.periodFrom+' – '+target.periodTo+'.' });
+  renderPayAdjustments();
+}
+// Same shape logAdminAction() writes (local + Firebase), but takes the full
+// entry object so extra structured fields (id/empName/hours/...) ride along.
+function _pushAdminLogEntry(entry) {
+  var log = store.getJ(K.adminLog, []);
+  log.push(entry);
+  if (log.length > 500) log = log.slice(log.length - 500);
+  store.setJ(K.adminLog, log);
+  if (fbCfg.url) fbPut('adminLog', entry.ts, entry);
 }
 
 // ── Biweekly payroll ────────────────────────────────────────────────────────
@@ -8022,6 +8141,7 @@ function onPayDateSelect(){
   var p = periodForPayDate(payDateForIndex(parseInt(sel.value, 10)));
   document.getElementById('payFrom').value = _payFmt(p.start);
   document.getElementById('payTo').value   = _payFmt(p.end);
+  renderPayAdjustments();
 }
 
 function populatePayEmpFilter() {
@@ -8158,6 +8278,7 @@ function runPayroll() {
   var empCards = '';
 
   var omitMiles = omitMileageFromPayroll();
+  var allAdjustments = getPayAdjustments();
   emps.forEach(function(emp) {
     var stats = buildSessMap(emp.name);
     // When mileage is paid weekly (Miles Only), leave it off the biweekly paystub
@@ -8166,7 +8287,12 @@ function runPayroll() {
     var omitThis  = omitMiles && (emp.role || 'phlebotomist') !== 'courier';
     var payMiles  = omitThis ? 0 : stats.totalMiles;
     var payReimb  = omitThis ? 0 : stats.totalMileageReimb;
-    var result = calcPaycheck(emp, stats.totalHours, payMiles, payReimb, periodDays, stats, stats.totalTravelHours, stats.totalDrawHours, stats.hasSplit);
+    // One-time adjustments only apply when this run's period matches the exact
+    // period they were added for (Period 1 — a second period isn't matched).
+    var empAdjustments = allAdjustments.filter(function(a){
+      return a.empName === emp.name && a.periodFrom === fromVal && a.periodTo === toVal;
+    });
+    var result = calcPaycheck(emp, stats.totalHours, payMiles, payReimb, periodDays, stats, stats.totalTravelHours, stats.totalDrawHours, stats.hasSplit, empAdjustments);
     if (!result) result = {empName: emp.name, noProfile: true, grossWages: 0};
     allResults.push(result);
     empCards += renderPaycheck(result, periodLabel, '');
@@ -8517,6 +8643,10 @@ function printPayroll() {
       // Table
       +'<table style="width:100%;border-collapse:collapse;">'
       +'<tr style="background:#f8fafc;"><td colspan="2" style="padding:6px 14px;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">'+(r.role==='logistics' ? 'Fixed Weekly Rate: $'+(r.weeklyRate||0).toFixed(2)+'/wk' : (r.hasSplit ? 'Draw: '+fmtHrs(r.drawHours)+' @ $'+(r.hourlyRate||0).toFixed(2)+'/hr  |  Travel: '+fmtHrs(r.travelHours)+' @ $'+(r.travelRate||17).toFixed(2)+'/hr' : fmtHrs(r.hoursWorked)+' worked @ $'+(r.hourlyRate||0).toFixed(2)+'/hr'))+'</td></tr>'
+      + ((r.adjustments && r.adjustments.length) ? r.adjustments.map(function(a){
+          var aWages = Math.round(a.hours*r.hourlyRate*100)/100;
+          return pRow('+ '+(a.label||'One-time adjustment')+' (this pay period only)', fmtHrs(a.hours)+' @ $'+(r.hourlyRate||0).toFixed(2)+'/hr = + '+fmt$(aWages), '#5b21b6');
+        }).join('') : '')
       // Shift detail rows
       +(function(){
         var _mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
