@@ -3607,6 +3607,22 @@ function _renderTablesImpl() {
                 ? mealWaivedCount+' meal breaks waived by employee (30-min unpaid each)'
                 : 'Employee waived 30-min unpaid meal break');
         }
+        var mealAdminSet = sess ? !!sess.mealAdminSet : false;
+        var mealWaivedAdminSet = sess ? !!sess.mealWaivedAdminSet : false;
+        var breakControlsHtml = '';
+        if (sess && clockInE && clockOutE) {
+          if (mealCount===0 && mealWaivedCount===0) {
+            breakControlsHtml = '<div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">'
+              + '<button onclick="adminSetMealBreak(\''+safeName4map+'\',\''+logDayStr+'\',true)" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;cursor:pointer;font-weight:700;">&#127869; Took 30-min break</button>'
+              + '<button onclick="adminSetMealBreak(\''+safeName4map+'\',\''+logDayStr+'\',false)" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;cursor:pointer;font-weight:700;">No break taken</button>'
+              + '</div>';
+          } else if (mealAdminSet || mealWaivedAdminSet) {
+            breakControlsHtml = '<div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-top:6px;">'
+              + '<span style="font-size:10px;color:#9ca3af;">&#9999; Marked by admin</span>'
+              + '<button onclick="adminClearMealBreak(\''+safeName4map+'\',\''+logDayStr+'\')" style="font-size:10px;padding:3px 9px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">Undo</button>'
+              + '</div>';
+          }
+        }
 
         accHtml += '<div style="background:'+cardBg2+';border-radius:14px;border:1px solid rgba(0,0,0,.08);border-left:4px solid '+accentColor+';margin-bottom:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06);">'
 
@@ -3658,6 +3674,7 @@ function _renderTablesImpl() {
             ?'<p style="font-size:12px;font-weight:600;color:#7c3aed;margin:0 0 4px;">Mileage: <strong>'+Number(milesVal).toFixed(1)+' mi</strong></p>'
             :'')
           +'<p style="font-size:12px;font-weight:600;color:#d97706;margin:0;">Breaks: <strong>'+breakSummaryText+'</strong></p>'
+          +breakControlsHtml
           +'</div>'
 
           // ── Action buttons row (approve/deny/live) — only shown when needed
@@ -4716,6 +4733,25 @@ function showCalDay(dateStr, empFilter){
             ? mealWaivedCount+' meal breaks waived by employee (30-min unpaid each)'
             : 'Employee waived 30-min unpaid meal break');
     }
+    // Admin control: retroactively record whether the 30-min meal break was
+    // taken, for shifts (e.g. manually-entered ones) that skipped the live
+    // clock-out meal gate. Reflected in both Records and payroll.
+    var mealAdminSet=sess?!!sess.mealAdminSet:false;
+    var mealWaivedAdminSet=sess?!!sess.mealWaivedAdminSet:false;
+    var breakControlsHtml='';
+    if(sess&&clockInE&&clockOutE){
+      if(mealCount===0&&mealWaivedCount===0){
+        breakControlsHtml='<div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">'
+          +'<button onclick="adminSetMealBreak(\''+safeName4map+'\',\''+logDayStr2+'\',true)" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;cursor:pointer;font-weight:700;">&#127869; Took 30-min break</button>'
+          +'<button onclick="adminSetMealBreak(\''+safeName4map+'\',\''+logDayStr2+'\',false)" style="font-size:10px;padding:4px 10px;border-radius:6px;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;cursor:pointer;font-weight:700;">No break taken</button>'
+          +'</div>';
+      } else if(mealAdminSet||mealWaivedAdminSet){
+        breakControlsHtml='<div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-top:6px;">'
+          +'<span style="font-size:10px;color:#9ca3af;">&#9999; Marked by admin</span>'
+          +'<button onclick="adminClearMealBreak(\''+safeName4map+'\',\''+logDayStr2+'\')" style="font-size:10px;padding:3px 9px;border-radius:6px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;cursor:pointer;font-weight:700;">Undo</button>'
+          +'</div>';
+      }
+    }
 
     cardsHtml+='<div style="background:'+cardBg+';border-radius:14px;border:1px solid rgba(0,0,0,.08);border-left:4px solid '+accentColor+';margin-bottom:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06);">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px 10px;">'
@@ -4747,6 +4783,7 @@ function showCalDay(dateStr, empFilter){
       +'<p style="font-size:28px;font-weight:900;color:#111827;letter-spacing:-.03em;line-height:1;margin:0 0 5px;">'+hoursStr+'</p>'
       +(milesVal!=null?'<p style="font-size:12px;font-weight:600;color:#7c3aed;margin:0 0 4px;">Mileage: <strong>'+Number(milesVal).toFixed(1)+' mi</strong></p>':'')
       +'<p style="font-size:12px;font-weight:600;color:#d97706;margin:0;">Breaks: <strong>'+breakSummaryText+'</strong></p>'
+      +breakControlsHtml
       +'</div>'
       +((approvalBtns||liveLocBtn)?'<div style="padding:8px 14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(0,0,0,.05);">'+approvalBtns+liveLocBtn+'</div>':'')
       +(function(){
@@ -4819,6 +4856,98 @@ function closeCalModal(){
   if(m) m.remove();
 }
 
+/* ── Admin: retroactively mark whether the 30-min meal break was taken ──
+   For shifts that never went through the live clock-out meal gate (e.g. a
+   manually-entered clock-in/out), this lets an admin record the same outcome
+   the employee's own gate would have: a reconstructed 30-min break_start/
+   break_end pair (deducted as unpaid, feeds both Records and payroll), or a
+   break_waived entry (no deduction, full hours paid). Both are tagged
+   adminSet:true so they can be told apart and undone later. */
+function _dayShiftBounds(name, dayStr) {
+  var records = store.getJ(K.timesheet, []);
+  var entries = records.filter(function(r){ return r.name===name && _localDayStr(r.ts)===dayStr; })
+    .map(function(e){ return Object.assign({}, e, { _d:new Date(e.ts) }); })
+    .sort(function(a,b){ return a._d - b._d; });
+  var allIns = entries.filter(function(e){ return e.type==='in'; });
+  var clockInE = allIns.length ? allIns[allIns.length-1] : null;
+  var clockOutE = null;
+  entries.forEach(function(e){ if(e.type==='out' && clockInE && e._d>clockInE._d) clockOutE=e; });
+  if (!clockInE && !clockOutE) entries.forEach(function(e){ if(e.type==='out') clockOutE=e; });
+  return { records: records, entries: entries, clockInE: clockInE, clockOutE: clockOutE };
+}
+function _clearAdminMealEntries(name, dayStr) {
+  var ctx = _dayShiftBounds(name, dayStr);
+  if (!ctx.clockInE || !ctx.clockOutE) return [];
+  var inMs = ctx.clockInE._d.getTime(), outMs = ctx.clockOutE._d.getTime();
+  var toRemove = ctx.entries.filter(function(e){
+    return e.adminSet && e._d.getTime()>=inMs && e._d.getTime()<=outMs
+      && (e.type==='break_start' || e.type==='break_end' || e.type==='break_waived');
+  }).map(function(e){ return String(e.ts); });
+  if (!toRemove.length) return [];
+  var tsSet={}; toRemove.forEach(function(ts){ tsSet[ts]=true; });
+  store.setJ(K.timesheet, ctx.records.filter(function(r){ return !tsSet[String(r.ts)]; }));
+  var deleted = store.getJ(K.deletedTs, []);
+  toRemove.forEach(function(ts) {
+    if (deleted.indexOf(ts) < 0) deleted.push(ts);
+    if (fbCfg.url) {
+      fetch(fbCfg.url+'/jtl/deletedTs/'+tsToKey(ts)+'.json',
+        {method:'PUT', body:JSON.stringify({ts:ts, deletedAt:new Date().toISOString()}),
+         headers:{'Content-Type':'application/json'}}).catch(function(){});
+    }
+    fbDeleteEntry('timesheet', ts);
+  });
+  store.setJ(K.deletedTs, deleted);
+  return toRemove;
+}
+function _refreshAfterMealMark() {
+  renderTables(); renderCalendar();
+  var calCtx = window._calDayCtx;
+  if (calCtx && document.getElementById('calDayModal')) showCalDay(calCtx.dateStr, calCtx.empFilter);
+  refreshEditDayLog();
+}
+function adminClearMealBreak(name, dayStr) {
+  if (!confirm('Remove the admin break marking for this shift? It will go back to showing no break on record.')) return;
+  var removed = _clearAdminMealEntries(name, dayStr);
+  if (!removed.length) { toast('No admin marking found'); return; }
+  logAdminAction('EDIT', name+' — removed admin meal-break marking for '+dayStr+'.');
+  _refreshAfterMealMark();
+  toast('Break marking removed');
+}
+function adminSetMealBreak(name, dayStr, took) {
+  var ctx = _dayShiftBounds(name, dayStr);
+  if (!ctx.clockInE || !ctx.clockOutE) { toast('Need both a clock-in and clock-out to mark a break'); return; }
+  if (!confirm(took
+      ? 'Mark this shift: employee TOOK the 30-min meal break? 30 minutes will be deducted as unpaid on payroll.'
+      : 'Mark this shift: employee took NO meal break? Full hours will stay paid.')) return;
+  _clearAdminMealEntries(name, dayStr); // replace any prior admin marking on this shift
+  var ctx2 = _dayShiftBounds(name, dayStr);
+  var emps = store.getJ(K.employees, []);
+  var emp = null; for (var i=0;i<emps.length;i++) if (emps[i].name===name) { emp=emps[i]; break; }
+  var empCode = (emp && emp.code) || ctx2.clockInE.empId || name;
+  var records = ctx2.records;
+  if (took) {
+    var outMs = ctx2.clockOutE._d.getTime(), inMs = ctx2.clockInE._d.getTime();
+    var endMs = outMs - 1000;
+    var startMs = Math.max(inMs + 1000, endMs - 30*60000);
+    var bsTs = new Date(startMs).toISOString(), beTs = new Date(endMs).toISOString();
+    var bs = {name:name, type:'break_start', ts:bsTs, note:'30 min', breakType:'meal', empId:empCode, adminSet:true, reason:'Marked by admin — employee confirmed taking the 30-min meal break (not logged live).'};
+    var be = {name:name, type:'break_end', ts:beTs, note:'30 min', empId:empCode, adminSet:true};
+    records.push(bs); records.push(be);
+    store.setJ(K.timesheet, records);
+    fbPut('timesheet', bsTs, bs); fbPut('timesheet', beTs, be);
+    logAdminAction('MEAL_LOGGED_BY_ADMIN', name+' (ID: '+empCode+') — admin marked the 30-min meal break as taken for '+dayStr+'. 30 min deducted as unpaid.');
+  } else {
+    var wTs = new Date(ctx2.clockOutE._d.getTime()-1000).toISOString();
+    var w = {name:name, type:'break_waived', ts:wTs, note:'meal marked not taken by admin', breakType:'meal', empId:empCode, adminSet:true};
+    records.push(w);
+    store.setJ(K.timesheet, records);
+    fbPut('timesheet', wTs, w);
+    logAdminAction('MEAL_WAIVED_BY_ADMIN', name+' (ID: '+empCode+') — admin marked no meal break taken for '+dayStr+'. Full hours remain paid.');
+  }
+  _refreshAfterMealMark();
+  toast(took ? '30-min break marked — 30 min deducted from pay' : 'Marked as no break taken — full hours paid');
+}
+
 function toggleAcc(bodyId, arrowId) {
   var body=document.getElementById(bodyId), arrow=document.getElementById(arrowId);
   if (!body) return;
@@ -4841,17 +4970,18 @@ function closePhoto() { document.getElementById('photoLightbox').classList.remov
 
 /* ── employee detail modal ───────────────── */
 function buildSessions(entries) {
-  var sessions=[], inTime=null, bst=null, mealMs=0, restMs=0, brkType='rest';
+  var sessions=[], inTime=null, bst=null, bstAdminSet=false, mealMs=0, restMs=0, brkType='rest';
   var inNote='', outNote='', breaks=[], waivers=[], facilities=[], mileage=null;
   entries.forEach(function(e) {
     if(e.type==='in'){
-      inTime=e._d; bst=null; mealMs=0; restMs=0; brkType='rest';
+      inTime=e._d; bst=null; bstAdminSet=false; mealMs=0; restMs=0; brkType='rest';
       inNote=e.note||''; outNote=''; breaks=[]; waivers=[];
       facilities=e.facilities||[];
       mileage = (e.mileage != null) ? e.mileage : null;
     }
     else if(e.type==='break_start'){
       bst=e._d;
+      bstAdminSet=!!(e.adminSet||e.reconstructed);
       // Determine type: explicit breakType field, or infer from note (legacy entries)
       brkType=e.breakType||(e.note&&(e.note.indexOf('30')>=0||e.note.toLowerCase().indexOf('meal')>=0)?'meal':'rest');
     }
@@ -4859,19 +4989,19 @@ function buildSessions(entries) {
       if(bst){
         var dur=e._d-bst;
         if(brkType==='meal'){ mealMs+=dur; } else { restMs+=dur; }
-        breaks.push({btype:brkType,durationMs:dur});
-        bst=null;
+        breaks.push({btype:brkType,durationMs:dur,adminSet:bstAdminSet});
+        bst=null; bstAdminSet=false;
       }
     }
     else if(e.type==='break_waived'){
-      waivers.push({btype:e.breakType||'meal',note:e.note||'Waived'});
+      waivers.push({btype:e.breakType||'meal',note:e.note||'Waived',adminSet:!!e.adminSet});
     }
     else if(e.type==='out' && inTime){
       if(bst){ // break still open at clock-out
         var dur2=e._d-bst;
         if(brkType==='meal'){ mealMs+=dur2; } else { restMs+=dur2; }
-        breaks.push({btype:brkType,durationMs:dur2});
-        bst=null;
+        breaks.push({btype:brkType,durationMs:dur2,adminSet:bstAdminSet});
+        bst=null; bstAdminSet=false;
       }
       outNote=e.note||'';
       // Mileage: prefer from clock-out entry (GPS auto-tracked), fallback to clock-in
@@ -4886,6 +5016,8 @@ function buildSessions(entries) {
       var restTaken=breaks.filter(function(b){return b.btype==='rest';}).length;
       var mealTaken=breaks.filter(function(b){return b.btype==='meal';}).length;
       var mealWaivedCount=waivers.filter(function(v){return v.btype==='meal';}).length;
+      var mealAdminSet=breaks.some(function(b){return b.btype==='meal'&&b.adminSet;});
+      var mealWaivedAdminSet=waivers.some(function(v){return v.btype==='meal'&&v.adminSet;});
       var compliantRest=restTaken>=reqs.rest;
       var compliantMeal=(mealTaken+mealWaivedCount)>=reqs.meal;
       sessions.push({
@@ -4899,9 +5031,10 @@ function buildSessions(entries) {
         mileage:mileage,
         caReqs:reqs,
         compliantRest:compliantRest, compliantMeal:compliantMeal,
-        restTaken:restTaken, mealTaken:mealTaken, mealWaivedCount:mealWaivedCount
+        restTaken:restTaken, mealTaken:mealTaken, mealWaivedCount:mealWaivedCount,
+        mealAdminSet:mealAdminSet, mealWaivedAdminSet:mealWaivedAdminSet
       });
-      inTime=null; bst=null; mealMs=0; restMs=0; inNote=''; outNote=''; breaks=[]; waivers=[]; facilities=[]; mileage=null;
+      inTime=null; bst=null; bstAdminSet=false; mealMs=0; restMs=0; inNote=''; outNote=''; breaks=[]; waivers=[]; facilities=[]; mileage=null;
     }
   });
   return sessions;
