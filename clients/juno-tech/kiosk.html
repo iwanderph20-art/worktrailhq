@@ -1046,10 +1046,10 @@ video{object-fit:cover;transform:scaleX(-1);}
         </div>
         <p class="text-xs mt-1" style="color:#9ca3af;">Leave blank or clear to remove mileage from this entry.</p>
       </div>
-      <!-- Travel / Draw time split — shown only for travel-facility clock-ins (Yucca Valley; Leisure Garden if not home-based) -->
+      <!-- Travel / Draw time split — shown for any clock-in; admin decides per shift -->
       <div id="editTimeSplitRow" style="display:none;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px;">
-        <p class="text-xs font-bold mb-1" style="color:#1a2b8c;">&#9201; Travel Facility — Time Split (Admin)</p>
-        <p class="text-xs mb-3" style="color:#6b7280;">This is a far facility (Yucca Valley / Leisure Garden), so travel time is paid separately. Enter travel hours only — draw time is the remaining hours (total − travel). Leave blank to count all hours at draw rate.</p>
+        <p class="text-xs font-bold mb-1" style="color:#1a2b8c;">&#9201; Travel / Draw Time Split (Admin)</p>
+        <p class="text-xs mb-3" style="color:#6b7280;">If part of this shift was travel time, enter travel hours only — draw time is the remaining hours (total − travel). Travel is paid at the employee's travel rate ($17/hr minimum); draw is paid at their regular rate. Leave blank to count all hours at draw rate.</p>
         <div style="display:flex;gap:8px;">
           <div style="flex:1;">
             <label class="text-xs font-semibold" style="color:#6b7280;">Travel Hours</label>
@@ -1182,10 +1182,10 @@ video{object-fit:cover;transform:scaleX(-1);}
             <option value="">— Select facility —</option>
           </select>
         </div>
-        <!-- Travel / Draw split — shown only for travel facilities (Yucca Valley; Leisure Garden if not home-based) -->
+        <!-- Travel / Draw split — shown for any full-shift manual entry; admin decides per shift -->
         <div id="manualSplitRow" style="display:none;margin-top:10px;">
-          <p class="text-xs font-semibold" style="color:#6b7280;margin-bottom:4px;">Travel Facility — Hours Split <span style="font-weight:400;color:#9ca3af;">(optional)</span></p>
-          <p class="text-xs" style="color:#6b7280;margin-bottom:8px;">Enter travel hours only — no need for exact times. Draw time is calculated automatically as the remaining hours (total − travel). Leave blank to count all hours as draw time.</p>
+          <p class="text-xs font-semibold" style="color:#6b7280;margin-bottom:4px;">Travel / Draw Hours Split <span style="font-weight:400;color:#9ca3af;">(optional)</span></p>
+          <p class="text-xs" style="color:#6b7280;margin-bottom:8px;">If part of this shift was travel time, enter travel hours only — no need for exact times. Draw time is calculated automatically as the remaining hours (total − travel). Travel is paid at the employee's travel rate ($17/hr minimum); draw is paid at their regular rate. Leave blank to count all hours as draw time.</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div>
               <label class="text-xs font-semibold" style="color:#6b7280;">Travel Hours</label>
@@ -3750,15 +3750,14 @@ function _renderTablesImpl() {
 
 /* ── edit/delete entries ─────────────────── */
 var editSelectedFacilities = [];
-// Show the travel/draw split row only for clock-in entries whose facility is a
-// travel facility (and, for Leisure Garden, only for phlebs not based there).
+// Show the travel/draw split row for any clock-in entry — admin decides per
+// shift whether travel time applies, regardless of facility.
 function updateEditSplitVisibility() {
   var typeEl = document.getElementById('editType');
   var isClockIn = typeEl && typeEl.value === 'in';
-  var show = isClockIn && shiftUsesTravelSplit(window._editEmpName, editSelectedFacilities);
   var row = document.getElementById('editTimeSplitRow');
-  if (row) row.style.display = show ? '' : 'none';
-  if (show) updateEditDrawPreview();
+  if (row) row.style.display = isClockIn ? '' : 'none';
+  if (isClockIn) updateEditDrawPreview();
 }
 function renderEditFacilityPills() {
   var container = document.getElementById('editFacPills');
@@ -4095,11 +4094,8 @@ function saveEditEntry() {
         r.mileage = (newMileage !== null && !isNaN(newMileage)) ? newMileage : null;
       }
       if (r.type === 'in') {
-        // Only record a split when the (possibly just-edited) facility is a
-        // travel facility for this employee; otherwise the whole shift is draw.
-        var qualifies = shiftUsesTravelSplit(r.name, editSelectedFacilities);
         var tRaw = document.getElementById('editTravelHours').value.trim();
-        r.travelHours = (qualifies && tRaw !== '') ? (parseFloat(tRaw) || 0) : null;
+        r.travelHours = (tRaw !== '') ? (parseFloat(tRaw) || 0) : null;
         r.drawHours   = null; // draw is derived at payroll as (total − travel)
       }
       if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately under admin_{ts}; never overwrites employee photo
@@ -4183,11 +4179,7 @@ function saveEditEntry() {
 var _manualMode = 'single'; // 'single' or 'shift'
 var _manualSaving = false;  // double-submit guard
 function updateManualSplitVisibility() {
-  var emp = document.getElementById('manualEmpName').value;
-  var facEl = document.getElementById('manualFacility');
-  var fac = facEl ? facEl.value : '';
-  var show = _manualMode === 'shift' && shiftUsesTravelSplit(emp, fac ? [fac] : []);
-  document.getElementById('manualSplitRow').style.display = show ? '' : 'none';
+  document.getElementById('manualSplitRow').style.display = (_manualMode === 'shift') ? '' : 'none';
 }
 function setManualMode(mode) {
   _manualMode = mode;
@@ -4385,9 +4377,7 @@ function saveManualEntry() {
       var n = parseFloat(raw);
       return (isFinite(n) && n > 0) ? Math.round(n*100)/100 : null;
     }
-    var travelHrsCalc = shiftUsesTravelSplit(empName, facList)
-      ? parseHrs(document.getElementById('manualTravelHours').value)
-      : null;
+    var travelHrsCalc = parseHrs(document.getElementById('manualTravelHours').value);
     var outEntry = {
       ts: makeUniqueTs(outTs, arr), name: empName, type: 'out', note: note,
       manualEntry: true, addedBy: 'admin', addedAt: addedAt,
@@ -6235,28 +6225,6 @@ var EMP_FACILITY = {
   'Mylyn':          'Leisure Garden',
   'Jose':           'Leisure Garden'
 };
-// ── Travel/Draw split by facility ────────────────────────────────────────
-// Only these far facilities trigger the two-rate (travel + draw) split. Every
-// other facility is paid at the single draw rate for the whole shift.
-// Leisure Garden is a home base for some staff (see EMP_FACILITY) — they don't
-// earn travel pay for a facility they start at, so the split applies there only
-// to phlebotomists who are NOT based at Leisure Garden.
-var TRAVEL_FACILITIES = ['Yucca Valley Facility', 'Leisure Garden ALF'];
-function _empHomeBase(empName) {
-  if (!empName) return null;
-  return EMP_FACILITY[empName] || EMP_FACILITY[empName.split(' ')[0]] || null;
-}
-// Does this shift's facility list trigger the travel/draw split for this employee?
-function shiftUsesTravelSplit(empName, facilities) {
-  if (!facilities || !facilities.length) return false;
-  var home = _empHomeBase(empName);
-  for (var i = 0; i < facilities.length; i++) {
-    var f = facilities[i];
-    if (f === 'Yucca Valley Facility') return true;
-    if (f === 'Leisure Garden ALF' && home !== 'Leisure Garden') return true;
-  }
-  return false;
-}
 function distanceFromLab(lat, lng) {
   return haversineMiles(lat, lng, KNOWN_FACILITIES[0].lat, KNOWN_FACILITIES[0].lng);
 }
