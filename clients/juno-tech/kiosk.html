@@ -4005,9 +4005,9 @@ function openEditEntry(ts) {
   var hasMileageField = (entry.type === 'in' || entry.type === 'out');
   document.getElementById('editMileageRow').style.display = hasMileageField ? '' : 'none';
   document.getElementById('editMileage').value = (hasMileageField && entry.mileage != null) ? entry.mileage : '';
-  // Time split shows only on clock-in entries at a travel facility (Yucca Valley,
-  // or Leisure Garden for phlebs not based there). Recomputed when the facility
-  // pills or entry type change — see updateEditSplitVisibility().
+  // Time split shows for any clock-in entry — admin decides per shift whether
+  // travel time applies. Recomputed when the entry type changes — see
+  // updateEditSplitVisibility().
   window._editEmpName = entry.name;
   document.getElementById('editTravelHours').value = (entry.travelHours != null) ? entry.travelHours : '';
   // Load facilities
@@ -5706,8 +5706,7 @@ function repairPhotoSync() {
 
 /* ── Facility selector ───────────────────── */
 var FACILITIES = [
-  'Leisure Garden ALF','Springfield Manor ALF','FairOaks Manor ALF',
-  'Rosewood ALF','SDI Lab','Sunshine ALF','Juno Tech Lab',
+  'SDI Lab','Sunshine ALF','Juno Tech Lab',
   'Amberkare Home Health','Golden ALF',
   'Anew Direction Adult Living','Westside Manor','Parkview Manor','Gilmar Manor','LADMC','Yucca Valley Facility','Palmdale','Pasa Alta Manor','Long Beach Residential','Others'
 ];
@@ -8779,8 +8778,8 @@ function openPayProfile(empName) {
   document.getElementById('ppFedExtra').value  = profile.fedExtra    || '';
   document.getElementById('ppStateEx').value = profile.caAllowances || '';
   document.getElementById('ppMileage').value = profile.mileageRate || '';
-  // Travel rate applies to any phlebotomist — they earn it when dispatched to a
-  // travel facility (Yucca Valley, or Leisure Garden if not based there).
+  // Travel rate applies to any phlebotomist — they earn it whenever admin
+  // marks part of a shift as travel time (see the shift's Edit Entry form).
   var travelRateWrap = document.getElementById('ppTravelRate').closest('div');
   if (travelRateWrap) travelRateWrap.style.display = ((emp.role || 'phlebotomist') === 'phlebotomist') ? '' : 'none';
   document.getElementById('payProfileModal').classList.add('open');
