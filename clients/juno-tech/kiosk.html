@@ -747,6 +747,24 @@ video{object-fit:cover;transform:scaleX(-1);}
         </div>
       </div>
 
+      <!-- Push Chime (ntfy.sh) — fires even with every browser tab closed -->
+      <div class="rcard space-y-3">
+        <p class="text-sm font-semibold" style="color:#374151;">&#128276; Push Chime (ntfy.sh)</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Get an instant alert with sound on your phone or laptop for the same 4 events — clock-in, facility arrival, facility departure, clock-out. Unlike email, this fires even if the kiosk tab AND your own browser are both closed.</p>
+        <div class="rounded-xl p-3 text-xs space-y-1" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">
+          <p><strong>Setup (free, ~1 min):</strong> Install the <a href="https://ntfy.sh" target="_blank" style="text-decoration:underline;">ntfy</a> app (iOS/Android), open it, and subscribe to the topic name below — OR open <a id="ntfyWebLink" href="#" target="_blank" style="text-decoration:underline;">this link</a> in a browser and tap Subscribe, then allow notifications.</p>
+          <p><strong>Keep the topic name private</strong> — anyone who has it can see these alerts. A random one is generated for you below; change it any time.</p>
+        </div>
+        <p id="ntfyStatus" class="text-xs font-medium" style="color:#6b7280;min-height:16px;"></p>
+        <input id="ntfyTopic" type="text" placeholder="Topic name (e.g. jtl-admin-x7q2p9)" class="inp inp-dk" style="font-size:13px;">
+        <div class="flex gap-2">
+          <button onclick="saveNtfyConfig()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+            style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Save</button>
+          <button onclick="testNtfyConfig()" class="tap flex-1 py-3 rounded-xl font-semibold text-sm"
+            style="background:#f1f5f9;color:#374151;border:1px solid rgba(0,0,0,.1);cursor:pointer;">Send Test Chime</button>
+        </div>
+      </div>
+
       <!-- Email Template -->
       <div class="rcard space-y-3">
         <p class="text-sm font-semibold" style="color:#374151;">&#9993; Email Template (copy into EmailJS)</p>
@@ -1317,7 +1335,7 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p class="text-xs mt-1" style="color:#c4b5fd;">Miles Tracked</p>
       </div>
     </div>
-    <p class="text-xs mb-4" style="color:#9ca3af;line-height:1.5;">Your shift summary has been submitted and will be reviewed by admin.</p>
+    <p class="text-xs mb-4" style="color:#9ca3af;line-height:1.5;">Your shift summary has been submitted. See you next shift!</p>
     <button onclick="closeSummaryModal()" class="tap w-full py-3 rounded-2xl font-semibold text-sm" style="background:#1a2b8c;color:#fff;border:none;cursor:pointer;">Done</button>
   </div>
 </div>
@@ -3356,7 +3374,7 @@ function switchTab(name) {
     if (fbCfg.url) { syncScheduleFromCloud(function(){ renderCollections(); }); }
     else { renderCollections(); }
   }
-  if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); }
+  if (name==='settings')  { renderKioskUrl(); updateStorageUsage(); loadEjsConfig(); loadNtfyConfig(); }
   if (name==='payroll')   {
     populatePayEmpFilter(); populatePayAdjEmpSelect(); renderPayrollExcludeList(); syncOmitMileageChk();
     if (fbCfg.url) { syncFromCloud(renderPayAdjustments); } else { renderPayAdjustments(); }
@@ -7361,6 +7379,56 @@ function testEjsConfig(){
     if(st){st.textContent='Error: '+(err.text||err.status||JSON.stringify(err));st.style.color='#dc2626';}
   });
 }
+/* ── ntfy.sh Push Chime ────────────────────
+ * Publishes to ntfy's JSON endpoint (not the topic-suffixed URL) so the
+ * title/message can carry emoji and employee names without hitting the
+ * Fetch API's header-charset restrictions. No server of ours is involved —
+ * ntfy's own hosted service relays to the admin's phone/browser even when
+ * every tab here (and theirs) is closed, as long as they're subscribed. */
+var NTFY_STORAGE = 'jtl_ntfy_cfg';
+function _randomNtfyTopic(){
+  return 'jtl-admin-' + Math.random().toString(36).slice(2, 10);
+}
+function loadNtfyConfig(){
+  var cfg = store.getJ(NTFY_STORAGE, {});
+  if (!cfg.topic) { cfg.topic = _randomNtfyTopic(); store.setJ(NTFY_STORAGE, cfg); }
+  var el = document.getElementById('ntfyTopic'); if (el) el.value = cfg.topic;
+  var link = document.getElementById('ntfyWebLink'); if (link) link.href = 'https://ntfy.sh/' + cfg.topic;
+}
+function saveNtfyConfig(){
+  var el = document.getElementById('ntfyTopic');
+  var topic = el ? (el.value || '').trim() : '';
+  if (!topic) topic = _randomNtfyTopic();
+  if (el) el.value = topic;
+  store.setJ(NTFY_STORAGE, {topic: topic});
+  var link = document.getElementById('ntfyWebLink'); if (link) link.href = 'https://ntfy.sh/' + topic;
+  var st = document.getElementById('ntfyStatus');
+  if (st) { st.textContent = 'Saved!'; st.style.color = '#059669'; }
+  setTimeout(function(){ var s = document.getElementById('ntfyStatus'); if (s) s.textContent = ''; }, 2000);
+}
+function testNtfyConfig(){
+  sendNtfyAlert('Test Chime', 'This is a test alert from the JT Kiosk.', {tags:['bell']});
+  var st = document.getElementById('ntfyStatus');
+  if (st) { st.textContent = 'Test sent! Check your ntfy app/subscription.'; st.style.color = '#059669'; }
+}
+function sendNtfyAlert(title, message, opts){
+  var cfg = store.getJ(NTFY_STORAGE, {});
+  if (!cfg.topic) return;
+  opts = opts || {};
+  fetch('https://ntfy.sh/', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      topic: cfg.topic,
+      title: title,
+      message: message,
+      tags: opts.tags || ['bell'],
+      priority: opts.priority || 4,
+      click: window.location.origin + window.location.pathname + '?admin&records=1'
+    })
+  }).catch(function(){});
+}
+
 function sendClockInEmail(entry, photoDataUrl){
   // Hardcoded credentials — work on every device automatically
   var EJS_KEY      = 'BaAmtd4je5XVstCvH';
@@ -7379,6 +7447,8 @@ function sendClockInEmail(entry, photoDataUrl){
   var clockTime  = new Date(entry.ts).toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
   var facility   = (entry.facilities&&entry.facilities.length)?entry.facilities.join(', '):'Not specified';
   var photoNote  = (entry.hasPhoto || photoDataUrl) ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.';
+
+  sendNtfyAlert('Clock In — '+entry.name, facility + (entry.note ? ' · '+entry.note : ''), {tags:['wave']});
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
@@ -7429,6 +7499,8 @@ function sendClockOutEmail(entry, hoursWorked, miles) {
     shiftSummary += ' · ' + Number(miles).toFixed(2) + ' miles driven';
   }
   var fullNote = shiftSummary;
+
+  sendNtfyAlert('Clock Out — '+entry.name, shiftSummary, {tags:['checkered_flag']});
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
@@ -7481,6 +7553,8 @@ function sendFacilityCheckinEmail(entry, kind) {
   var flagNote  = entry.distanceFlag === 'flagged'
     ? ' ⚠ GPS was ' + entry.distanceMi + ' mi from the facility.'
     : '';
+
+  sendNtfyAlert(label + ' — ' + entry.name, (entry.facility || '') + flagNote, {tags:[isArrival ? 'round_pushpin' : 'car']});
 
   try { emailjs.init({publicKey: publicKey}); } catch(e){}
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
