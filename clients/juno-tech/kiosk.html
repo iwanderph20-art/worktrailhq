@@ -436,7 +436,11 @@ video{object-fit:cover;transform:scaleX(-1);}
       <!-- Fallback picker — revealed only if the employee is NOT at the scheduled facility -->
       <div id="qFacFallback" style="display:none;">
         <p class="text-xs font-semibold block mb-2" style="color:#6b7280;">Select where you&rsquo;re working:</p>
-        <div id="qFacFallbackList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button type="button" id="qFacDropdownToggle" onclick="toggleFacilityFallbackList()" class="tap w-full" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;text-align:left;">
+          <span id="qFacDropdownLabel" style="font-size:14px;font-weight:600;color:#9ca3af;">Choose a location&hellip;</span>
+          <span id="qFacDropdownCaret" style="font-size:11px;color:#9ca3af;transition:transform .15s;">&#9660;</span>
+        </button>
+        <div id="qFacFallbackList" style="display:none;flex-direction:column;gap:8px;margin-top:8px;"></div>
         <input id="qFacOther" type="text" placeholder="Describe other location…" class="inp" style="font-size:13px;display:none;margin-top:8px;">
         <button id="qOtherContinueBtn" onclick="proceedToClockInPhoto()" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="display:none;margin-top:8px;background:linear-gradient(135deg,#1a2b8c,#2d44cc);color:#fff;border:none;cursor:pointer;">Continue to Photo &rarr;</button>
       </div>
@@ -2320,6 +2324,29 @@ function showFacilityFallback(){
   if (fb) fb.style.display = '';
   var qfo=document.getElementById('qFacOther'); if(qfo) qfo.style.display='none';
   var qoc=document.getElementById('qOtherContinueBtn'); if(qoc) qoc.style.display='none';
+  closeFacilityFallbackList();
+  var lbl = document.getElementById('qFacDropdownLabel');
+  if (lbl){ lbl.textContent = 'Choose a location…'; lbl.style.color = '#9ca3af'; }
+}
+// The location list starts collapsed — tapping the toggle reveals it (dropdown-style)
+// instead of dumping every facility on screen at once.
+function toggleFacilityFallbackList(){
+  var list = document.getElementById('qFacFallbackList');
+  if (!list) return;
+  var open = list.style.display !== 'none';
+  open ? closeFacilityFallbackList() : openFacilityFallbackList();
+}
+function openFacilityFallbackList(){
+  var list = document.getElementById('qFacFallbackList');
+  var caret = document.getElementById('qFacDropdownCaret');
+  if (list) list.style.display = 'flex';
+  if (caret) caret.style.transform = 'rotate(180deg)';
+}
+function closeFacilityFallbackList(){
+  var list = document.getElementById('qFacFallbackList');
+  var caret = document.getElementById('qFacDropdownCaret');
+  if (list) list.style.display = 'none';
+  if (caret) caret.style.transform = '';
 }
 function _renderFacilityFallbackList(){
   var list = document.getElementById('qFacFallbackList');
@@ -2334,6 +2361,9 @@ function _renderFacilityFallbackList(){
   }).join('');
 }
 function pickFallbackFacility(f){
+  closeFacilityFallbackList();
+  var lbl = document.getElementById('qFacDropdownLabel');
+  if (lbl){ lbl.textContent = f; lbl.style.color = '#111827'; }
   if (f === 'Others'){
     qSelectedFacs = ['Others'];
     var qfo=document.getElementById('qFacOther'); if(qfo){ qfo.style.display=''; qfo.focus(); }
@@ -6096,8 +6126,8 @@ function repairPhotoSync() {
 
 /* ── Facility selector ───────────────────── */
 var FACILITIES = [
-  'SDI Lab','Sunshine ALF','Juno Tech Lab',
-  'Anew Direction Adult Living','Westside Manor','Parkview Manor','Gilmar Manor','LADMC','Yucca Valley Facility','Palmdale','Pasa Alta Manor','Others'
+  'Sunshine ALF','Juno Tech Lab',
+  'Westside Manor','Parkview Manor','Gilmar Manor','Yucca Valley Facility','Pasa Alta Manor','Others'
 ];
 var selectedFacilities = [];
 function renderFacilityPills() {
