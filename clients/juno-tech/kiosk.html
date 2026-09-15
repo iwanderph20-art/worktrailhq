@@ -1856,17 +1856,40 @@ function captureFacilityArrivalPhoto() {
   _pendingArrivalFacility = null;
   _submitFacilityArrival(facility, photo);
 }
+// How far (in miles) a facility Arrival/Departure GPS reading may be from that
+// facility's saved map pin before it's flagged for admin review. Generous
+// enough to absorb normal phone GPS drift and large campus buildings.
+var FACILITY_CHECKIN_MAX_MI = 0.5;
+// Compares the phleb's current GPS fix (if any) against the facility's saved
+// location (if the admin has set one on the Facility Map). Returns a small,
+// stable snapshot stored directly on the entry — recomputing later from a
+// since-edited facility pin would silently rewrite history, so we freeze it
+// at check-in time instead:
+//   {status:'ok'|'flagged', distanceMi}   — GPS + facility pin both known
+//   {status:'no_gps'}                     — employee's location wasn't available
+//   {status:'unknown'}                    — facility has no map pin on file yet
+function _facilityDistanceFlag(facility, loc) {
+  if (!loc || loc.lat == null || loc.lng == null) return {status:'no_gps'};
+  var fac = (typeof getFacilityLocations==='function') ? getFacilityLocations()[facility] : null;
+  if (!fac || fac.lat == null || fac.lng == null) return {status:'unknown'};
+  var mi = haversineMiles(loc.lat, loc.lng, fac.lat, fac.lng);
+  return {status: mi <= FACILITY_CHECKIN_MAX_MI ? 'ok' : 'flagged', distanceMi: Math.round(mi*100)/100};
+}
 function _submitFacilityArrival(facility, photo) {
   if (!currentEmp) return;
   var ts = new Date().toISOString();
   var empCode = currentEmp.code || currentEmp.name;
-  var entry = {name:currentEmp.name, type:'arrival', ts:ts, facility:facility, note:'Arrived at '+facility, empId:empCode, hasPhoto:!!photo};
+  var loc = currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null;
+  var flag = _facilityDistanceFlag(facility, loc);
+  var entry = {name:currentEmp.name, type:'arrival', ts:ts, facility:facility, note:'Arrived at '+facility, empId:empCode,
+               hasPhoto:!!photo, location:loc, distanceFlag:flag.status, distanceMi:flag.distanceMi};
   if (photo) savePhoto(ts, photo);
   var arr = store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet', ts, entry);
   logAdminAction('FACILITY_ARRIVAL', currentEmp.name+' (ID: '+empCode+') arrived at '+facility+' at '
     + new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
-    + (photo ? ' (photo confirmed)' : ' (no photo — camera unavailable)'));
+    + (photo ? ' (photo confirmed)' : ' (no photo — camera unavailable)')
+    + (flag.status==='flagged' ? ' — ⚠ GPS was '+flag.distanceMi+' mi from the facility' : ''));
   renderEmpState(); updateTodaySummary();
   toast('Arrival logged — ' + facility);
 }
@@ -1874,11 +1897,15 @@ function markDeparture(facility) {
   if (!currentEmp) return;
   var ts = new Date().toISOString();
   var empCode = currentEmp.code || currentEmp.name;
-  var entry = {name:currentEmp.name, type:'departure', ts:ts, facility:facility, note:'Departed '+facility, empId:empCode};
+  var loc = currentLocation ? {lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy} : null;
+  var flag = _facilityDistanceFlag(facility, loc);
+  var entry = {name:currentEmp.name, type:'departure', ts:ts, facility:facility, note:'Departed '+facility, empId:empCode,
+               location:loc, distanceFlag:flag.status, distanceMi:flag.distanceMi};
   var arr = store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet', ts, entry);
   logAdminAction('FACILITY_DEPARTURE', currentEmp.name+' (ID: '+empCode+') departed '+facility+' at '
-    + new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
+    + new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
+    + (flag.status==='flagged' ? ' — ⚠ GPS was '+flag.distanceMi+' mi from the facility' : ''));
   renderEmpState(); updateTodaySummary();
   toast('Departure logged — ' + facility);
 }
@@ -2983,7 +3010,7 @@ function renderEmpLogs() {
       if (range) { var d = new Date(e.ts); return d >= range.from && d <= range.to; }
       return true;
     })
-    .map(function(e) { return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||'',mileage:e.mileage!=null?e.mileage:null}; })
+    .map(function(e) { return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||'',mileage:e.mileage!=null?e.mileage:null,distanceFlag:e.distanceFlag||null,distanceMi:e.distanceMi!=null?e.distanceMi:null}; })
     .sort(function(a,b) { return a._d - b._d; });
   var sessions = buildSessions(allEntries);
 
@@ -5217,13 +5244,17 @@ function buildSessions(entries) {
       mileage = (e.mileage != null) ? e.mileage : null;
     }
     else if(e.type==='arrival' && inTime){
-      stops.push({facility:e.facility||'', arrivedTs:e.ts, departedTs:null});
+      stops.push({facility:e.facility||'', arrivedTs:e.ts, departedTs:null,
+                   arriveFlag:e.distanceFlag||null, arriveDistanceMi:e.distanceMi!=null?e.distanceMi:null,
+                   departFlag:null, departDistanceMi:null});
     }
     else if(e.type==='departure' && inTime){
       var openStop=null;
       for (var si=stops.length-1; si>=0; si--) { if (stops[si].facility===(e.facility||'') && !stops[si].departedTs) { openStop=stops[si]; break; } }
-      if (openStop) openStop.departedTs = e.ts;
-      else stops.push({facility:e.facility||'', arrivedTs:null, departedTs:e.ts});
+      if (openStop) { openStop.departedTs = e.ts; openStop.departFlag=e.distanceFlag||null; openStop.departDistanceMi=e.distanceMi!=null?e.distanceMi:null; }
+      else stops.push({facility:e.facility||'', arrivedTs:null, departedTs:e.ts,
+                        arriveFlag:null, arriveDistanceMi:null,
+                        departFlag:e.distanceFlag||null, departDistanceMi:e.distanceMi!=null?e.distanceMi:null});
     }
     else if(e.type==='break_start'){
       bst=e._d;
@@ -5293,7 +5324,7 @@ function openEmpDetail(name) {
   document.getElementById('detailEmpCode').textContent = 'Code: '+emp.code;
   var allEntries = store.getJ(K.timesheet,[])
     .filter(function(e){ return e.name===name; })
-    .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||''}; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||'',distanceFlag:e.distanceFlag||null,distanceMi:e.distanceMi!=null?e.distanceMi:null}; })
     .sort(function(a,b){ return a._d-b._d; });
   var sessions=buildSessions(allEntries);
   var totalHrs=0, totalBrkMs=0, days={};
@@ -5397,7 +5428,8 @@ function _doGenerateReport(fromStr,toStr,empFilter){
   ts.forEach(function(e){
     if(!grouped[e.name]) grouped[e.name]=[];
     grouped[e.name].push({type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',
-      breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||''});
+      breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||'',
+      distanceFlag:e.distanceFlag||null,distanceMi:e.distanceMi!=null?e.distanceMi:null});
   });
   Object.keys(grouped).forEach(function(n){ grouped[n].sort(function(a,b){ return a._d-b._d; }); });
   var empStats={};
@@ -5513,7 +5545,11 @@ function _doGenerateReport(fromStr,toStr,empFilter){
             var draw=(s.arrivedTs&&s.departedTs)?' &middot; '+fmtHrs((new Date(s.departedTs)-new Date(s.arrivedTs))/3600000)+' draw':'';
             var a=s.arrivedTs?fmtT(new Date(s.arrivedTs)):'—';
             var d=s.departedTs?fmtT(new Date(s.departedTs)):(s.arrivedTs?'still there':'—');
-            return '<div style="display:flex;justify-content:space-between;gap:8px;"><span>'+(s.facility||'Facility')+'</span><span style="color:#6b7280;">'+a+' &rarr; '+d+draw+'</span></div>';
+            var flagBits=[];
+            if(s.arriveFlag==='flagged') flagBits.push('arrival '+s.arriveDistanceMi+' mi away');
+            if(s.departFlag==='flagged') flagBits.push('departure '+s.departDistanceMi+' mi away');
+            var flagLine = flagBits.length ? '<div style="color:#dc2626;font-weight:600;">&#9888; '+flagBits.join(', ')+'</div>' : '';
+            return '<div><div style="display:flex;justify-content:space-between;gap:8px;"><span>'+(s.facility||'Facility')+'</span><span style="color:#6b7280;">'+a+' &rarr; '+d+draw+'</span></div>'+flagLine+'</div>';
           }).join('');
         }
         // Photo buttons (load from IndexedDB on click)
@@ -5594,7 +5630,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091502;
+var APP_BUILD = 2026091503;
 var APP_VERSION_LABEL = 'Sep 15, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
@@ -8161,6 +8197,7 @@ function renderPaycheck(result, fromStr, toStr) {
     var _mos = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var _tf  = {hour:'numeric',minute:'2-digit',hour12:true};
     var _rows = '';
+    var totalFlagged = 0;
     result.sessions.forEach(function(s) {
       if (!s.inTs || !s.outTs) return;
       var dt = new Date(s.inTs);
@@ -8173,11 +8210,27 @@ function renderPaycheck(result, fromStr, toStr) {
         +' → '+new Date(s.outTs).toLocaleTimeString('en-US',_tf)+_miTag+'</span>'
         +'<span style="font-weight:600;">'+fmtHrs(hrs)+'</span>'
         +'</div>';
+      // Facility check-ins whose GPS reading landed outside the expected range
+      // of the facility's saved map pin — surfaced here so admin doesn't have
+      // to cross-check timestamps against a map by hand.
+      (s.stops||[]).forEach(function(st){
+        var badges = [];
+        if (st.arriveFlag==='flagged') badges.push('Arrival '+st.arriveDistanceMi+' mi away');
+        if (st.departFlag==='flagged') badges.push('Departure '+st.departDistanceMi+' mi away');
+        if (badges.length) {
+          totalFlagged++;
+          _rows += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#b91c1c;padding:2px 0 4px;background:#fef2f2;border-radius:6px;padding-left:6px;">'
+            +'<span>&#9888; '+(st.facility||'Facility')+' — '+badges.join(', ')+'</span>'
+            +'</div>';
+        }
+      });
     });
     if (_rows) {
       var _cnt = result.sessions.filter(function(s){return s.inTs&&s.outTs;}).length;
       sessBreakdown = '<div style="margin:2px 0 8px;border-top:1px solid #f3f4f6;padding-top:4px;">'
-        +'<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin:0 0 4px;">Shifts ('+ _cnt+')</p>'
+        +'<p style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin:0 0 4px;">Shifts ('+ _cnt+')'
+        +(totalFlagged?' &nbsp;<span style="color:#dc2626;">&#9888; '+totalFlagged+' check-in'+(totalFlagged!==1?'s':'')+' outside range</span>':'')
+        +'</p>'
         +_rows+'</div>';
     }
   }
@@ -8466,9 +8519,18 @@ function runPayroll() {
         cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1,
                travelHours: e.travelHours != null ? e.travelHours : null,
                drawHours:   e.drawHours   != null ? e.drawHours   : null,
-               mealMs: 0};
+               mealMs: 0, stops: []};
         sessions.push(cur);
         bst = null;
+      }
+      else if (e.type === 'arrival' && cur) {
+        cur.stops.push({facility:e.facility||'', _open:true, arriveFlag:e.distanceFlag||null, arriveDistanceMi:e.distanceMi!=null?e.distanceMi:null, departFlag:null, departDistanceMi:null});
+      }
+      else if (e.type === 'departure' && cur) {
+        var openStop=null;
+        for (var si=cur.stops.length-1; si>=0; si--) { if (cur.stops[si].facility===(e.facility||'') && cur.stops[si]._open) { openStop=cur.stops[si]; break; } }
+        if (openStop) { openStop._open=false; openStop.departFlag=e.distanceFlag||null; openStop.departDistanceMi=e.distanceMi!=null?e.distanceMi:null; }
+        else cur.stops.push({facility:e.facility||'', _open:false, arriveFlag:null, arriveDistanceMi:null, departFlag:e.distanceFlag||null, departDistanceMi:e.distanceMi!=null?e.distanceMi:null});
       }
       else if (e.type === 'break_start' && cur) {
         bst = new Date(e.ts);
