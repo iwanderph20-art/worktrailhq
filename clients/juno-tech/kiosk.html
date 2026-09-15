@@ -1610,7 +1610,13 @@ function enterEmpView() {
   repairPhotoSync(); // silently re-push any photos that didn't make it to Firebase
 }
 function lockEmployee() {
-  stopCamera(); stopBreakTimer(); stopApprovalPoll(); stopLocationWatch();
+  // Stop whichever camera is actually active — the shift Clock In/Out one, or
+  // the Facility Arrival one if a check-in capture was in progress — so the
+  // stream is released and its video element doesn't keep pointing at a dead
+  // stream on next use.
+  stopCamera('camPreview'); stopCamera('facilityCamPreview');
+  _pendingArrivalFacility = null;
+  stopBreakTimer(); stopApprovalPoll(); stopLocationWatch();
   releaseScreenWakeLock(); // let the phone sleep again
   clearFirebaseLocation(); // remove live location from Firebase
   var pill=document.getElementById('locationPill'); if(pill) pill.style.display='none';
@@ -1786,6 +1792,16 @@ function _facilityStopStatuses(lastInEntry) {
 // Card markup: a status row per stop, plus one primary button for whichever
 // action (arrive/depart) is next. Returns '' when the shift has no facility
 // stops to check into (e.g. lab-only shift).
+// HTML-escapes text for safe use in element content AND inside a
+// double-quoted HTML attribute (including one that itself contains a
+// single-quoted JS string, e.g. onclick="fn('...')") — the browser decodes
+// all of these entities before handing the attribute to the JS engine, so a
+// facility name can't break out of the markup or inject a new attribute.
+function _escHtml(s) {
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function _facilityCheckHtml(lastInEntry) {
   var stops = _facilityStopStatuses(lastInEntry);
   if (!stops.length) return '';
@@ -1801,16 +1817,17 @@ function _facilityCheckHtml(lastInEntry) {
       : 'Not yet arrived';
     var color = s.departedTs ? '#6b7280' : s.arrivedTs ? '#15803d' : '#9ca3af';
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;'+(idx>0?'border-top:1px solid #f3f4f6;':'')+'">'
-      + '<span style="font-size:12px;font-weight:600;color:#374151;">'+s.facility+'</span>'
+      + '<span style="font-size:12px;font-weight:600;color:#374151;">'+_escHtml(s.facility)+'</span>'
       + '<span style="font-size:11px;font-weight:700;color:'+color+';white-space:nowrap;">'+status+'</span>'
       + '</div>';
   }).join('');
   var actionBtn = '';
   if (next) {
-    var facArg = "'" + _jsStr(next.stop.facility) + "'";
+    var facArg = _escHtml("'" + _jsStr(next.stop.facility) + "'");
+    var facLabel = _escHtml(next.stop.facility);
     actionBtn = (next.action==='arrive')
-      ? '<button onclick="markArrival('+facArg+')" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#15803d;color:#fff;border:none;cursor:pointer;margin-top:6px;">&#128205; Arrived at '+next.stop.facility+'</button>'
-      : '<button onclick="markDeparture('+facArg+')" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#b45309;color:#fff;border:none;cursor:pointer;margin-top:6px;">&#128667; Departed '+next.stop.facility+'</button>';
+      ? '<button onclick="markArrival('+facArg+')" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#15803d;color:#fff;border:none;cursor:pointer;margin-top:6px;">&#128205; Arrived at '+facLabel+'</button>'
+      : '<button onclick="markDeparture('+facArg+')" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#b45309;color:#fff;border:none;cursor:pointer;margin-top:6px;">&#128667; Departed '+facLabel+'</button>';
   }
   return '<div style="background:#fff;border-radius:16px;padding:14px 16px;margin-top:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);">'
     + '<p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Facility Check-In / Check-Out</p>'
@@ -1909,38 +1926,87 @@ function markDeparture(facility) {
   renderEmpState(); updateTodaySummary();
   toast('Departure logged — ' + facility);
 }
+// ── Shared arrival/departure → per-facility "stop" pairing ──────────────────
+// Used by buildSessions (My Logs/admin quick views), buildSessMap (payroll's
+// paycheck breakdown), and _computeAutoTravelDraw (the actual $ calculation)
+// so a departure is always matched to its arrival the SAME way everywhere —
+// what the admin sees on screen can never disagree with what was paid.
+function _pushStopArrival(stops, e) {
+  stops.push({facility:e.facility||'', arrivedTs:e.ts, departedTs:null,
+              arriveFlag:e.distanceFlag||null, arriveDistanceMi:e.distanceMi!=null?e.distanceMi:null,
+              departFlag:null, departDistanceMi:null});
+}
+function _pushStopDeparture(stops, e) {
+  var open=null;
+  for (var i=stops.length-1;i>=0;i--){ if (stops[i].facility===(e.facility||'') && !stops[i].departedTs) { open=stops[i]; break; } }
+  if (open) { open.departedTs=e.ts; open.departFlag=e.distanceFlag||null; open.departDistanceMi=e.distanceMi!=null?e.distanceMi:null; }
+  else stops.push({facility:e.facility||'', arrivedTs:null, departedTs:e.ts,
+                    arriveFlag:null, arriveDistanceMi:null,
+                    departFlag:e.distanceFlag||null, departDistanceMi:e.distanceMi!=null?e.distanceMi:null});
+}
 // Auto-calculates the shift's travel/draw hours split from Arrival/Departure
-// check-ins: travel = gaps between clock-in/departure and the next arrival;
-// draw = time actually spent at each facility (arrival → departure). If the
-// phleb never logged a departure for a stop (still there at clock-out), the
-// remaining time counts as draw. Returns null when no check-ins were logged
-// for the shift, so the admin's manual split (if any) is left untouched.
-function _computeAutoTravelDraw(clockInTs, clockOutTs) {
-  if (!currentEmp) return null;
+// check-ins, using the exact same stop-pairing as the admin-facing displays
+// (see above) so the two can't diverge. travel = gaps between clock-in/the
+// previous stop and the next arrival; draw = time attributed to a facility
+// (arrival → departure, or arrival → the next stop/clock-out if a departure
+// was never logged — there's no evidence of travel without one). Also nets
+// out any paid/unpaid break time logged during the shift, since a break
+// isn't real travel or draw time either way. Returns null when no check-ins
+// were logged for the shift, so the admin's manual split (if any) is left
+// untouched.
+function _computeAutoTravelDraw(empName, clockInTs, clockOutTs) {
   var events = store.getJ(K.timesheet,[]).filter(function(e){
-    return e.name===currentEmp.name && (e.type==='arrival'||e.type==='departure')
+    return e.name===empName && (e.type==='arrival'||e.type==='departure')
       && new Date(e.ts) >= new Date(clockInTs) && new Date(e.ts) <= new Date(clockOutTs);
   }).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
   if (!events.length) return null;
-  var travelMs=0, drawMs=0, cursor=new Date(clockInTs), openArrival=null;
-  events.forEach(function(e){
-    var t=new Date(e.ts);
-    if (e.type==='arrival') { travelMs += Math.max(0, t-cursor); openArrival=t; cursor=t; }
-    else { if (openArrival) { drawMs += Math.max(0, t-openArrival); openArrival=null; } cursor=t; }
+  var stops = [];
+  events.forEach(function(e){ if (e.type==='arrival') _pushStopArrival(stops, e); else _pushStopDeparture(stops, e); });
+  var travelMs=0, drawMs=0, cursor=new Date(clockInTs);
+  stops.forEach(function(s, idx){
+    var arrive = s.arrivedTs ? new Date(s.arrivedTs) : null;
+    var depart = s.departedTs ? new Date(s.departedTs) : null;
+    if (arrive) { travelMs += Math.max(0, arrive-cursor); cursor = arrive; }
+    if (depart) { drawMs += Math.max(0, depart-cursor); cursor = depart; }
+    else if (arrive) {
+      // Never departed — attribute the time up to the next stop (or clock-out)
+      // to draw instead of silently losing it: there's no evidence they were
+      // traveling without a logged departure.
+      var next = stops[idx+1];
+      var until = next ? new Date(next.arrivedTs || next.departedTs) : new Date(clockOutTs);
+      drawMs += Math.max(0, until-cursor);
+      cursor = until;
+    }
   });
-  if (openArrival) { drawMs += Math.max(0, new Date(clockOutTs)-openArrival); }
-  else { travelMs += Math.max(0, new Date(clockOutTs)-cursor); }
+  travelMs += Math.max(0, new Date(clockOutTs)-cursor);
+  // Breaks aren't travel time either way — net them out of the travel bucket.
+  // (They don't need to come out of draw too: payroll always derives paid
+  // draw hours as hoursWorked − travelHours, and hoursWorked already excludes
+  // unpaid meal time, so correcting travel here is what actually matters.)
+  var breakMs = 0, openBreak = null;
+  store.getJ(K.timesheet,[]).filter(function(e){
+    return e.name===empName && (e.type==='break_start'||e.type==='break_end')
+      && new Date(e.ts) >= new Date(clockInTs) && new Date(e.ts) <= new Date(clockOutTs);
+  }).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }).forEach(function(e){
+    if (e.type==='break_start') openBreak = new Date(e.ts);
+    else if (openBreak) { breakMs += Math.max(0, new Date(e.ts)-openBreak); openBreak=null; }
+  });
+  travelMs = Math.max(0, travelMs - breakMs);
   return {
     travelHours: Math.round((travelMs/3600000)*100)/100,
     drawHours:   Math.round((drawMs/3600000)*100)/100
   };
 }
 // Writes the auto-computed split onto the shift's clock-in entry (the same
-// travelHours/drawHours fields the admin's manual Edit Entry form uses) —
-// only when the admin hasn't already set a manual split for this shift.
+// travelHours/drawHours fields the admin's manual Edit Entry form uses).
+// Recomputes and overwrites every time it's called UNLESS the admin has
+// explicitly set the split by hand (autoTimeSplit === false) — so correcting
+// an arrival/departure timestamp after the fact (see _recomputeAutoTravelDrawNear)
+// actually updates the paycheck instead of leaving it frozen at whatever was
+// true at clock-out.
 function _applyAutoTravelDraw(clockInEntry, clockOutTs) {
-  if (!clockInEntry || clockInEntry.travelHours != null || clockInEntry.drawHours != null) return;
-  var split = _computeAutoTravelDraw(clockInEntry.ts, clockOutTs);
+  if (!clockInEntry || clockInEntry.autoTimeSplit === false) return;
+  var split = _computeAutoTravelDraw(clockInEntry.name, clockInEntry.ts, clockOutTs);
   if (!split) return;
   var all = store.getJ(K.timesheet,[]);
   for (var i=0;i<all.length;i++){
@@ -1954,7 +2020,29 @@ function _applyAutoTravelDraw(clockInEntry, clockOutTs) {
     }
   }
 }
+// Re-syncs a shift's stored travel/draw split after an admin edits a Clock In,
+// Facility Arrival, or Facility Departure entry that could change it — without
+// this, a corrected timestamp would leave the paycheck showing a stale split
+// computed at the original clock-out time.
+function _recomputeAutoTravelDrawNear(empName, aroundTs) {
+  var recs = store.getJ(K.timesheet, []).filter(function(e){ return e.name === empName; })
+    .sort(function(a,b){ return new Date(a.ts) - new Date(b.ts); });
+  var aroundMs = new Date(aroundTs).getTime();
+  var clockInEntry = null;
+  for (var i = recs.length - 1; i >= 0; i--) {
+    if (recs[i].type === 'in' && new Date(recs[i].ts).getTime() <= aroundMs) { clockInEntry = recs[i]; break; }
+  }
+  if (!clockInEntry) return;
+  var outTs = _pairedOutTsForIn(empName, clockInEntry.ts);
+  if (!outTs) return; // shift still open — the split will be computed at clock-out
+  _applyAutoTravelDraw(clockInEntry, outTs);
+}
 function renderEmpState() {
+  // Never tear down an in-progress facility Arrival photo capture — the 30s
+  // live-state poll (and other triggers) call this while the camera panel is
+  // open, and rebuilding the main card mid-capture would yank the UI away and
+  // leave the camera stream running with nothing on screen using it.
+  if (_pendingArrivalFacility) return;
   var badge    = document.getElementById('statusBadge');
   var since    = document.getElementById('clockedSince');
   var clockBtn = document.getElementById('clockBtn');
@@ -2763,6 +2851,7 @@ function _finishStaleAutoBreak(bs, mins) {
   store.setJ(K.timesheet, arr);
   fbPut('timesheet', breakEndTs, beEntry);
   fbPut('timesheet', clockOutTs, outEntry);
+  if (clockInEntry) _applyAutoTravelDraw(clockInEntry, clockOutTs);
   fbPutState(currentEmp.name, 'out', clockOutTs);
   _autoClockOutAfterBreak = false; breakStart = null; breakMins = 0;
   logAdminAction('AUTO_CLOCK_OUT', currentEmp.name + ' (ID: ' + empCode + ') was automatically clocked out at '
@@ -4266,8 +4355,11 @@ function openEditEntry(ts) {
       ? 'Auto-calculated from the phleb’s facility Arrival/Departure check-ins. Enter a value below to override.'
       : 'Draw = shift duration − travel, calculated automatically.';
   }
-  // Load facilities
-  var storedFacs = entry.facilities || [];
+  // Load facilities — Facility Arrival/Departure entries key off the singular
+  // `facility` field, not the plural `facilities` array clock-in/out use.
+  var storedFacs = (entry.type === 'arrival' || entry.type === 'departure')
+    ? (entry.facility ? [entry.facility] : [])
+    : (entry.facilities || []);
   var knownFacs = storedFacs.filter(function(f){ return FACILITIES.indexOf(f) >= 0; });
   var otherFacs = storedFacs.filter(function(f){ return FACILITIES.indexOf(f) < 0; });
   editSelectedFacilities = knownFacs.slice();
@@ -4368,18 +4460,33 @@ function saveEditEntry() {
       }
       if (r.type === 'in') {
         var tRaw = document.getElementById('editTravelHours').value.trim();
-        r.travelHours = (tRaw !== '') ? (parseFloat(tRaw) || 0) : null;
+        var newTravelHours = (tRaw !== '') ? (parseFloat(tRaw) || 0) : null;
+        var oldTravelHours = (r.travelHours != null) ? r.travelHours : null;
+        if (newTravelHours !== oldTravelHours) {
+          // Admin actually changed the split value (not just re-saving the
+          // pre-filled auto number to touch an unrelated field) — from here
+          // on this shift's split is manually controlled and won't be
+          // silently recomputed from facility check-ins. Blanking the field
+          // reverts to auto so a future check-in-based recompute can fill it
+          // back in.
+          r.autoTimeSplit = (newTravelHours === null) ? undefined : false;
+        }
+        r.travelHours = newTravelHours;
         r.drawHours   = null; // draw is derived at payroll as (total − travel)
-        r.autoTimeSplit = false; // admin has now set this split manually
       }
       if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately under admin_{ts}; never overwrites employee photo
-      // Save updated facilities
+      // Save updated facilities — Facility Arrival/Departure entries key off
+      // the singular `facility` field, everything else uses the plural array.
       var facList = editSelectedFacilities.filter(function(f){ return f !== 'Others'; });
       var otherFacEl = document.getElementById('editFacOther');
       if (editSelectedFacilities.indexOf('Others') >= 0 && otherFacEl && otherFacEl.value.trim()) {
         facList.push(otherFacEl.value.trim());
       }
-      r.facilities = facList;
+      if (r.type === 'arrival' || r.type === 'departure') {
+        r.facility = facList.length ? facList[0] : (r.facility || '');
+      } else {
+        r.facilities = facList;
+      }
       found = true; updatedEntry = r;
     }
   });
@@ -4415,6 +4522,15 @@ function saveEditEntry() {
     }
   }
   fbPut('timesheet', newTs, updatedEntry);
+  // Editing a Clock In, Facility Arrival, or Facility Departure can change a
+  // shift's travel/draw split — recompute it now instead of leaving the
+  // paycheck showing whatever was true back at clock-out time. Recompute near
+  // both the original and (if moved) the new timestamp, in case the edit
+  // shifted the entry into a different shift entirely.
+  if (updatedEntry.type === 'in' || updatedEntry.type === 'arrival' || updatedEntry.type === 'departure') {
+    _recomputeAutoTravelDrawNear(updatedEntry.name, origTs);
+    if (dtChanged) _recomputeAutoTravelDrawNear(updatedEntry.name, newTs);
+  }
   // If this entry was the anchor for the employee's live clock state (i.e. they are
   // still clocked in / on break on another device), move the state pointer to the new
   // ts so that device honours the time change instead of clinging to the old ts.
@@ -5243,19 +5359,8 @@ function buildSessions(entries) {
       facilities=e.facilities||[];
       mileage = (e.mileage != null) ? e.mileage : null;
     }
-    else if(e.type==='arrival' && inTime){
-      stops.push({facility:e.facility||'', arrivedTs:e.ts, departedTs:null,
-                   arriveFlag:e.distanceFlag||null, arriveDistanceMi:e.distanceMi!=null?e.distanceMi:null,
-                   departFlag:null, departDistanceMi:null});
-    }
-    else if(e.type==='departure' && inTime){
-      var openStop=null;
-      for (var si=stops.length-1; si>=0; si--) { if (stops[si].facility===(e.facility||'') && !stops[si].departedTs) { openStop=stops[si]; break; } }
-      if (openStop) { openStop.departedTs = e.ts; openStop.departFlag=e.distanceFlag||null; openStop.departDistanceMi=e.distanceMi!=null?e.distanceMi:null; }
-      else stops.push({facility:e.facility||'', arrivedTs:null, departedTs:e.ts,
-                        arriveFlag:null, arriveDistanceMi:null,
-                        departFlag:e.distanceFlag||null, departDistanceMi:e.distanceMi!=null?e.distanceMi:null});
-    }
+    else if(e.type==='arrival' && inTime){ _pushStopArrival(stops, e); }
+    else if(e.type==='departure' && inTime){ _pushStopDeparture(stops, e); }
     else if(e.type==='break_start'){
       bst=e._d;
       bstAdminSet=!!(e.adminSet||e.reconstructed);
@@ -5630,7 +5735,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091504;
+var APP_BUILD = 2026091505;
 var APP_VERSION_LABEL = 'Sep 15, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
@@ -8522,15 +8627,8 @@ function runPayroll() {
         sessions.push(cur);
         bst = null;
       }
-      else if (e.type === 'arrival' && cur) {
-        cur.stops.push({facility:e.facility||'', _open:true, arriveFlag:e.distanceFlag||null, arriveDistanceMi:e.distanceMi!=null?e.distanceMi:null, departFlag:null, departDistanceMi:null});
-      }
-      else if (e.type === 'departure' && cur) {
-        var openStop=null;
-        for (var si=cur.stops.length-1; si>=0; si--) { if (cur.stops[si].facility===(e.facility||'') && cur.stops[si]._open) { openStop=cur.stops[si]; break; } }
-        if (openStop) { openStop._open=false; openStop.departFlag=e.distanceFlag||null; openStop.departDistanceMi=e.distanceMi!=null?e.distanceMi:null; }
-        else cur.stops.push({facility:e.facility||'', _open:false, arriveFlag:null, arriveDistanceMi:null, departFlag:e.distanceFlag||null, departDistanceMi:e.distanceMi!=null?e.distanceMi:null});
-      }
+      else if (e.type === 'arrival' && cur) { _pushStopArrival(cur.stops, e); }
+      else if (e.type === 'departure' && cur) { _pushStopDeparture(cur.stops, e); }
       else if (e.type === 'break_start' && cur) {
         bst = new Date(e.ts);
         brkType = e.breakType || (parseInt(e.note || 0) >= 30 ? 'meal' : 'rest');
