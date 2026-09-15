@@ -323,6 +323,9 @@ video{object-fit:cover;transform:scaleX(-1);}
       <!-- Voluntary break buttons — shown while clocked in (populated in renderEmpState) -->
       <div id="breakBtns" style="display:none;"></div>
     </div>
+    <!-- Facility Arrival / Departure check-in — shown while clocked in, one row per
+         facility selected at clock-in (populated in renderEmpState via _facilityCheckHtml) -->
+    <div id="facilityCheckWrap" style="display:none;"></div>
     <!-- Pending Approval Card -->
     <div id="pendingCard" class="glass rounded-3xl px-6 py-6 pending-pulse" style="display:none;">
       <div class="flex flex-col items-center text-center gap-4">
@@ -1042,6 +1045,8 @@ video{object-fit:cover;transform:scaleX(-1);}
           <option value="out">Clock Out</option>
           <option value="break_start">Break Start</option>
           <option value="break_end">Break End</option>
+          <option value="arrival">Facility Arrival</option>
+          <option value="departure">Facility Departure</option>
         </select>
       </div>
       <div>
@@ -1722,6 +1727,138 @@ function _breakBtnsHtml() {
     + '<button onclick="startBreak(30,\'meal\')" class="tap flex-1 py-3 rounded-2xl font-semibold text-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;cursor:pointer;">&#127859; 30-min Meal</button>'
     + '</div>';
 }
+
+/* ── Facility Arrival / Departure check-in ────────────────────────────────
+ * Per-stop timestamps for the current shift, separate from the shift-level
+ * Clock In/Out. "Arrived" logs entry into an ALF; "Departed" logs leaving it
+ * for the next stop (or the lab), so travel time (gaps between stops) and
+ * draw time (time actually spent at each facility) can be calculated from
+ * real timestamps instead of an admin's after-the-fact manual estimate. */
+// The facilities selected at clock-in, in the order the phleb picked them,
+// excluding the lab (which isn't a "draw" stop).
+function _facilityStopsForShift(lastInEntry) {
+  var facs = (lastInEntry && lastInEntry.facilities) ? lastInEntry.facilities : [];
+  return facs.filter(function(f){ return f !== 'Juno Tech Lab'; });
+}
+// Reconstructs each stop's arrival/departure timestamps (if any) from the
+// timesheet — reload-safe, same pattern as the break-recovery logic above.
+function _facilityStopStatuses(lastInEntry) {
+  var stops = _facilityStopsForShift(lastInEntry).map(function(f){ return {facility:f, arrivedTs:null, departedTs:null}; });
+  if (!lastInEntry || !stops.length || !currentEmp) return stops;
+  var events = store.getJ(K.timesheet,[]).filter(function(e){
+    return e.name===currentEmp.name && (e.type==='arrival'||e.type==='departure') && new Date(e.ts) >= new Date(lastInEntry.ts);
+  }).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+  events.forEach(function(e){
+    var stop=null;
+    for (var i=0;i<stops.length;i++){ if(stops[i].facility===e.facility){ stop=stops[i]; break; } }
+    if (!stop) return;
+    if (e.type==='arrival' && !stop.arrivedTs) stop.arrivedTs=e.ts;
+    else if (e.type==='departure' && !stop.departedTs) stop.departedTs=e.ts;
+  });
+  return stops;
+}
+// Card markup: a status row per stop, plus one primary button for whichever
+// action (arrive/depart) is next. Returns '' when the shift has no facility
+// stops to check into (e.g. lab-only shift).
+function _facilityCheckHtml(lastInEntry) {
+  var stops = _facilityStopStatuses(lastInEntry);
+  if (!stops.length) return '';
+  var fmtT = function(ts){ return new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); };
+  var next = null;
+  for (var i=0;i<stops.length;i++){
+    if (!stops[i].arrivedTs) { next={stop:stops[i],action:'arrive'}; break; }
+    if (!stops[i].departedTs) { next={stop:stops[i],action:'depart'}; break; }
+  }
+  var rows = stops.map(function(s, idx){
+    var status = s.departedTs ? ('Departed ' + fmtT(s.departedTs))
+      : s.arrivedTs ? ('Arrived ' + fmtT(s.arrivedTs) + ' — drawing')
+      : 'Not yet arrived';
+    var color = s.departedTs ? '#6b7280' : s.arrivedTs ? '#15803d' : '#9ca3af';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;'+(idx>0?'border-top:1px solid #f3f4f6;':'')+'">'
+      + '<span style="font-size:12px;font-weight:600;color:#374151;">'+s.facility+'</span>'
+      + '<span style="font-size:11px;font-weight:700;color:'+color+';white-space:nowrap;">'+status+'</span>'
+      + '</div>';
+  }).join('');
+  var actionBtn = '';
+  if (next) {
+    var facArg = "'" + _jsStr(next.stop.facility) + "'";
+    actionBtn = (next.action==='arrive')
+      ? '<button onclick="markArrival('+facArg+')" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#15803d;color:#fff;border:none;cursor:pointer;margin-top:6px;">&#128205; Arrived at '+next.stop.facility+'</button>'
+      : '<button onclick="markDeparture('+facArg+')" class="tap w-full py-3 rounded-2xl font-bold text-sm" style="background:#b45309;color:#fff;border:none;cursor:pointer;margin-top:6px;">&#128667; Departed '+next.stop.facility+'</button>';
+  }
+  return '<div style="background:#fff;border-radius:16px;padding:14px 16px;margin-top:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);">'
+    + '<p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Facility Check-In / Check-Out</p>'
+    + rows + actionBtn + '</div>';
+}
+function markArrival(facility) {
+  if (!currentEmp) return;
+  var ts = new Date().toISOString();
+  var empCode = currentEmp.code || currentEmp.name;
+  var entry = {name:currentEmp.name, type:'arrival', ts:ts, facility:facility, note:'Arrived at '+facility, empId:empCode};
+  var arr = store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
+  fbPut('timesheet', ts, entry);
+  logAdminAction('FACILITY_ARRIVAL', currentEmp.name+' (ID: '+empCode+') arrived at '+facility+' at '
+    + new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
+  renderEmpState(); updateTodaySummary();
+  toast('Arrival logged — ' + facility);
+}
+function markDeparture(facility) {
+  if (!currentEmp) return;
+  var ts = new Date().toISOString();
+  var empCode = currentEmp.code || currentEmp.name;
+  var entry = {name:currentEmp.name, type:'departure', ts:ts, facility:facility, note:'Departed '+facility, empId:empCode};
+  var arr = store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
+  fbPut('timesheet', ts, entry);
+  logAdminAction('FACILITY_DEPARTURE', currentEmp.name+' (ID: '+empCode+') departed '+facility+' at '
+    + new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
+  renderEmpState(); updateTodaySummary();
+  toast('Departure logged — ' + facility);
+}
+// Auto-calculates the shift's travel/draw hours split from Arrival/Departure
+// check-ins: travel = gaps between clock-in/departure and the next arrival;
+// draw = time actually spent at each facility (arrival → departure). If the
+// phleb never logged a departure for a stop (still there at clock-out), the
+// remaining time counts as draw. Returns null when no check-ins were logged
+// for the shift, so the admin's manual split (if any) is left untouched.
+function _computeAutoTravelDraw(clockInTs, clockOutTs) {
+  if (!currentEmp) return null;
+  var events = store.getJ(K.timesheet,[]).filter(function(e){
+    return e.name===currentEmp.name && (e.type==='arrival'||e.type==='departure')
+      && new Date(e.ts) >= new Date(clockInTs) && new Date(e.ts) <= new Date(clockOutTs);
+  }).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+  if (!events.length) return null;
+  var travelMs=0, drawMs=0, cursor=new Date(clockInTs), openArrival=null;
+  events.forEach(function(e){
+    var t=new Date(e.ts);
+    if (e.type==='arrival') { travelMs += Math.max(0, t-cursor); openArrival=t; cursor=t; }
+    else { if (openArrival) { drawMs += Math.max(0, t-openArrival); openArrival=null; } cursor=t; }
+  });
+  if (openArrival) { drawMs += Math.max(0, new Date(clockOutTs)-openArrival); }
+  else { travelMs += Math.max(0, new Date(clockOutTs)-cursor); }
+  return {
+    travelHours: Math.round((travelMs/3600000)*100)/100,
+    drawHours:   Math.round((drawMs/3600000)*100)/100
+  };
+}
+// Writes the auto-computed split onto the shift's clock-in entry (the same
+// travelHours/drawHours fields the admin's manual Edit Entry form uses) —
+// only when the admin hasn't already set a manual split for this shift.
+function _applyAutoTravelDraw(clockInEntry, clockOutTs) {
+  if (!clockInEntry || clockInEntry.travelHours != null || clockInEntry.drawHours != null) return;
+  var split = _computeAutoTravelDraw(clockInEntry.ts, clockOutTs);
+  if (!split) return;
+  var all = store.getJ(K.timesheet,[]);
+  for (var i=0;i<all.length;i++){
+    if (all[i].name===clockInEntry.name && String(all[i].ts)===String(clockInEntry.ts)) {
+      all[i].travelHours = split.travelHours;
+      all[i].drawHours = split.drawHours;
+      all[i].autoTimeSplit = true;
+      store.setJ(K.timesheet, all);
+      fbPut('timesheet', all[i].ts, all[i]);
+      break;
+    }
+  }
+}
 function renderEmpState() {
   var badge    = document.getElementById('statusBadge');
   var since    = document.getElementById('clockedSince');
@@ -1732,13 +1869,22 @@ function renderEmpState() {
   var camWrap  = document.getElementById('camWrap');
   var pendingCard  = document.getElementById('pendingCard');
   var approvedNotice = document.getElementById('approvedNotice');
+  var facilityCheckWrap = document.getElementById('facilityCheckWrap');
 
   // Hide all first
   [mainCard,breakCard,camWrap,pendingCard,approvedNotice].forEach(function(el){ if(el) el.style.display='none'; });
   since.style.display='none'; breakBtns.style.display='none';
+  if (facilityCheckWrap) facilityCheckWrap.style.display='none';
   // Restore the My Logs card (hidden during the clock-in/out flow)
   var _ml=document.getElementById('myLogsBtn'); if(_ml) _ml.style.display='';
   var mp2=document.getElementById('mileagePill'); if(mp2) mp2.style.display='none';
+  // Active clock-in for this shift — feeds both the "since" timestamp and the
+  // facility Arrival/Departure card below (needs the shift's selected facilities).
+  var _lastInEntry = null;
+  if (currentEmp) {
+    store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; })
+      .forEach(function(e){ if(e.type==='in') _lastInEntry=e; });
+  }
 
   if (clockState==='out') {
     stopLiveStatePoll();
@@ -1756,18 +1902,18 @@ function renderEmpState() {
     breakBtns.style.display='';
     var mp3=document.getElementById('mileagePill'); if(mp3) mp3.style.display = mileageTracking ? '' : 'none';
     if(mileageTracking) updateMileagePill();
+    if (facilityCheckWrap) { var fch3=_facilityCheckHtml(_lastInEntry); if (fch3) { facilityCheckWrap.innerHTML=fch3; facilityCheckWrap.style.display=''; } }
   } else if (clockState==='in') {
     startLiveStatePoll();
     badge.textContent='Clocked In ✓'; badge.className='b-in text-xs font-semibold px-3 py-1 rounded-full';
-    var entries = store.getJ(K.timesheet,[]).filter(function(e){ return e.name===currentEmp.name; });
-    var lastIn = null;
-    entries.forEach(function(e){ if(e.type==='in') lastIn=e; });
-    if (lastIn) { since.textContent='since '+new Date(lastIn.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); since.style.display=''; }
+    if (_lastInEntry) { since.textContent='since '+new Date(_lastInEntry.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); since.style.display=''; }
     clockBtn.textContent='Clock Out'; clockBtn.style.background='#b91c1c';
     mainCard.style.display='';
     // Voluntary break options while clocked in
     breakBtns.innerHTML = _breakBtnsHtml();
     breakBtns.style.display='';
+    // Facility Arrival/Departure check-in — one row per facility selected at clock-in
+    if (facilityCheckWrap) { var fch=_facilityCheckHtml(_lastInEntry); if (fch) { facilityCheckWrap.innerHTML=fch; facilityCheckWrap.style.display=''; } }
     // Update mileage pill if tracking
     var mp=document.getElementById('mileagePill');
     if(mp) mp.style.display = mileageTracking ? '' : 'none';
@@ -2256,6 +2402,7 @@ function submitClockOut() {
   if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet', entryTs, entry);
+  if (clockInEntry) _applyAutoTravelDraw(clockInEntry, entryTs);
   clockState='out';
   fbPutState(currentEmp.name,'out',entryTs);
   mileageTracking=false;
@@ -2463,6 +2610,7 @@ function autoClockOut(atTs) {
   };
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet', entryTs, entry);
+  if (clockInEntry) _applyAutoTravelDraw(clockInEntry, entryTs);
   clockState='out';
   fbPutState(currentEmp.name,'out',entryTs);
   mileageTracking=false; pendingAction=null; pendingPhoto=null; snapDataUrl=null;
@@ -2765,7 +2913,7 @@ function renderEmpLogs() {
       if (range) { var d = new Date(e.ts); return d >= range.from && d <= range.to; }
       return true;
     })
-    .map(function(e) { return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],mileage:e.mileage!=null?e.mileage:null}; })
+    .map(function(e) { return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||'',mileage:e.mileage!=null?e.mileage:null}; })
     .sort(function(a,b) { return a._d - b._d; });
   var sessions = buildSessions(allEntries);
 
@@ -2834,6 +2982,15 @@ function renderEmpLogs() {
       if (sess.breaks&&sess.breaks.length) breakSummary = sess.breaks.map(function(b){ return (b.btype==='meal'?'&#127859;':'&#9749;')+' '+Math.round(b.durationMs/60000)+'min '+(b.btype==='meal'?'meal':'rest'); }).join(' &nbsp; ');
       if (sess.waivers&&sess.waivers.length) breakSummary += (breakSummary?' &nbsp; ':'')+'&#9989; Employee waived 30-min unpaid meal break';
       if (!breakSummary) breakSummary = '<span style="color:#9ca3af;">No breaks</span>';
+      var stopsSummary = '';
+      if (sess.stops && sess.stops.length) {
+        stopsSummary = sess.stops.map(function(s){
+          var draw = (s.arrivedTs && s.departedTs) ? ' &middot; ' + fmtHrs((new Date(s.departedTs)-new Date(s.arrivedTs))/3600000) + ' draw' : '';
+          var a = s.arrivedTs ? fmtT(new Date(s.arrivedTs)) : '—';
+          var d = s.departedTs ? fmtT(new Date(s.departedTs)) : (s.arrivedTs ? 'still there' : '—');
+          return '<div style="display:flex;justify-content:space-between;gap:8px;"><span>'+(s.facility||'Facility')+'</span><span style="color:#6b7280;">'+a+' &rarr; '+d+draw+'</span></div>';
+        }).join('');
+      }
       if (si > 0) html += '<div style="border-top:1px solid #f3f4f6;margin:8px 0;"></div>';
       html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;">'
         +'<div><p class="text-xs" style="color:#9ca3af;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtT(sess.inTime)+'</p></div>'
@@ -2843,6 +3000,7 @@ function renderEmpLogs() {
         +(sess.mileage!=null?'<div><p class="text-xs" style="color:#9ca3af;">Mileage</p><p class="text-xs font-bold" style="color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
         +(mealMin>0?'<div><p class="text-xs" style="color:#9ca3af;">Meal Break (unpaid)</p><p class="text-xs font-semibold" style="color:#c2410c;">'+mealMin+' min</p></div>':'')
         +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#9ca3af;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
+        +(stopsSummary?'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#9ca3af;">Facility Check-Ins</p><div class="text-xs font-semibold" style="color:#374151;">'+stopsSummary+'</div></div>':'')
         +'</div>';
     });
     html += '</div>';
@@ -3391,7 +3549,7 @@ function renderRecordEmpBtns() {
   document.getElementById('recordEmpBtns').innerHTML = html;
 }
 
-var TYPE_LABEL = {in:'Clock In',out:'Clock Out',break_start:'Break Start',break_end:'Break End'};
+var TYPE_LABEL = {in:'Clock In',out:'Clock Out',break_start:'Break Start',break_end:'Break End',arrival:'Facility Arrival',departure:'Facility Departure'};
 var TYPE_CLS   = {in:'tb-in',out:'tb-out',break_start:'tb-brk',break_end:'tb-brkend'};
 
 function _renderTablesImpl() {
@@ -4005,6 +4163,12 @@ function openEditEntry(ts) {
   // updateEditSplitVisibility().
   window._editEmpName = entry.name;
   document.getElementById('editTravelHours').value = (entry.travelHours != null) ? entry.travelHours : '';
+  var splitNoteEl = document.getElementById('editTimeSplitNote');
+  if (splitNoteEl) {
+    splitNoteEl.textContent = entry.autoTimeSplit
+      ? 'Auto-calculated from the phleb’s facility Arrival/Departure check-ins. Enter a value below to override.'
+      : 'Draw = shift duration − travel, calculated automatically.';
+  }
   // Load facilities
   var storedFacs = entry.facilities || [];
   var knownFacs = storedFacs.filter(function(f){ return FACILITIES.indexOf(f) >= 0; });
@@ -4109,6 +4273,7 @@ function saveEditEntry() {
         var tRaw = document.getElementById('editTravelHours').value.trim();
         r.travelHours = (tRaw !== '') ? (parseFloat(tRaw) || 0) : null;
         r.drawHours   = null; // draw is derived at payroll as (total − travel)
+        r.autoTimeSplit = false; // admin has now set this split manually
       }
       if (editPhotoUrl) { r.adminPhoto = true; } // admin photo stored separately under admin_{ts}; never overwrites employee photo
       // Save updated facilities
@@ -4973,13 +5138,22 @@ function closePhoto() { document.getElementById('photoLightbox').classList.remov
 /* ── employee detail modal ───────────────── */
 function buildSessions(entries) {
   var sessions=[], inTime=null, bst=null, bstAdminSet=false, mealMs=0, restMs=0, brkType='rest';
-  var inNote='', outNote='', breaks=[], waivers=[], facilities=[], mileage=null;
+  var inNote='', outNote='', breaks=[], waivers=[], facilities=[], mileage=null, stops=[];
   entries.forEach(function(e) {
     if(e.type==='in'){
       inTime=e._d; bst=null; bstAdminSet=false; mealMs=0; restMs=0; brkType='rest';
-      inNote=e.note||''; outNote=''; breaks=[]; waivers=[];
+      inNote=e.note||''; outNote=''; breaks=[]; waivers=[]; stops=[];
       facilities=e.facilities||[];
       mileage = (e.mileage != null) ? e.mileage : null;
+    }
+    else if(e.type==='arrival' && inTime){
+      stops.push({facility:e.facility||'', arrivedTs:e.ts, departedTs:null});
+    }
+    else if(e.type==='departure' && inTime){
+      var openStop=null;
+      for (var si=stops.length-1; si>=0; si--) { if (stops[si].facility===(e.facility||'') && !stops[si].departedTs) { openStop=stops[si]; break; } }
+      if (openStop) openStop.departedTs = e.ts;
+      else stops.push({facility:e.facility||'', arrivedTs:null, departedTs:e.ts});
     }
     else if(e.type==='break_start'){
       bst=e._d;
@@ -5029,14 +5203,14 @@ function buildSessions(entries) {
         netMs:netMs,
         totalShiftHrs:totalShiftHrs,
         inNote:inNote, outNote:outNote,
-        breaks:breaks, waivers:waivers, facilities:facilities,
+        breaks:breaks, waivers:waivers, facilities:facilities, stops:stops,
         mileage:mileage,
         caReqs:reqs,
         compliantRest:compliantRest, compliantMeal:compliantMeal,
         restTaken:restTaken, mealTaken:mealTaken, mealWaivedCount:mealWaivedCount,
         mealAdminSet:mealAdminSet, mealWaivedAdminSet:mealWaivedAdminSet
       });
-      inTime=null; bst=null; bstAdminSet=false; mealMs=0; restMs=0; inNote=''; outNote=''; breaks=[]; waivers=[]; facilities=[]; mileage=null;
+      inTime=null; bst=null; bstAdminSet=false; mealMs=0; restMs=0; inNote=''; outNote=''; breaks=[]; waivers=[]; facilities=[]; mileage=null; stops=[];
     }
   });
   return sessions;
@@ -5049,7 +5223,7 @@ function openEmpDetail(name) {
   document.getElementById('detailEmpCode').textContent = 'Code: '+emp.code;
   var allEntries = store.getJ(K.timesheet,[])
     .filter(function(e){ return e.name===name; })
-    .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[]}; })
+    .map(function(e){ return {type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||''}; })
     .sort(function(a,b){ return a._d-b._d; });
   var sessions=buildSessions(allEntries);
   var totalHrs=0, totalBrkMs=0, days={};
@@ -5153,7 +5327,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
   ts.forEach(function(e){
     if(!grouped[e.name]) grouped[e.name]=[];
     grouped[e.name].push({type:e.type,_d:new Date(e.ts),ts:e.ts,note:e.note||'',
-      breakType:e.breakType||'',facilities:e.facilities||[]});
+      breakType:e.breakType||'',facilities:e.facilities||[],facility:e.facility||''});
   });
   Object.keys(grouped).forEach(function(n){ grouped[n].sort(function(a,b){ return a._d-b._d; }); });
   var empStats={};
@@ -5263,6 +5437,15 @@ function _doGenerateReport(fromStr,toStr,empFilter){
         }
         if(sess.waivers&&sess.waivers.length) breakSummary+=(breakSummary?' &nbsp; ':'')+'&#9989; Employee waived 30-min unpaid meal break';
         if(!breakSummary) breakSummary='<span style="color:#9ca3af;">No breaks taken</span>';
+        var stopsHtml='';
+        if(sess.stops&&sess.stops.length){
+          stopsHtml=sess.stops.map(function(s){
+            var draw=(s.arrivedTs&&s.departedTs)?' &middot; '+fmtHrs((new Date(s.departedTs)-new Date(s.arrivedTs))/3600000)+' draw':'';
+            var a=s.arrivedTs?fmtT(new Date(s.arrivedTs)):'—';
+            var d=s.departedTs?fmtT(new Date(s.departedTs)):(s.arrivedTs?'still there':'—');
+            return '<div style="display:flex;justify-content:space-between;gap:8px;"><span>'+(s.facility||'Facility')+'</span><span style="color:#6b7280;">'+a+' &rarr; '+d+draw+'</span></div>';
+          }).join('');
+        }
         // Photo buttons (load from IndexedDB on click)
         var photoHtml='';
         var empEntries=grouped[emp.name]||[];
@@ -5288,6 +5471,7 @@ function _doGenerateReport(fromStr,toStr,empFilter){
           +'<div><p class="text-xs" style="color:#6b7280;">Net Paid Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+'</p></div>'
           +(sess.mileage!=null?'<div><p class="text-xs" style="color:#6b7280;">Mileage</p><p class="text-xs font-bold" style="color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
           +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#6b7280;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
+          +(stopsHtml?'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#6b7280;">Facility Check-Ins (Travel/Draw)</p><div class="text-xs font-semibold" style="color:#374151;">'+stopsHtml+'</div></div>':'')
           +'</div></div>'
           +(photoHtml?'<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">'+photoHtml+'</div>':'')
           +'</div></div>';
@@ -5340,8 +5524,8 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091001;
-var APP_VERSION_LABEL = 'Sep 10, 2026';
+var APP_BUILD = 2026091501;
+var APP_VERSION_LABEL = 'Sep 15, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
   // Auto-configure from ?fb= URL param (staff device opening shared kiosk link or email approval link)
