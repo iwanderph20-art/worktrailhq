@@ -724,15 +724,15 @@ video{object-fit:cover;transform:scaleX(-1);}
           style="background:#3b52d4;color:#fff;border:none;cursor:pointer;">Update Password</button>
       </div>
 
-      <!-- Email Approval Notifications -->
+      <!-- Live Admin Notifications -->
       <div class="rcard space-y-3">
-        <p class="text-sm font-semibold" style="color:#374151;">&#128139; Clock-In Approval Notifications</p>
-        <p class="text-xs leading-relaxed" style="color:#6b7280;">Admin receives an email on every clock-in with Approve/Deny buttons. Staff see "Sent for Approval" and can't clock out until approved.</p>
+        <p class="text-sm font-semibold" style="color:#374151;">&#128139; Live Admin Notifications</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Staff clock in immediately — no admin approval needed. Admin instead gets a live email the moment someone clocks in, arrives at or departs a facility, or clocks out.</p>
         <div class="rounded-xl p-3 text-xs space-y-1" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">
           <p><strong>Setup (free):</strong> Go to <a href="https://www.emailjs.com" target="_blank" style="text-decoration:underline;">emailjs.com</a> → Email Services → <strong>Add Office 365</strong> → sign in with your Microsoft account → Create Template.</p>
           <p><strong>Template variables:</strong> <code>{{employee_name}}</code>, <code>{{clock_time}}</code>, <code>{{facility}}</code>, <code>{{note}}</code>, <code>{{kiosk_url}}</code>, <code>{{photo_note}}</code></p>
           <p><strong>"To Email" field:</strong> set to <code>{{to_email}}</code></p>
-          <p><strong>Note:</strong> Email is notification-only. Admin clicks the kiosk link in the email to approve or deny from the Records tab.</p>
+          <p><strong>Note:</strong> Email is notification-only — a heads-up for admin, not an approval step. Click the kiosk link in the email to open Records.</p>
         </div>
         <p id="ejsStatus" class="text-xs font-medium" style="color:#6b7280;min-height:16px;"></p>
         <input id="ejsPublicKey"  type="text" placeholder="EmailJS Public Key (e.g. user_abc123)"  class="inp inp-dk" style="font-size:13px;">
@@ -1913,6 +1913,7 @@ function _submitFacilityArrival(facility, photo) {
     + (flag.status==='flagged' ? ' — ⚠ GPS was '+flag.distanceMi+' mi from the facility' : ''));
   renderEmpState(); updateTodaySummary();
   toast('Arrival logged — ' + facility);
+  sendFacilityCheckinEmail(entry, 'arrival');
 }
 function markDeparture(facility) {
   if (!currentEmp) return;
@@ -1929,6 +1930,7 @@ function markDeparture(facility) {
     + (flag.status==='flagged' ? ' — ⚠ GPS was '+flag.distanceMi+' mi from the facility' : ''));
   renderEmpState(); updateTodaySummary();
   toast('Departure logged — ' + facility);
+  sendFacilityCheckinEmail(entry, 'departure');
 }
 // ── Shared arrival/departure → per-facility "stop" pairing ──────────────────
 // Used by buildSessions (My Logs/admin quick views), buildSessMap (payroll's
@@ -2539,7 +2541,6 @@ function submitClockInQuestions() {
   }
 
   var entryTs = new Date().toISOString();
-  var token   = genApprovalToken(entryTs);
   // Store home-base proximity on the entry so admin can see it in Records
   var locMeta = currentLocation
     ? locationLabel(currentLocation.lat, currentLocation.lng, currentEmp.name)
@@ -2551,7 +2552,7 @@ function submitClockInQuestions() {
     location: currentLocation?{lat:currentLocation.lat,lng:currentLocation.lng,accuracy:currentLocation.accuracy}:null,
     locationLabel: locMeta ? locMeta.text : null,
     locationAtLab: locMeta ? locMeta.atLab : null,
-    approval:'pending', approvalToken:token,
+    approval:'approved', approvedAt:entryTs,
     trackMileage: trackMileage,
     tripType: trackMileage ? (qTripType || 'ONE_WAY') : null,
     device: getDeviceInfo()
@@ -2559,8 +2560,9 @@ function submitClockInQuestions() {
   if (pendingPhoto) savePhoto(entryTs, pendingPhoto);
   var arr=store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet', entryTs, entry);
-  clockState='pending'; pendingEntryTs=entryTs;
-  fbPutState(currentEmp.name,'pending',entryTs);
+  // Clock straight in — no admin approval gate. Admin still gets a live FYI email below.
+  clockState='in';
+  fbPutState(currentEmp.name,'in',entryTs);
   // Start GPS mileage tracking if opted-in
   if (trackMileage) {
     mileageTracking=true; mileageLastPos=null; mileageTotalMiles=0;
@@ -2569,9 +2571,8 @@ function submitClockInQuestions() {
   document.getElementById('clockInQuestionsCard').style.display='none';
   pendingAction=null; pendingPhoto=null; qSelectedFacs=[]; qDroveMode=null; qTripType=null;
   renderEmpState(); updateTodaySummary();
-  toast('Sent for approval — your time is being recorded');
+  toast('Clocked in — have a great shift!');
   sendClockInEmail(entry, null);
-  startApprovalPoll(entryTs);
 }
 function submitClockOut() {
   var entryTs    = new Date().toISOString();
@@ -7383,7 +7384,7 @@ function sendClockInEmail(entry, photoDataUrl){
   var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
   emailjs.send(serviceId, templateId, {
     to_email:      notifEmail,
-    subject:       'Clock-In Approval Required — '+entry.name,
+    subject:       'Clock-In — '+entry.name,
     employee_name: entry.name,
     clock_time:    clockTime,
     facility:      facility,
@@ -7394,8 +7395,8 @@ function sendClockInEmail(entry, photoDataUrl){
     logo_url:      logoUrl,
     photo_note:    photoNote,
     header_text:   'WorkTrail — Clock-In Notification',
-    subtitle:      'has clocked in and is awaiting your review.',
-    action_text:   'Log in to the kiosk to review this clock-in and approve or deny it from the Records tab.',
+    subtitle:      'has clocked in.',
+    action_text:   'View this clock-in in the Records tab.',
     approve_url:   kioskUrl,
     deny_url:      kioskUrl,
     photo_html:    photoNote
@@ -7453,6 +7454,58 @@ function sendClockOutEmail(entry, hoursWorked, miles) {
     console.log('Clock-out notification sent for '+entry.name);
   }).catch(function(e){
     console.error('EmailJS error (clock-out):', JSON.stringify(e));
+  });
+}
+
+// Live FYI email for a Facility Arrival/Departure check-in — kind is 'arrival' or 'departure'.
+// Purely informational (matches Clock-In/Out notifications above); admin isn't asked to act.
+function sendFacilityCheckinEmail(entry, kind) {
+  var EJS_KEY      = 'BaAmtd4je5XVstCvH';
+  var EJS_SERVICE  = 'service_t30r2d8';
+  var EJS_TEMPLATE = 'template_jtdfx1a';
+  var cfg = store.getJ(EJS_STORAGE, {});
+  var publicKey  = cfg.publicKey  || EJS_KEY;
+  var serviceId  = cfg.serviceId  || EJS_SERVICE;
+  var templateId = cfg.templateId || EJS_TEMPLATE;
+  var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
+
+  var kioskUrl = window.location.origin + window.location.pathname + '?admin&records=1';
+  if (fbCfg.url) kioskUrl += '&fb=' + encodeURIComponent(fbCfg.url);
+  var clockTime = new Date(entry.ts).toLocaleString('en-US',{
+    weekday:'long', month:'long', day:'numeric', year:'numeric',
+    hour:'numeric', minute:'2-digit', hour12:true
+  });
+  var isArrival = kind === 'arrival';
+  var label     = isArrival ? 'Facility Arrival' : 'Facility Departure';
+  var verb      = isArrival ? 'arrived at' : 'departed';
+  var flagNote  = entry.distanceFlag === 'flagged'
+    ? ' ⚠ GPS was ' + entry.distanceMi + ' mi from the facility.'
+    : '';
+
+  try { emailjs.init({publicKey: publicKey}); } catch(e){}
+  var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
+  emailjs.send(serviceId, templateId, {
+    to_email:      notifEmail,
+    subject:       label + ' — ' + entry.name,
+    employee_name: entry.name,
+    clock_time:    clockTime,
+    facility:      entry.facility || 'Not specified',
+    note:          (entry.note || 'None') + flagNote,
+    note_label:    'Note',
+    photo_label:   'Photo',
+    kiosk_url:     kioskUrl,
+    logo_url:      logoUrl,
+    photo_note:    entry.hasPhoto ? 'Photo captured — view in Admin > Records tab.' : 'No photo captured.',
+    header_text:   'WorkTrail — ' + label,
+    subtitle:      'has ' + verb + ' ' + (entry.facility || 'a facility') + '.',
+    action_text:   'View this check-in in the Records tab.',
+    approve_url:   kioskUrl,
+    deny_url:      kioskUrl,
+    photo_html:    entry.note || ''
+  }).then(function(){
+    console.log(label + ' notification sent for ' + entry.name);
+  }).catch(function(e){
+    console.error('EmailJS error (' + kind + '):', JSON.stringify(e));
   });
 }
 
