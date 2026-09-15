@@ -403,6 +403,32 @@ video{object-fit:cover;transform:scaleX(-1);}
       <button onclick="cancelCapture()" class="text-sm font-medium" style="color:rgba(255,255,255,.4);background:none;border:none;cursor:pointer;">Cancel</button>
     </div>
 
+    <!-- Facility Arrival camera panel — deliberately distinct styling (emerald,
+         pin badge, rounded-square frame) from the blue/circular Clock In/Out
+         camera above, so a phleb can tell at a glance which flow they're in. -->
+    <div id="facilityCamWrap" class="rounded-3xl flex-col items-center gap-5" style="display:none;background:linear-gradient(160deg,#022c22 0%,#065f46 55%,#0d9488 100%);box-shadow:0 12px 48px rgba(6,95,70,.45);padding:32px 24px 28px;">
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:5px 14px;">
+        <span style="font-size:14px;">&#128205;</span>
+        <span style="font-size:11px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.08em;">Facility Check-In</span>
+      </div>
+      <p id="facilityCamTitle" class="text-xl font-bold text-center" style="color:#fff;margin-top:-4px;">Arrived at Facility</p>
+      <p class="text-sm text-center" style="color:rgba(255,255,255,.6);margin-top:-8px;">Take a photo to confirm you&rsquo;re on-site</p>
+      <!-- rounded-square frame (vs. the circular clock-in frame) reinforces the distinct UI -->
+      <div style="position:relative;margin:8px auto 0;width:280px;height:280px;">
+        <div style="position:absolute;inset:-8px;border-radius:28px;background:radial-gradient(circle,rgba(45,212,191,.35) 0%,transparent 70%);pointer-events:none;"></div>
+        <div class="overflow-hidden" style="width:280px;height:280px;border-radius:20px;box-shadow:0 0 0 3px rgba(255,255,255,.2),0 0 0 6px rgba(45,212,191,.25),0 20px 60px rgba(0,0,0,.5);">
+          <video id="facilityCamPreview" autoplay playsinline muted style="width:280px;height:280px;"></video>
+        </div>
+      </div>
+      <div class="w-full rounded-2xl px-4 py-3 flex gap-3 items-start" style="background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);">
+        <span style="font-size:16px;flex-shrink:0;">&#128247;</span>
+        <p class="text-xs leading-relaxed" style="color:rgba(255,255,255,.7);">This timestamps and photo-confirms your arrival at <strong id="facilityCamFacName" style="color:#fff;"></strong>.</p>
+      </div>
+      <button onclick="captureFacilityArrivalPhoto()" class="tap w-full py-4 rounded-2xl font-bold text-base"
+        style="background:#fff;color:#065f46;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.25);letter-spacing:.01em;">&#128247; Take Photo &amp; Check In</button>
+      <button onclick="cancelFacilityArrival()" class="text-sm font-medium" style="color:rgba(255,255,255,.5);background:none;border:none;cursor:pointer;">Cancel</button>
+    </div>
+
     <!-- Clock-In Form (shown FIRST — facility + note, then photo) -->
     <div id="clockInQuestionsCard" class="glass rounded-3xl px-6 py-6 space-y-4" style="display:none;">
       <!-- Schedule-driven facility question (built by renderClockInFacilityPrompt) -->
@@ -1790,15 +1816,57 @@ function _facilityCheckHtml(lastInEntry) {
     + '<p style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Facility Check-In / Check-Out</p>'
     + rows + actionBtn + '</div>';
 }
+// Arrival requires a photo — same as Clock In/Out — but through its own camera
+// panel (facilityCamWrap) so it's visually distinct from the shift clock-in
+// flow. markArrival() opens the camera; captureFacilityArrivalPhoto() takes
+// the photo and actually logs the arrival entry.
+var _pendingArrivalFacility = null;
 function markArrival(facility) {
+  if (!currentEmp) return;
+  _pendingArrivalFacility = facility;
+  document.getElementById('mainCard').style.display='none';
+  var wrap = document.getElementById('facilityCheckWrap'); if (wrap) wrap.style.display='none';
+  var breakBtnsEl = document.getElementById('breakBtns'); if (breakBtnsEl) breakBtnsEl.style.display='none';
+  _enterClockFlowLayout();
+  document.getElementById('facilityCamTitle').textContent = 'Arrived at ' + facility;
+  document.getElementById('facilityCamFacName').textContent = facility;
+  var cam = document.getElementById('facilityCamWrap');
+  cam.style.display='flex'; cam.style.flexDirection='column';
+  startCamera('facilityCamPreview');
+}
+function cancelFacilityArrival() {
+  stopCamera('facilityCamPreview');
+  document.getElementById('facilityCamWrap').style.display='none';
+  _pendingArrivalFacility = null;
+  renderEmpState(); updateTodaySummary();
+}
+function captureFacilityArrivalPhoto() {
+  var facility = _pendingArrivalFacility;
+  if (!facility) { cancelFacilityArrival(); return; }
+  var video  = document.getElementById('facilityCamPreview');
+  var canvas = document.getElementById('captureCanvas');
+  var ctx    = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (video.readyState >= 2) {
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-300,0,300,300); ctx.restore();
+  }
+  var photo = (video.readyState >= 2) ? canvas.toDataURL('image/jpeg',0.30) : null;
+  stopCamera('facilityCamPreview');
+  document.getElementById('facilityCamWrap').style.display='none';
+  _pendingArrivalFacility = null;
+  _submitFacilityArrival(facility, photo);
+}
+function _submitFacilityArrival(facility, photo) {
   if (!currentEmp) return;
   var ts = new Date().toISOString();
   var empCode = currentEmp.code || currentEmp.name;
-  var entry = {name:currentEmp.name, type:'arrival', ts:ts, facility:facility, note:'Arrived at '+facility, empId:empCode};
+  var entry = {name:currentEmp.name, type:'arrival', ts:ts, facility:facility, note:'Arrived at '+facility, empId:empCode, hasPhoto:!!photo};
+  if (photo) savePhoto(ts, photo);
   var arr = store.getJ(K.timesheet,[]); arr.push(entry); store.setJ(K.timesheet,arr);
   fbPut('timesheet', ts, entry);
   logAdminAction('FACILITY_ARRIVAL', currentEmp.name+' (ID: '+empCode+') arrived at '+facility+' at '
-    + new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));
+    + new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})
+    + (photo ? ' (photo confirmed)' : ' (no photo — camera unavailable)'));
   renderEmpState(); updateTodaySummary();
   toast('Arrival logged — ' + facility);
 }
@@ -1870,9 +1938,10 @@ function renderEmpState() {
   var pendingCard  = document.getElementById('pendingCard');
   var approvedNotice = document.getElementById('approvedNotice');
   var facilityCheckWrap = document.getElementById('facilityCheckWrap');
+  var facilityCamWrap = document.getElementById('facilityCamWrap');
 
   // Hide all first
-  [mainCard,breakCard,camWrap,pendingCard,approvedNotice].forEach(function(el){ if(el) el.style.display='none'; });
+  [mainCard,breakCard,camWrap,pendingCard,approvedNotice,facilityCamWrap].forEach(function(el){ if(el) el.style.display='none'; });
   since.style.display='none'; breakBtns.style.display='none';
   if (facilityCheckWrap) facilityCheckWrap.style.display='none';
   // Restore the My Logs card (hidden during the clock-in/out flow)
@@ -2825,19 +2894,20 @@ function updateTodaySummary() {
 
 /* ── camera ─────────────────────────────── */
 function initCamera() { startCamera(); }
-function stopCamera() {
+function stopCamera(videoId) {
   if (camStream) { camStream.getTracks().forEach(function(t){ t.stop(); }); camStream=null; }
-  var v = document.getElementById('camPreview');
+  var v = document.getElementById(videoId || 'camPreview');
   if (v) { v.srcObject=null; }
 }
-function startCamera() {
-  stopCamera();
+function startCamera(videoId) {
+  stopCamera(videoId);
   if (!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return;
+  var vid = videoId || 'camPreview';
   navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:320,height:320}})
-    .then(function(s){ camStream=s; document.getElementById('camPreview').srcObject=s; })
+    .then(function(s){ camStream=s; document.getElementById(vid).srcObject=s; })
     .catch(function(){
       navigator.mediaDevices.getUserMedia({video:true})
-        .then(function(s){ camStream=s; document.getElementById('camPreview').srcObject=s; })
+        .then(function(s){ camStream=s; document.getElementById(vid).srcObject=s; })
         .catch(function(){});
     });
 }
@@ -5524,7 +5594,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091501;
+var APP_BUILD = 2026091502;
 var APP_VERSION_LABEL = 'Sep 15, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
