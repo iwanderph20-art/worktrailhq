@@ -5630,7 +5630,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091503;
+var APP_BUILD = 2026091504;
 var APP_VERSION_LABEL = 'Sep 15, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
@@ -5992,8 +5992,7 @@ function repairPhotoSync() {
 /* ── Facility selector ───────────────────── */
 var FACILITIES = [
   'SDI Lab','Sunshine ALF','Juno Tech Lab',
-  'Amberkare Home Health','Golden ALF',
-  'Anew Direction Adult Living','Westside Manor','Parkview Manor','Gilmar Manor','LADMC','Yucca Valley Facility','Palmdale','Pasa Alta Manor','Long Beach Residential','Others'
+  'Anew Direction Adult Living','Westside Manor','Parkview Manor','Gilmar Manor','LADMC','Yucca Valley Facility','Palmdale','Pasa Alta Manor','Others'
 ];
 var selectedFacilities = [];
 function renderFacilityPills() {
