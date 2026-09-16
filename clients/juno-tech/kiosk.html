@@ -7384,7 +7384,14 @@ function testEjsConfig(){
  * title/message can carry emoji and employee names without hitting the
  * Fetch API's header-charset restrictions. No server of ours is involved —
  * ntfy's own hosted service relays to the admin's phone/browser even when
- * every tab here (and theirs) is closed, as long as they're subscribed. */
+ * every tab here (and theirs) is closed, as long as they're subscribed.
+ *
+ * The topic is mirrored to Firebase (/jtl/ntfyTopic, same pattern as
+ * /jtl/adminPass) because the event that needs to SEND a chime — a clock-in,
+ * arrival, departure, or clock-out — happens on the EMPLOYEE's kiosk device,
+ * not the admin's. localStorage is per-device, so without this the topic
+ * saved in Settings would only ever be visible to the device Settings was
+ * opened on, and every other device would silently skip sending. */
 var NTFY_STORAGE = 'jtl_ntfy_cfg';
 function _randomNtfyTopic(){
   return 'jtl-admin-' + Math.random().toString(36).slice(2, 10);
@@ -7394,6 +7401,18 @@ function loadNtfyConfig(){
   if (!cfg.topic) { cfg.topic = _randomNtfyTopic(); store.setJ(NTFY_STORAGE, cfg); }
   var el = document.getElementById('ntfyTopic'); if (el) el.value = cfg.topic;
   var link = document.getElementById('ntfyWebLink'); if (link) link.href = 'https://ntfy.sh/' + cfg.topic;
+  if (!fbCfg.url) return;
+  // Pull the shared cloud value — another device may already have set one.
+  fetch(fbCfg.url + '/jtl/ntfyTopic.json').then(function(r){ return r.json(); }).then(function(v){
+    if (typeof v === 'string' && v && v !== cfg.topic) {
+      store.setJ(NTFY_STORAGE, {topic: v});
+      var el2 = document.getElementById('ntfyTopic'); if (el2) el2.value = v;
+      var link2 = document.getElementById('ntfyWebLink'); if (link2) link2.href = 'https://ntfy.sh/' + v;
+    } else if (!v) {
+      // Nothing shared yet — publish ours so employee devices can pick it up.
+      fetch(fbCfg.url + '/jtl/ntfyTopic.json', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg.topic)}).catch(function(){});
+    }
+  }).catch(function(){});
 }
 function saveNtfyConfig(){
   var el = document.getElementById('ntfyTopic');
@@ -7401,6 +7420,9 @@ function saveNtfyConfig(){
   if (!topic) topic = _randomNtfyTopic();
   if (el) el.value = topic;
   store.setJ(NTFY_STORAGE, {topic: topic});
+  if (fbCfg.url) {
+    fetch(fbCfg.url + '/jtl/ntfyTopic.json', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(topic)}).catch(function(){});
+  }
   var link = document.getElementById('ntfyWebLink'); if (link) link.href = 'https://ntfy.sh/' + topic;
   var st = document.getElementById('ntfyStatus');
   if (st) { st.textContent = 'Saved!'; st.style.color = '#059669'; }
@@ -7411,22 +7433,35 @@ function testNtfyConfig(){
   var st = document.getElementById('ntfyStatus');
   if (st) { st.textContent = 'Test sent! Check your ntfy app/subscription.'; st.style.color = '#059669'; }
 }
-function sendNtfyAlert(title, message, opts){
+// Resolves the shared topic — cloud copy wins (so any device stays current with
+// whatever the admin last set in Settings), falling back to the local cache when
+// offline or cloud sync isn't configured on this device.
+function _resolveNtfyTopic(cb) {
   var cfg = store.getJ(NTFY_STORAGE, {});
-  if (!cfg.topic) return;
+  if (!fbCfg.url) { cb(cfg.topic || null); return; }
+  fetch(fbCfg.url + '/jtl/ntfyTopic.json').then(function(r){ return r.json(); }).then(function(v){
+    var topic = (typeof v === 'string' && v) ? v : (cfg.topic || null);
+    if (topic && topic !== cfg.topic) store.setJ(NTFY_STORAGE, {topic: topic});
+    cb(topic);
+  }).catch(function(){ cb(cfg.topic || null); });
+}
+function sendNtfyAlert(title, message, opts){
   opts = opts || {};
-  fetch('https://ntfy.sh/', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      topic: cfg.topic,
-      title: title,
-      message: message,
-      tags: opts.tags || ['bell'],
-      priority: opts.priority || 4,
-      click: window.location.origin + window.location.pathname + '?admin&records=1'
-    })
-  }).catch(function(){});
+  _resolveNtfyTopic(function(topic){
+    if (!topic) return;
+    fetch('https://ntfy.sh/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        topic: topic,
+        title: title,
+        message: message,
+        tags: opts.tags || ['bell'],
+        priority: opts.priority || 4,
+        click: window.location.origin + window.location.pathname + '?admin&records=1'
+      })
+    }).catch(function(){});
+  });
 }
 
 function sendClockInEmail(entry, photoDataUrl){
@@ -7884,21 +7919,15 @@ function clearOldRecords() {
   // "admin" on the next reload. The login check already falls back to DEFAULT_HASH
   // when no hash is stored, so a fresh device still accepts the default password.
   injectLogos(); fbInit(); renderFacilityPills();
-  // One-time cleanup: tombstone the employees that were meant to be removed but kept
-  // reappearing (they still lived in the cloud roster). This seeds the block-list so
-  // the cloud sync can never re-add them, and purges their local + cloud records.
-  // "Anntoinette Louie" is intentionally NOT listed — only the empty "Anntoinette" dupe.
-  (function removedEmpMigration(){
-    if (store.getJ('jtl_removed_migration_v2', false)) return;
-    store.setJ('jtl_removed_migration_v2', true);
-    ['Anntoinette','test','Krys Ellis','Enrique Blanco',
-     'Hans Arturo Duran Rodriguez','Hans Duran'].forEach(function(nm){
-      addRemovedName(nm);          // local + cloud block-list
-      purgeEmployeeFromCloudByName(nm); // delete every matching cloud record
-    });
-    store.setJ(K.employees, filterRemovedEmps(store.getJ(K.employees, [])));
-    renderEmployeeList();
-  })();
+  // NOTE: a one-time migration used to live here, permanently tombstoning
+  // ['Anntoinette','test','Krys Ellis','Enrique Blanco','Hans Arturo Duran Rodriguez',
+  // 'Hans Duran'] to purge stale duplicate records. It already did its job (the
+  // cloud roster no longer has those dupes) — removed because, being gated by a
+  // per-device localStorage flag, it re-fired on any device that hadn't run it yet
+  // (a fresh browser, cleared storage) and unconditionally re-blocked those exact
+  // names in the cloud tombstone even after an admin deliberately re-added one
+  // (e.g. "test") on another device. See unblockName()/addEmployee() for the
+  // normal, safe way to lift a tombstone.
   // Auto-sync employee codes from Firebase on every page load so regenerated PINs
   // work immediately on the kiosk without needing to reshare the staff URL.
   setTimeout(function() {
