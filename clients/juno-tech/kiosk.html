@@ -736,7 +736,7 @@ video{object-fit:cover;transform:scaleX(-1);}
       <!-- Push Chime (ntfy.sh) — fires even with every browser tab closed -->
       <div class="rcard space-y-3">
         <p class="text-sm font-semibold" style="color:#374151;">&#128276; Live Admin Notifications (ntfy.sh)</p>
-        <p class="text-xs leading-relaxed" style="color:#6b7280;">Staff clock in immediately — no admin approval needed. Admin instead gets an instant alert with sound on their phone or laptop for clock-in, facility arrival, facility departure, clock-out, and pay disputes — even if the kiosk tab AND your own browser are both closed.</p>
+        <p class="text-xs leading-relaxed" style="color:#6b7280;">Staff clock in immediately — no admin approval needed. Admin instead gets an instant alert with sound on their phone or laptop for clock-in, facility arrival, facility departure, and clock-out — even if the kiosk tab AND your own browser are both closed.</p>
         <div class="rounded-xl p-3 text-xs space-y-1" style="background:#eff6ff;color:#1d4ed8;line-height:1.6;">
           <p><strong>Setup (free, ~1 min):</strong> Install the <a href="https://ntfy.sh" target="_blank" style="text-decoration:underline;">ntfy</a> app (iOS/Android), open it, and subscribe to the topic name below — OR open <a id="ntfyWebLink" href="#" target="_blank" style="text-decoration:underline;">this link</a> in a browser and tap Subscribe, then allow notifications.</p>
           <p><strong>Keep the topic name private</strong> — anyone who has it can see these alerts. A random one is generated for you below; change it any time.</p>
@@ -3086,7 +3086,12 @@ var empLogsPeriod = 'week';
 function openEmpLogs() {
   if (!currentEmp) return;
   document.getElementById('empLogsModal').style.display = 'flex';
-  setEmpLogsPeriod('payperiod');
+  setEmpLogsPeriod('payperiod'); // renders immediately from local cache so the modal isn't blank
+  // Local storage only has whatever happened to be recorded on THIS device — an
+  // employee who ever clocked in on a different kiosk/tablet would otherwise see
+  // gaps (or nothing at all) here. Pull their real cross-device history down and
+  // re-render once it lands.
+  if (fbCfg.url) syncFromCloud(function(){ renderEmpLogs(); });
 }
 function closeEmpLogs() {
   document.getElementById('empLogsModal').style.display = 'none';
@@ -3153,7 +3158,6 @@ function _empLogDateRange() {
 // math as admin's Payroll tab so an employee's estimate can never disagree with
 // what actually gets paid — the whole point is to let them catch a mistake before
 // payday, not to show a rough guess.
-function _empPayDisputeKey(empName, periodFromStr) { return 'pd_' + empKey(empName) + '_' + periodFromStr; }
 function _buildEmpPayCardHtml(range) {
   var emp = store.getJ(K.employees, []).filter(function(e){ return e.name === currentEmp.name; })[0];
   if (!emp) return '';
@@ -3166,9 +3170,6 @@ function _buildEmpPayCardHtml(range) {
     : 'Payday ' + _payLabel(payDate) + ' &middot; ' + daysToPay + ' day' + (daysToPay===1?'':'s');
 
   var fromStr = _payFmt(range.from), toStr = _payFmt(range.to);
-  var disputeKey = _empPayDisputeKey(currentEmp.name, fromStr);
-  var disputed   = store.getJ('jtl_disputed_periods', []).indexOf(disputeKey) >= 0;
-
   var stats       = buildEmployeePayStats(currentEmp.name, range.from, range.to);
   var periodDays  = Math.round((range.to - range.from) / 86400000) + 1;
   var adjustments = getPayAdjustments().filter(function(a){ return a.empName === currentEmp.name && a.periodFrom === fromStr && a.periodTo === toStr; });
@@ -3199,38 +3200,10 @@ function _buildEmpPayCardHtml(range) {
       +'</div>';
   }
 
-  var disputeHtml = disputed
-    ? '<div style="margin-top:14px;background:rgba(255,255,255,.16);border-radius:12px;padding:10px 12px;font-size:12px;color:#fff;">&#9989; Dispute submitted for this period — admin has been notified.</div>'
-    : '<button onclick="toggleDisputeForm()" class="tap" style="margin-top:14px;width:100%;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">&#9888; Something look off? Dispute this period</button>'
-      +'<div id="payDisputeForm" style="display:none;margin-top:10px;text-align:left;">'
-      +'<textarea id="payDisputeMsg" placeholder="What looks wrong? e.g. missing a shift, wrong hours on Tuesday…" style="width:100%;min-height:64px;border-radius:10px;border:none;padding:10px;font-size:13px;box-sizing:border-box;font-family:inherit;"></textarea>'
-      +'<button onclick="submitPayDispute(\''+fromStr+'\',\''+toStr+'\')" class="tap" style="margin-top:6px;width:100%;background:#fff;color:#065f46;border:none;border-radius:10px;padding:10px;font-size:12px;font-weight:800;cursor:pointer;">Submit Dispute</button>'
-      +'</div>';
-
   return '<div style="background:linear-gradient(135deg,#065f46 0%,#059669 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
     +'<p style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700;margin:0 0 10px;">'+paydayLine+'</p>'
     +body
-    +disputeHtml
     +'</div>';
-}
-function toggleDisputeForm() {
-  var f = document.getElementById('payDisputeForm');
-  if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
-}
-function submitPayDispute(periodFrom, periodTo) {
-  if (!currentEmp) return;
-  var msgEl = document.getElementById('payDisputeMsg');
-  var message = msgEl ? (msgEl.value || '').trim() : '';
-  if (!message) { toast('Please describe what looks wrong first'); return; }
-  var payDate = payDateForIndex(currentPayIndex());
-  var periodLabel = periodFrom + ' – ' + periodTo;
-  logAdminAction('DISPUTE', currentEmp.name + ' disputed pay for ' + periodLabel + ' (payday ' + _payLabel(payDate) + '): "' + message + '"');
-  sendNtfyAlert('Pay Dispute — ' + currentEmp.name, periodLabel + ': ' + message, {tags:['warning']});
-  var key = _empPayDisputeKey(currentEmp.name, periodFrom);
-  var disputed = store.getJ('jtl_disputed_periods', []);
-  if (disputed.indexOf(key) < 0) { disputed.push(key); store.setJ('jtl_disputed_periods', disputed); }
-  toast('Dispute submitted — admin has been notified');
-  renderEmpLogs();
 }
 function renderEmpLogs() {
   if (!currentEmp) return;
@@ -5891,7 +5864,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091603;
+var APP_BUILD = 2026091604;
 var APP_VERSION_LABEL = 'Sep 16, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
