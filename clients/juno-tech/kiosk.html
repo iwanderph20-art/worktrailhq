@@ -293,6 +293,18 @@ video{object-fit:cover;transform:scaleX(-1);}
     </div>
   </header>
   <div class="max-w-lg mx-auto px-4 py-6 space-y-4">
+    <!-- Payday-eve reminder — shown only the day before payday, dismissible for the day -->
+    <div id="paydayReminderBanner" style="display:none;border-radius:20px;padding:16px 18px;background:linear-gradient(135deg,#065f46,#059669);box-shadow:0 6px 20px rgba(5,150,105,.25);">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <span style="font-size:20px;line-height:1;">&#128176;</span>
+        <div style="flex:1;">
+          <p style="color:#fff;font-weight:700;font-size:14px;margin:0 0 3px;">Payday is tomorrow!</p>
+          <p id="paydayReminderText" style="color:rgba(255,255,255,.85);font-size:12px;line-height:1.5;margin:0 0 10px;"></p>
+          <button onclick="dismissPaydayReminder(); openEmpLogs();" class="tap" style="background:#fff;color:#065f46;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;">Review My Pay &rarr;</button>
+        </div>
+        <button onclick="dismissPaydayReminder()" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:16px;line-height:1;padding:2px;">&times;</button>
+      </div>
+    </div>
     <div class="rounded-3xl px-6 py-6" style="background:linear-gradient(135deg,#1a2b8c 0%,#2d44cc 100%);box-shadow:0 8px 32px rgba(26,43,140,.28);">
       <p class="text-sm font-medium" style="color:rgba(255,255,255,.6);">Welcome back</p>
       <p id="empName" class="text-2xl font-bold mt-0.5" style="color:#fff;"></p>
@@ -1373,7 +1385,8 @@ video{object-fit:cover;transform:scaleX(-1);}
     <!-- Period filter pills -->
     <div class="max-w-lg mx-auto px-4 pb-3" style="overflow-x:auto;white-space:nowrap;">
       <div style="display:inline-flex;gap:6px;">
-        <button id="elp-week"  onclick="setEmpLogsPeriod('week')"  class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #1a2b8c;background:#1a2b8c;color:#fff;cursor:pointer;transition:all .15s;">This Week</button>
+        <button id="elp-payperiod" onclick="setEmpLogsPeriod('payperiod')" class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #1a2b8c;background:#1a2b8c;color:#fff;cursor:pointer;transition:all .15s;">&#128176; Pay Period</button>
+        <button id="elp-week"  onclick="setEmpLogsPeriod('week')"  class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">This Week</button>
         <button id="elp-month" onclick="setEmpLogsPeriod('month')" class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">This Month</button>
         <button id="elp-last"  onclick="setEmpLogsPeriod('last')"  class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">Last Month</button>
         <button id="elp-all"   onclick="setEmpLogsPeriod('all')"   class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">All Time</button>
@@ -1630,6 +1643,33 @@ function enterEmpView() {
   initCamera();
   requestLocation(); // ask for GPS on entry
   repairPhotoSync(); // silently re-push any photos that didn't make it to Firebase
+  renderPaydayReminder();
+}
+// True the day before the upcoming biweekly payday (see PAY_ANCHOR/payDateForIndex).
+function _isPayEveToday() {
+  var payDate  = payDateForIndex(currentPayIndex());
+  var tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  return payDate.getFullYear() === tomorrow.getFullYear()
+    && payDate.getMonth() === tomorrow.getMonth()
+    && payDate.getDate() === tomorrow.getDate();
+}
+// Nudges employees to check My Logs the day before payday — corrections filed after
+// payday only reach the NEXT check, so this is their last easy chance to catch a
+// mistake before it's cut. Dismissible for the day (localStorage, per device).
+function renderPaydayReminder() {
+  var el = document.getElementById('paydayReminderBanner');
+  if (!el) return;
+  var todayKey = new Date().toDateString();
+  if (!_isPayEveToday() || store.get('jtl_payday_dismissed') === todayKey) { el.style.display = 'none'; return; }
+  var payDate = payDateForIndex(currentPayIndex());
+  var txt = document.getElementById('paydayReminderText');
+  if (txt) txt.textContent = 'Payday is ' + _payLabel(payDate) + '. Review your hours in My Logs and submit any dispute today — corrections filed after payday will be reflected in your next paycheck instead.';
+  el.style.display = '';
+}
+function dismissPaydayReminder() {
+  store.set('jtl_payday_dismissed', new Date().toDateString());
+  var el = document.getElementById('paydayReminderBanner');
+  if (el) el.style.display = 'none';
 }
 function lockEmployee() {
   // Stop whichever camera is actually active — the shift Clock In/Out one, or
@@ -3082,14 +3122,14 @@ var empLogsPeriod = 'week';
 function openEmpLogs() {
   if (!currentEmp) return;
   document.getElementById('empLogsModal').style.display = 'flex';
-  setEmpLogsPeriod('week');
+  setEmpLogsPeriod('payperiod');
 }
 function closeEmpLogs() {
   document.getElementById('empLogsModal').style.display = 'none';
 }
 function setEmpLogsPeriod(p) {
   empLogsPeriod = p;
-  ['week','month','last','all','custom'].forEach(function(k) {
+  ['payperiod','week','month','last','all','custom'].forEach(function(k) {
     var btn = document.getElementById('elp-'+k);
     if (!btn) return;
     var active = k === p;
@@ -3114,6 +3154,12 @@ function setEmpLogsPeriod(p) {
 function _empLogDateRange() {
   var now = new Date();
   var y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  if (empLogsPeriod === 'payperiod') {
+    var p = periodForPayDate(payDateForIndex(currentPayIndex()));
+    var start = new Date(p.start); start.setHours(0,0,0,0);
+    var end   = new Date(p.end);   end.setHours(23,59,59,999);
+    return {from:start, to:end, label:'Pay Period ('+_payShort(p.start)+'–'+_payShort(p.end)+')'};
+  }
   if (empLogsPeriod === 'week') {
     var dow = now.getDay(); // 0=Sun
     var start = new Date(y, m, d - dow); start.setHours(0,0,0,0);
@@ -3138,6 +3184,91 @@ function _empLogDateRange() {
   }
   return null; // 'all'
 }
+// Builds the "how much am I getting" card shown at the top of My Logs when the
+// Pay Period tab is active. Uses the exact same calcPaycheck()/buildEmployeePayStats()
+// math as admin's Payroll tab so an employee's estimate can never disagree with
+// what actually gets paid — the whole point is to let them catch a mistake before
+// payday, not to show a rough guess.
+function _empPayDisputeKey(empName, periodFromStr) { return 'pd_' + empKey(empName) + '_' + periodFromStr; }
+function _buildEmpPayCardHtml(range) {
+  var emp = store.getJ(K.employees, []).filter(function(e){ return e.name === currentEmp.name; })[0];
+  if (!emp) return '';
+
+  var payDate    = payDateForIndex(currentPayIndex());
+  var todayMid   = new Date(); todayMid.setHours(0,0,0,0);
+  var daysToPay  = Math.round((payDate - todayMid) / 86400000);
+  var paydayLine = daysToPay <= 0 ? 'Paid ' + _payLabel(payDate)
+    : daysToPay === 1 ? '&#9200; Payday is tomorrow — ' + _payLabel(payDate)
+    : 'Payday ' + _payLabel(payDate) + ' &middot; ' + daysToPay + ' day' + (daysToPay===1?'':'s');
+
+  var fromStr = _payFmt(range.from), toStr = _payFmt(range.to);
+  var disputeKey = _empPayDisputeKey(currentEmp.name, fromStr);
+  var disputed   = store.getJ('jtl_disputed_periods', []).indexOf(disputeKey) >= 0;
+
+  var stats       = buildEmployeePayStats(currentEmp.name, range.from, range.to);
+  var periodDays  = Math.round((range.to - range.from) / 86400000) + 1;
+  var adjustments = getPayAdjustments().filter(function(a){ return a.empName === currentEmp.name && a.periodFrom === fromStr && a.periodTo === toStr; });
+  var result = calcPaycheck(emp, stats.totalHours, stats.totalMiles, stats.totalMileageReimb, periodDays, stats, stats.totalTravelHours, stats.totalDrawHours, stats.hasSplit, adjustments);
+
+  var body;
+  if (result.role === 'courier') {
+    body = '<p style="color:#fff;font-size:40px;font-weight:800;line-height:1;margin:0 0 3px;">'+result.totalMiles.toFixed(1)+'</p>'
+      +'<p style="color:rgba(255,255,255,.8);font-size:13px;font-weight:600;margin:0 0 4px;">miles logged &middot; '+fmt$(result.mileageReimb||0)+' reimbursement</p>';
+  } else if (!result.grossWages) {
+    body = '<p style="color:#fff;font-size:16px;font-weight:700;margin:10px 0 4px;">'+(result.noProfile ? 'No pay rate on file yet' : 'No hours logged yet')+'</p>'
+      +'<p style="color:rgba(255,255,255,.75);font-size:12px;margin:0 0 4px;">'+(result.noProfile ? 'Ask your admin to confirm your pay profile.' : 'Clock in to start tracking this pay period.')+'</p>';
+  } else {
+    body = '<p style="color:rgba(255,255,255,.65);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:0 0 2px;">Estimated Take-Home</p>'
+      +'<p style="color:#fff;font-size:40px;font-weight:800;line-height:1;margin:0 0 14px;">'+fmt$(result.netPay)+'</p>'
+      +'<div style="background:rgba(255,255,255,.14);border-radius:14px;padding:12px 14px;text-align:left;font-size:12px;color:rgba(255,255,255,.92);">'
+      +'<div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px;"><span>Gross Wages</span><span>'+fmt$(result.grossWages)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;"><span>Social Security</span><span>-'+fmt$(result.fica)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;"><span>Medicare</span><span>-'+fmt$(result.medicare)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;"><span>Federal Tax</span><span>-'+fmt$(result.fedWith)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;"><span>CA State Tax</span><span>-'+fmt$(result.stateWith)+'</span></div>'
+      +(result.mileageReimb>0?'<div style="display:flex;justify-content:space-between;margin-top:2px;"><span>Mileage (non-taxable)</span><span>+'+fmt$(result.mileageReimb)+'</span></div>':'')
+      +'<div style="display:flex;justify-content:space-between;font-weight:800;border-top:1px solid rgba(255,255,255,.25);margin-top:8px;padding-top:8px;"><span>Net Pay</span><span>'+fmt$(result.netPay)+'</span></div>'
+      +'</div>'
+      +'<div style="display:flex;justify-content:center;gap:22px;margin-top:14px;">'
+      +'<div><p style="color:#fff;font-size:16px;font-weight:700;margin:0;">'+fmtHrs(result.hoursWorked||0)+'</p><p style="color:rgba(255,255,255,.6);font-size:10px;margin:0;">hours</p></div>'
+      +(result.hasSplit?'<div><p style="color:#fff;font-size:16px;font-weight:700;margin:0;">'+fmtHrs(result.travelHours||0)+'</p><p style="color:rgba(255,255,255,.6);font-size:10px;margin:0;">travel</p></div>':'')
+      +'</div>';
+  }
+
+  var disputeHtml = disputed
+    ? '<div style="margin-top:14px;background:rgba(255,255,255,.16);border-radius:12px;padding:10px 12px;font-size:12px;color:#fff;">&#9989; Dispute submitted for this period — admin has been notified.</div>'
+    : '<button onclick="toggleDisputeForm()" class="tap" style="margin-top:14px;width:100%;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">&#9888; Something look off? Dispute this period</button>'
+      +'<div id="payDisputeForm" style="display:none;margin-top:10px;text-align:left;">'
+      +'<textarea id="payDisputeMsg" placeholder="What looks wrong? e.g. missing a shift, wrong hours on Tuesday…" style="width:100%;min-height:64px;border-radius:10px;border:none;padding:10px;font-size:13px;box-sizing:border-box;font-family:inherit;"></textarea>'
+      +'<button onclick="submitPayDispute(\''+fromStr+'\',\''+toStr+'\')" class="tap" style="margin-top:6px;width:100%;background:#fff;color:#065f46;border:none;border-radius:10px;padding:10px;font-size:12px;font-weight:800;cursor:pointer;">Submit Dispute</button>'
+      +'</div>';
+
+  return '<div style="background:linear-gradient(135deg,#065f46 0%,#059669 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
+    +'<p style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700;margin:0 0 10px;">'+paydayLine+'</p>'
+    +body
+    +disputeHtml
+    +'</div>';
+}
+function toggleDisputeForm() {
+  var f = document.getElementById('payDisputeForm');
+  if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+}
+function submitPayDispute(periodFrom, periodTo) {
+  if (!currentEmp) return;
+  var msgEl = document.getElementById('payDisputeMsg');
+  var message = msgEl ? (msgEl.value || '').trim() : '';
+  if (!message) { toast('Please describe what looks wrong first'); return; }
+  var payDate = payDateForIndex(currentPayIndex());
+  var periodLabel = periodFrom + ' – ' + periodTo;
+  logAdminAction('DISPUTE', currentEmp.name + ' disputed pay for ' + periodLabel + ' (payday ' + _payLabel(payDate) + '): "' + message + '"');
+  sendNtfyAlert('Pay Dispute — ' + currentEmp.name, periodLabel + ': ' + message, {tags:['warning']});
+  sendDisputeEmail(currentEmp.name, periodLabel, message);
+  var key = _empPayDisputeKey(currentEmp.name, periodFrom);
+  var disputed = store.getJ('jtl_disputed_periods', []);
+  if (disputed.indexOf(key) < 0) { disputed.push(key); store.setJ('jtl_disputed_periods', disputed); }
+  toast('Dispute submitted — admin has been notified');
+  renderEmpLogs();
+}
 function renderEmpLogs() {
   if (!currentEmp) return;
   var body = document.getElementById('empLogsBody');
@@ -3155,9 +3286,12 @@ function renderEmpLogs() {
   var periodLabel = range ? range.label : 'All Time';
   var fmtT    = function(d){ return d?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—'; };
   var fmtDate = function(d){ return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
+  // Pay estimate + dispute card — only for the Pay Period tab, using the same
+  // calcPaycheck() math as admin's Payroll tab (see _buildEmpPayCardHtml above).
+  var payCardHtml = (empLogsPeriod === 'payperiod' && range) ? _buildEmpPayCardHtml(range) : '';
 
   if (!sessions.length) {
-    body.innerHTML = '<div style="text-align:center;padding:48px 16px;">'
+    body.innerHTML = payCardHtml + '<div style="text-align:center;padding:48px 16px;">'
       +'<div style="width:56px;height:56px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">'
       +'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
       +'</div>'
@@ -3177,7 +3311,9 @@ function renderEmpLogs() {
   var totalNetHrs = fmtHrs(totalNetMs/3600000);
   var daysCount   = Object.keys(totalDays).length;
 
-  var html = '<div style="background:linear-gradient(135deg,#1a2b8c 0%,#3b52d4 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
+  // On the Pay Period tab, the pay card above already leads with hours/pay — skip the
+  // duplicate blue hours banner. Every other tab keeps the plain hours-only summary.
+  var html = payCardHtml || ('<div style="background:linear-gradient(135deg,#1a2b8c 0%,#3b52d4 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
     +'<p style="color:rgba(255,255,255,.65);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">'+periodLabel+'</p>'
     +'<p style="color:#fff;font-size:44px;font-weight:800;line-height:1;margin-bottom:3px;">'+totalNetHrs+'</p>'
     +'<p style="color:rgba(255,255,255,.75);font-size:13px;font-weight:600;margin-bottom:16px;">net hours</p>'
@@ -3186,7 +3322,7 @@ function renderEmpLogs() {
     +'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+sessions.length+'</p><p style="color:rgba(255,255,255,.6);font-size:11px;">session'+(sessions.length===1?'':'s')+'</p></div>'
     +(totalMi>0?'<div><p style="color:#fff;font-size:18px;font-weight:700;">'+totalMi.toFixed(1)+'</p><p style="color:rgba(255,255,255,.6);font-size:11px;">mi driven</p></div>':'')
     +'</div>'
-    +'</div>';
+    +'</div>');
 
   // Sessions grouped by date, newest first
   var byDate = {};
@@ -5784,8 +5920,8 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091506;
-var APP_VERSION_LABEL = 'Sep 15, 2026';
+var APP_BUILD = 2026091601;
+var APP_VERSION_LABEL = 'Sep 16, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
   // Auto-configure from ?fb= URL param (staff device opening shared kiosk link or email approval link)
@@ -7618,6 +7754,49 @@ function sendFacilityCheckinEmail(entry, kind) {
   });
 }
 
+// Live FYI email when an employee disputes a pay period from My Logs. Same pipeline
+// as the other notifications — informational, admin resolves it the normal way
+// (editing the timesheet in Records) rather than through any approve/deny action.
+function sendDisputeEmail(empName, periodLabel, message) {
+  var EJS_KEY      = 'BaAmtd4je5XVstCvH';
+  var EJS_SERVICE  = 'service_t30r2d8';
+  var EJS_TEMPLATE = 'template_jtdfx1a';
+  var cfg = store.getJ(EJS_STORAGE, {});
+  var publicKey  = cfg.publicKey  || EJS_KEY;
+  var serviceId  = cfg.serviceId  || EJS_SERVICE;
+  var templateId = cfg.templateId || EJS_TEMPLATE;
+  var notifEmail = cfg.notifEmail || 'info@junotechlaboratory.com';
+
+  var kioskUrl = window.location.origin + window.location.pathname + '?admin&records=1';
+  if (fbCfg.url) kioskUrl += '&fb=' + encodeURIComponent(fbCfg.url);
+  var logoUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/logo.png');
+
+  try { emailjs.init({publicKey: publicKey}); } catch(e){}
+  emailjs.send(serviceId, templateId, {
+    to_email:      notifEmail,
+    subject:       'Pay Dispute — ' + empName,
+    employee_name: empName,
+    clock_time:    new Date().toLocaleString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true}),
+    facility:      periodLabel,
+    note:          message,
+    note_label:    'What they said',
+    photo_label:   'Pay Period',
+    kiosk_url:     kioskUrl,
+    logo_url:      logoUrl,
+    photo_note:    periodLabel,
+    header_text:   'WorkTrail — Pay Dispute',
+    subtitle:      'disputed their pay for ' + periodLabel + '.',
+    action_text:   'Review their hours in Records and correct the timesheet if needed.',
+    approve_url:   kioskUrl,
+    deny_url:      kioskUrl,
+    photo_html:    message
+  }).then(function(){
+    console.log('Dispute notification sent for ' + empName);
+  }).catch(function(e){
+    console.error('EmailJS error (dispute):', JSON.stringify(e));
+  });
+}
+
 /* ── IndexedDB Photo Storage ─────────────── */
 var photoDB = null;
 function initPhotoDB(cb) {
@@ -7827,8 +8006,8 @@ function renderAdminLog() {
   }
   var html='';
   log.forEach(function(item){
-    var color = item.action==='DELETE'?'#dc2626':item.action==='EDIT'?'#d97706':'#1d4ed8';
-    var bg    = item.action==='DELETE'?'#fef2f2':item.action==='EDIT'?'#fffbeb':'#eff6ff';
+    var color = item.action==='DELETE'?'#dc2626':item.action==='DISPUTE'?'#b91c1c':item.action==='EDIT'?'#d97706':'#1d4ed8';
+    var bg    = item.action==='DELETE'?'#fef2f2':item.action==='DISPUTE'?'#fef2f2':item.action==='EDIT'?'#fffbeb':'#eff6ff';
     html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;margin:3px 0;background:'+bg+';">'
       +'<span style="font-size:10px;font-weight:700;color:'+color+';padding:2px 6px;border-radius:4px;background:rgba(0,0,0,.06);flex-shrink:0;margin-top:1px;">'+item.action+'</span>'
       +'<div style="flex:1;min-width:0;">'
@@ -8749,6 +8928,93 @@ function populatePayEmpFilter() {
   populatePayDateSelect();
 }
 
+// Builds one employee's sessions + totals (hours, travel/draw split, mileage) for a
+// date range, optionally split across two disjoint windows (payroll's "Period 2" for
+// a manually-adjusted stub). Shared by admin Payroll (runPayroll) and the employee-
+// facing pay estimate in My Logs, so the two can never disagree about the math.
+function buildEmployeePayStats(empName, fromDate, toDate, fromDate2, toDate2) {
+  var ts = store.getJ(K.timesheet, []);
+  var raw = ts.filter(function(e){ return e.name === empName; })
+    .filter(function(e){
+      var d = new Date(e.ts);
+      var inP1 = d >= fromDate && d <= toDate;
+      var inP2 = fromDate2 && toDate2 && d >= fromDate2 && d <= toDate2;
+      return inP1 || inP2;
+    })
+    .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
+  // Deduplicate: if two entries have the same type within 2 minutes of each other, keep only the first.
+  // This removes ghost duplicates left behind from edit/sync race conditions.
+  var seen = {}, entries = [];
+  raw.forEach(function(e) {
+    var bucket = e.type + '_' + Math.floor(new Date(e.ts)/120000); // 2-min bucket
+    if (!seen[bucket]) { seen[bucket] = true; entries.push(e); }
+  });
+
+  var sessions = [], cur = null, bst = null, brkType = 'rest';
+  entries.forEach(function(e) {
+    if (e.type === 'in') {
+      var facs = e.facilities || [];
+      var nonLab = facs.filter(function(f){ return f !== 'Juno Tech Lab'; });
+      cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1,
+             travelHours: e.travelHours != null ? e.travelHours : null,
+             drawHours:   e.drawHours   != null ? e.drawHours   : null,
+             mealMs: 0, stops: []};
+      sessions.push(cur);
+      bst = null;
+    }
+    else if (e.type === 'arrival' && cur) { _pushStopArrival(cur.stops, e); }
+    else if (e.type === 'departure' && cur) { _pushStopDeparture(cur.stops, e); }
+    else if (e.type === 'break_start' && cur) {
+      bst = new Date(e.ts);
+      brkType = e.breakType || (parseInt(e.note || 0) >= 30 ? 'meal' : 'rest');
+    }
+    else if (e.type === 'break_end' && cur) {
+      if (bst) { if (brkType === 'meal') cur.mealMs += (new Date(e.ts) - bst); bst = null; }
+    }
+    else if (e.type === 'out' && cur) {
+      cur.outTs = new Date(e.ts);
+      if (bst) { if (brkType === 'meal') cur.mealMs += (new Date(e.ts) - bst); bst = null; } // break still open at clock-out
+      // null means admin explicitly cleared; undefined means not tracked (fall back to IN's value)
+      if ('mileage' in e) cur.mileage = e.mileage; // null (cleared) or a number
+      // else cur.mileage stays as set from clock-in
+      cur = null;
+    }
+  });
+
+  var totalHours = 0, totalTravelHours = 0, totalDrawHours = 0, hasSplit = false;
+  var totalMiles = 0, totalMileageReimb = 0, mileageDetails = [];
+  sessions.forEach(function(s) {
+    if (s.inTs && s.outTs) {
+      var hrs = (s.outTs - s.inTs) / 3600000;
+      // Unpaid meal break is deducted ONLY when actually taken (a logged meal
+      // break). If no meal was taken, the full recorded worked hours are paid.
+      hrs = Math.max(0, hrs - (s.mealMs || 0) / 3600000);
+      totalHours += hrs;
+      if (s.travelHours != null || s.drawHours != null) {
+        hasSplit = true;
+        totalTravelHours += s.travelHours || 0;
+        totalDrawHours   += s.drawHours   || 0;
+      } else {
+        // No split entered — all hours count as draw time
+        totalDrawHours += hrs;
+      }
+    }
+    var mi = parseFloat(s.mileage) || 0;
+    totalMiles += mi;
+    if (mi > 0) {
+      var cms = calcCMSMileage(mi, s.isMultiStop);
+      totalMileageReimb += cms.total;
+      mileageDetails.push({
+        date: s.inTs,
+        miles: mi, isMultiStop: s.isMultiStop,
+        hcpcs: cms.hcpcs, units: cms.finalUnits, unitRate: cms.unitRate, total: cms.total
+      });
+    }
+  });
+  return {totalHours: totalHours, totalTravelHours: totalTravelHours, totalDrawHours: totalDrawHours,
+          hasSplit: hasSplit, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb,
+          mileageDetails: mileageDetails, sessions: sessions};
+}
 function runPayroll() {
   var fromVal = document.getElementById('payFrom').value;
   var toVal   = document.getElementById('payTo').value;
@@ -8783,88 +9049,9 @@ function runPayroll() {
   if (empFilter) emps = emps.filter(function(e){ return e.name === empFilter; });
   if (payExcluded.length) emps = emps.filter(function(e){ return payExcluded.indexOf(e.name) < 0; });
 
-  // Build sessions per employee
+  // Build sessions per employee (shared with the employee-facing pay estimate — see buildEmployeePayStats)
   function buildSessMap(empName) {
-    var raw = ts.filter(function(e){ return e.name === empName; })
-      .filter(function(e){
-        var d = new Date(e.ts);
-        var inP1 = d >= fromDate && d <= toDate;
-        var inP2 = fromDate2 && toDate2 && d >= fromDate2 && d <= toDate2;
-        return inP1 || inP2;
-      })
-      .sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); });
-    // Deduplicate: if two entries have the same type within 2 minutes of each other, keep only the first.
-    // This removes ghost duplicates left behind from edit/sync race conditions.
-    var seen = {}, entries = [];
-    raw.forEach(function(e) {
-      var bucket = e.type + '_' + Math.floor(new Date(e.ts)/120000); // 2-min bucket
-      if (!seen[bucket]) { seen[bucket] = true; entries.push(e); }
-    });
-
-    var sessions = [], cur = null, bst = null, brkType = 'rest';
-    entries.forEach(function(e) {
-      if (e.type === 'in') {
-        var facs = e.facilities || [];
-        var nonLab = facs.filter(function(f){ return f !== 'Juno Tech Lab'; });
-        cur = {inTs: new Date(e.ts), outTs: null, mileage: e.mileage || 0, isMultiStop: nonLab.length > 1,
-               travelHours: e.travelHours != null ? e.travelHours : null,
-               drawHours:   e.drawHours   != null ? e.drawHours   : null,
-               mealMs: 0, stops: []};
-        sessions.push(cur);
-        bst = null;
-      }
-      else if (e.type === 'arrival' && cur) { _pushStopArrival(cur.stops, e); }
-      else if (e.type === 'departure' && cur) { _pushStopDeparture(cur.stops, e); }
-      else if (e.type === 'break_start' && cur) {
-        bst = new Date(e.ts);
-        brkType = e.breakType || (parseInt(e.note || 0) >= 30 ? 'meal' : 'rest');
-      }
-      else if (e.type === 'break_end' && cur) {
-        if (bst) { if (brkType === 'meal') cur.mealMs += (new Date(e.ts) - bst); bst = null; }
-      }
-      else if (e.type === 'out' && cur) {
-        cur.outTs = new Date(e.ts);
-        if (bst) { if (brkType === 'meal') cur.mealMs += (new Date(e.ts) - bst); bst = null; } // break still open at clock-out
-        // null means admin explicitly cleared; undefined means not tracked (fall back to IN's value)
-        if ('mileage' in e) cur.mileage = e.mileage; // null (cleared) or a number
-        // else cur.mileage stays as set from clock-in
-        cur = null;
-      }
-    });
-
-    var totalHours = 0, totalTravelHours = 0, totalDrawHours = 0, hasSplit = false;
-    var totalMiles = 0, totalMileageReimb = 0, mileageDetails = [];
-    sessions.forEach(function(s) {
-      if (s.inTs && s.outTs) {
-        var hrs = (s.outTs - s.inTs) / 3600000;
-        // Unpaid meal break is deducted ONLY when actually taken (a logged meal
-        // break). If no meal was taken, the full recorded worked hours are paid.
-        hrs = Math.max(0, hrs - (s.mealMs || 0) / 3600000);
-        totalHours += hrs;
-        if (s.travelHours != null || s.drawHours != null) {
-          hasSplit = true;
-          totalTravelHours += s.travelHours || 0;
-          totalDrawHours   += s.drawHours   || 0;
-        } else {
-          // No split entered — all hours count as draw time
-          totalDrawHours += hrs;
-        }
-      }
-      var mi = parseFloat(s.mileage) || 0;
-      totalMiles += mi;
-      if (mi > 0) {
-        var cms = calcCMSMileage(mi, s.isMultiStop);
-        totalMileageReimb += cms.total;
-        mileageDetails.push({
-          date: s.inTs,
-          miles: mi, isMultiStop: s.isMultiStop,
-          hcpcs: cms.hcpcs, units: cms.finalUnits, unitRate: cms.unitRate, total: cms.total
-        });
-      }
-    });
-    return {totalHours: totalHours, totalTravelHours: totalTravelHours, totalDrawHours: totalDrawHours,
-            hasSplit: hasSplit, totalMiles: totalMiles, totalMileageReimb: totalMileageReimb,
-            mileageDetails: mileageDetails, sessions: sessions};
+    return buildEmployeePayStats(empName, fromDate, toDate, fromDate2, toDate2);
   }
 
   var allResults = [];
