@@ -1347,9 +1347,9 @@ video{object-fit:cover;transform:scaleX(-1);}
         <p id="empLogsSubtitle" class="text-xs" style="color:#9ca3af;">Your shift history</p>
       </div>
     </div>
-    <!-- Period filter pills -->
-    <div class="max-w-lg mx-auto px-4 pb-3" style="overflow-x:auto;white-space:nowrap;">
-      <div style="display:inline-flex;gap:6px;">
+    <!-- Period filter pills — wraps instead of scrolling so Custom is never hidden off-screen -->
+    <div class="max-w-lg mx-auto px-4 pb-3">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
         <button id="elp-payperiod" onclick="setEmpLogsPeriod('payperiod')" class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #1a2b8c;background:#1a2b8c;color:#fff;cursor:pointer;transition:all .15s;">&#128176; Pay Period</button>
         <button id="elp-week"  onclick="setEmpLogsPeriod('week')"  class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">This Week</button>
         <button id="elp-month" onclick="setEmpLogsPeriod('month')" class="tap" style="font-size:12px;font-weight:600;padding:6px 14px;border-radius:99px;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;transition:all .15s;">This Month</button>
@@ -3149,7 +3149,7 @@ function _empLogDateRange() {
     if (!fv || !tv) return null;
     var from = new Date(fv+'T00:00:00'); var to = new Date(tv+'T23:59:59');
     if (isNaN(from)||isNaN(to)) return null;
-    return {from:from, to:to, label:fv+' → '+tv};
+    return {from:from, to:to, label:_payShort(from)+' – '+_payShort(to)};
   }
   return null; // 'all'
 }
@@ -3162,12 +3162,17 @@ function _buildEmpPayCardHtml(range) {
   var emp = store.getJ(K.employees, []).filter(function(e){ return e.name === currentEmp.name; })[0];
   if (!emp) return '';
 
-  var payDate    = payDateForIndex(currentPayIndex());
-  var todayMid   = new Date(); todayMid.setHours(0,0,0,0);
-  var daysToPay  = Math.round((payDate - todayMid) / 86400000);
-  var paydayLine = daysToPay <= 0 ? 'Paid ' + _payLabel(payDate)
-    : daysToPay === 1 ? '&#9200; Payday is tomorrow — ' + _payLabel(payDate)
-    : 'Payday ' + _payLabel(payDate) + ' &middot; ' + daysToPay + ' day' + (daysToPay===1?'':'s');
+  // The payday countdown only makes sense on the Pay Period tab (it's tied to the
+  // one specific upcoming payday) — every other tab just labels the range being viewed.
+  var captionLine = range.label;
+  if (empLogsPeriod === 'payperiod') {
+    var payDate   = payDateForIndex(currentPayIndex());
+    var todayMid  = new Date(); todayMid.setHours(0,0,0,0);
+    var daysToPay = Math.round((payDate - todayMid) / 86400000);
+    captionLine = daysToPay <= 0 ? 'Paid ' + _payLabel(payDate)
+      : daysToPay === 1 ? '&#9200; Payday is tomorrow — ' + _payLabel(payDate)
+      : 'Payday ' + _payLabel(payDate) + ' &middot; ' + daysToPay + ' day' + (daysToPay===1?'':'s');
+  }
 
   var fromStr = _payFmt(range.from), toStr = _payFmt(range.to);
   var stats       = buildEmployeePayStats(currentEmp.name, range.from, range.to);
@@ -3201,7 +3206,7 @@ function _buildEmpPayCardHtml(range) {
   }
 
   return '<div style="background:linear-gradient(135deg,#065f46 0%,#059669 100%);border-radius:20px;padding:20px;text-align:center;margin-bottom:12px;">'
-    +'<p style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700;margin:0 0 10px;">'+paydayLine+'</p>'
+    +'<p style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700;margin:0 0 10px;">'+captionLine+'</p>'
     +body
     +'</div>';
 }
@@ -3222,9 +3227,11 @@ function renderEmpLogs() {
   var periodLabel = range ? range.label : 'All Time';
   var fmtT    = function(d){ return d?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'—'; };
   var fmtDate = function(d){ return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
-  // Pay estimate + dispute card — only for the Pay Period tab, using the same
-  // calcPaycheck() math as admin's Payroll tab (see _buildEmpPayCardHtml above).
-  var payCardHtml = (empLogsPeriod === 'payperiod' && range) ? _buildEmpPayCardHtml(range) : '';
+  // Pay estimate card — shown for any concrete date range (Pay Period, week, month,
+  // last month, custom), using the same calcPaycheck() math as admin's Payroll tab
+  // (see _buildEmpPayCardHtml above). Skipped only for "All Time", which has no
+  // single period length to annualize withholding against.
+  var payCardHtml = range ? _buildEmpPayCardHtml(range) : '';
 
   if (!sessions.length) {
     body.innerHTML = payCardHtml + '<div style="text-align:center;padding:48px 16px;">'
@@ -5869,7 +5876,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091605;
+var APP_BUILD = 2026091606;
 var APP_VERSION_LABEL = 'Sep 16, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
