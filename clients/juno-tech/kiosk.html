@@ -3298,16 +3298,21 @@ function renderEmpLogs() {
           return '<div style="display:flex;justify-content:space-between;gap:8px;"><span>'+(s.facility||'Facility')+'</span><span style="color:#6b7280;">'+a+' &rarr; '+d+draw+'</span></div>';
         }).join('');
       }
-      if (si > 0) html += '<div style="border-top:1px solid #f3f4f6;margin:8px 0;"></div>';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;">'
-        +'<div><p class="text-xs" style="color:#9ca3af;">Clock In</p><p class="text-xs font-semibold" style="color:#111827;">'+fmtT(sess.inTime)+'</p></div>'
-        +'<div><p class="text-xs" style="color:#9ca3af;">Clock Out</p><p class="text-xs font-semibold" style="color:#111827;">'+(sess.outTime?fmtT(sess.outTime):'Not recorded')+'</p></div>'
-        +'<div><p class="text-xs" style="color:#9ca3af;">Facility</p><p class="text-xs font-semibold" style="color:#374151;">'+fac+'</p></div>'
-        +'<div><p class="text-xs" style="color:#9ca3af;">Net Hours</p><p class="text-xs font-bold" style="color:#15803d;">'+netH+'</p></div>'
-        +(sess.mileage!=null?'<div><p class="text-xs" style="color:#9ca3af;">Mileage</p><p class="text-xs font-bold" style="color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
-        +(mealMin>0?'<div><p class="text-xs" style="color:#9ca3af;">Meal Break (unpaid)</p><p class="text-xs font-semibold" style="color:#c2410c;">'+mealMin+' min</p></div>':'')
-        +'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#9ca3af;">Breaks</p><p class="text-xs" style="color:#374151;">'+breakSummary+'</p></div>'
-        +(stopsSummary?'<div style="grid-column:1/-1;"><p class="text-xs" style="color:#9ca3af;">Facility Check-Ins</p><div class="text-xs font-semibold" style="color:#374151;">'+stopsSummary+'</div></div>':'')
+      // Labels/values below are plain <p> tags without a CSS reset in this app, so
+      // every one needs margin:0 explicitly — otherwise the browser's default <p>
+      // margin (~1em) stacks up per cell and the card ends up looking far more
+      // spaced-out than the 4px/8px gaps actually specify.
+      var lbl = function(t){ return '<p class="text-xs" style="margin:0 0 1px;color:#9ca3af;">'+t+'</p>'; };
+      if (si > 0) html += '<div style="border-top:1px solid #f3f4f6;margin:6px 0;"></div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">'
+        +'<div>'+lbl('Clock In')+'<p class="text-xs font-semibold" style="margin:0;color:#111827;">'+fmtT(sess.inTime)+'</p></div>'
+        +'<div>'+lbl('Clock Out')+'<p class="text-xs font-semibold" style="margin:0;color:#111827;">'+(sess.outTime?fmtT(sess.outTime):'Not recorded')+'</p></div>'
+        +'<div>'+lbl('Facility')+'<p class="text-xs font-semibold" style="margin:0;color:#374151;">'+fac+'</p></div>'
+        +'<div>'+lbl('Net Hours')+'<p class="text-xs font-bold" style="margin:0;color:#15803d;">'+netH+'</p></div>'
+        +(sess.mileage!=null?'<div>'+lbl('Mileage')+'<p class="text-xs font-bold" style="margin:0;color:#7c3aed;">'+sess.mileage.toFixed(1)+' mi</p></div>':'')
+        +(mealMin>0?'<div>'+lbl('Meal Break (unpaid)')+'<p class="text-xs font-semibold" style="margin:0;color:#c2410c;">'+mealMin+' min</p></div>':'')
+        +'<div style="grid-column:1/-1;">'+lbl('Breaks')+'<p class="text-xs" style="margin:0;color:#374151;">'+breakSummary+'</p></div>'
+        +(stopsSummary?'<div style="grid-column:1/-1;">'+lbl('Facility Check-Ins')+'<div class="text-xs font-semibold" style="color:#374151;">'+stopsSummary+'</div></div>':'')
         +'</div>';
     });
     html += '</div>';
@@ -5864,7 +5869,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091604;
+var APP_BUILD = 2026091605;
 var APP_VERSION_LABEL = 'Sep 16, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
