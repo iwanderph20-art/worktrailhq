@@ -1973,16 +1973,24 @@ function _pushStopDeparture(stops, e) {
                     arriveFlag:null, arriveDistanceMi:null,
                     departFlag:e.distanceFlag||null, departDistanceMi:e.distanceMi!=null?e.distanceMi:null});
 }
+// Millisecond overlap between two [start,end) time ranges (0 if they don't overlap).
+function _msOverlap(aStart, aEnd, bStart, bEnd) {
+  return Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart));
+}
 // Auto-calculates the shift's travel/draw hours split from Arrival/Departure
 // check-ins, using the exact same stop-pairing as the admin-facing displays
 // (see above) so the two can't diverge. travel = gaps between clock-in/the
 // previous stop and the next arrival; draw = time attributed to a facility
 // (arrival → departure, or arrival → the next stop/clock-out if a departure
-// was never logged — there's no evidence of travel without one). Also nets
-// out any paid/unpaid break time logged during the shift, since a break
-// isn't real travel or draw time either way. Returns null when no check-ins
-// were logged for the shift, so the admin's manual split (if any) is left
-// untouched.
+// was never logged — there's no evidence of travel without one). Breaks are
+// paid time, not travel or draw, so each break is netted out of whichever
+// bucket it actually overlaps — a break taken between stops comes out of
+// travel, one taken while still checked in at a facility comes out of draw —
+// rather than always assuming travel, which would shrink the travel bucket
+// (and correspondingly inflate draw, since draw = hoursWorked − travel at the
+// paycheck level) for a break that had nothing to do with commuting. Returns
+// null when no check-ins were logged for the shift, so the admin's manual
+// split (if any) is left untouched.
 function _computeAutoTravelDraw(empName, clockInTs, clockOutTs) {
   var events = store.getJ(K.timesheet,[]).filter(function(e){
     return e.name===empName && (e.type==='arrival'||e.type==='departure')
@@ -1991,36 +1999,44 @@ function _computeAutoTravelDraw(empName, clockInTs, clockOutTs) {
   if (!events.length) return null;
   var stops = [];
   events.forEach(function(e){ if (e.type==='arrival') _pushStopArrival(stops, e); else _pushStopDeparture(stops, e); });
-  var travelMs=0, drawMs=0, cursor=new Date(clockInTs);
+  var travelIntervals = [], drawIntervals = [], cursor = new Date(clockInTs).getTime();
   stops.forEach(function(s, idx){
-    var arrive = s.arrivedTs ? new Date(s.arrivedTs) : null;
-    var depart = s.departedTs ? new Date(s.departedTs) : null;
-    if (arrive) { travelMs += Math.max(0, arrive-cursor); cursor = arrive; }
-    if (depart) { drawMs += Math.max(0, depart-cursor); cursor = depart; }
+    var arrive = s.arrivedTs ? new Date(s.arrivedTs).getTime() : null;
+    var depart = s.departedTs ? new Date(s.departedTs).getTime() : null;
+    if (arrive) { if (arrive > cursor) travelIntervals.push({start:cursor, end:arrive}); cursor = arrive; }
+    if (depart) { if (depart > cursor) drawIntervals.push({start:cursor, end:depart}); cursor = depart; }
     else if (arrive) {
       // Never departed — attribute the time up to the next stop (or clock-out)
       // to draw instead of silently losing it: there's no evidence they were
       // traveling without a logged departure.
       var next = stops[idx+1];
-      var until = next ? new Date(next.arrivedTs || next.departedTs) : new Date(clockOutTs);
-      drawMs += Math.max(0, until-cursor);
+      var until = next ? new Date(next.arrivedTs || next.departedTs).getTime() : new Date(clockOutTs).getTime();
+      if (until > cursor) drawIntervals.push({start:cursor, end:until});
       cursor = until;
     }
   });
-  travelMs += Math.max(0, new Date(clockOutTs)-cursor);
-  // Breaks aren't travel time either way — net them out of the travel bucket.
-  // (They don't need to come out of draw too: payroll always derives paid
-  // draw hours as hoursWorked − travelHours, and hoursWorked already excludes
-  // unpaid meal time, so correcting travel here is what actually matters.)
-  var breakMs = 0, openBreak = null;
+  var clockOutMs = new Date(clockOutTs).getTime();
+  if (clockOutMs > cursor) travelIntervals.push({start:cursor, end:clockOutMs});
+
+  var breaks = [], openBreak = null;
   store.getJ(K.timesheet,[]).filter(function(e){
     return e.name===empName && (e.type==='break_start'||e.type==='break_end')
       && new Date(e.ts) >= new Date(clockInTs) && new Date(e.ts) <= new Date(clockOutTs);
   }).sort(function(a,b){ return new Date(a.ts)-new Date(b.ts); }).forEach(function(e){
-    if (e.type==='break_start') openBreak = new Date(e.ts);
-    else if (openBreak) { breakMs += Math.max(0, new Date(e.ts)-openBreak); openBreak=null; }
+    if (e.type==='break_start') openBreak = new Date(e.ts).getTime();
+    else if (openBreak != null) { breaks.push({start:openBreak, end:new Date(e.ts).getTime()}); openBreak=null; }
   });
-  travelMs = Math.max(0, travelMs - breakMs);
+  function sumMinusBreaks(intervals) {
+    var total = 0;
+    intervals.forEach(function(iv){
+      var busy = iv.end - iv.start;
+      breaks.forEach(function(b){ busy -= _msOverlap(iv.start, iv.end, b.start, b.end); });
+      total += Math.max(0, busy);
+    });
+    return total;
+  }
+  var travelMs = sumMinusBreaks(travelIntervals);
+  var drawMs   = sumMinusBreaks(drawIntervals);
   return {
     travelHours: Math.round((travelMs/3600000)*100)/100,
     drawHours:   Math.round((drawMs/3600000)*100)/100
@@ -5876,7 +5892,7 @@ var fbCfg = { url: '' };
 // The newest device advertises its build to the cloud (jtl/appBuild); any device
 // running an older build detects the mismatch on load and reloads itself with a
 // cache-busting query so employee phones can't get stuck on a stale cached copy.
-var APP_BUILD = 2026091606;
+var APP_BUILD = 2026091607;
 var APP_VERSION_LABEL = 'Sep 16, 2026';
 function fbInit() {
   fbCfg.url = (store.get('fb_url') || DEFAULT_FB_URL).replace(/\/+$/, '');
